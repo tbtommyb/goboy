@@ -2,14 +2,18 @@ package cpu
 
 import "testing"
 
-func TestGetAndSetRegister(t *testing.T) {
+func TestSetAndGetRegister(t *testing.T) {
 	cpu := Init()
 
 	cpu.Set(A, 3)
+	cpu.LoadProgram([]byte{0x47, 0x48}) // LD B, A then LD C, B. Need better system for this
 
-	cpu.Run(0x47) // LD B, A
+	cpu.Run()
+	if actual := cpu.memory[0x151]; actual != 0x48 {
+		t.Fatalf("Expected 0x88, got %x", actual)
+	}
 
-	if actual := cpu.Get(B); actual != 3 {
-		t.Fatalf("Exected B: 3, got B: %d", actual)
+	if regValue := cpu.Get(C); regValue != 3 {
+		t.Fatalf("Expected 3, got %d", regValue)
 	}
 }

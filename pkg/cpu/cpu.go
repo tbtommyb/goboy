@@ -1,5 +1,8 @@
 package cpu
 
+// TODO: consider what needs to be exported
+
+import "fmt"
 type Register byte
 
 const (
@@ -18,6 +21,7 @@ type Registers map[Register]byte
 type CPU struct {
 	r      Registers
 	SP, PC uint16
+	memory Memory
 }
 
 func (cpu *CPU) Get(r Register) byte {
@@ -41,20 +45,45 @@ func (cpu *CPU) Set(r Register, val byte) byte {
 	return cpu.Get(r)
 }
 
-func (cpu *CPU) Run(opcode Opcode) {
-	// opcode := 0x47 // LD B, A
+func (cpu *CPU) GetSP() uint16 {
+	return cpu.SP
+}
 
-	instr := Decode(opcode)
-	switch i := instr.(type) {
-	case LoadRegisterInstr:
-		cpu.Set(i.dest, cpu.Get(i.source))
+func (cpu *CPU) IncrementSP() {
+	cpu.SP += 1
+}
+
+func (cpu *CPU) GetPC() uint16 {
+	return cpu.PC
+}
+
+func (cpu *CPU) IncrementPC() {
+	cpu.PC += 1
+}
+
+func (cpu *CPU) Run() {
+	opcode := Opcode(cpu.memory[cpu.GetPC()])
+	for ok := true ; ok; ok = (opcode != 0) {
+		instr := Decode(opcode)
+		fmt.Printf("%#v\n", instr)
+		switch i := instr.(type) {
+		case LoadRegisterInstr:
+			cpu.Set(i.dest, cpu.Get(i.source))
+		}
+		cpu.IncrementPC()
+		opcode = Opcode(cpu.memory[cpu.GetPC()])
 	}
+}
+
+func (cpu *CPU) LoadProgram(program []byte) {
+	cpu.memory.Load(ProgramStartAddress, program)
 }
 
 func Init() CPU {
 	return CPU{
 		r: Registers{
 			A: 0, B: 0, C: 0, D: 0, E: 0, F: 0, H: 0, L: 0,
-		}, SP: 0, PC: 0,
+		}, SP: 0, PC: ProgramStartAddress,
+		memory: InitMemory(),
 	}
 }
