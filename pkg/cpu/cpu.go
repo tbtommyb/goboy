@@ -1,0 +1,60 @@
+package cpu
+
+type Register byte
+
+const (
+	A Register = 0x7
+	B          = 0x0
+	C          = 0x1
+	D          = 0x5
+	E          = 0x3
+	F          = 0x2 // TODO: made up number
+	H          = 0x4
+	L          = 0x6 // TODO: should be 0x5 but avoiding duplicate with D
+)
+
+type Registers map[Register]byte
+
+type CPU struct {
+	r      Registers
+	SP, PC uint16
+}
+
+func (cpu *CPU) Get(r Register) byte {
+	return byte(cpu.r[r])
+}
+
+func (cpu *CPU) GetBC() uint16 {
+	return uint16(cpu.Get(B))<<8 | uint16(cpu.Get(C))
+}
+
+func (cpu *CPU) GetDE() uint16 {
+	return uint16(cpu.Get(D))<<8 | uint16(cpu.Get(E))
+}
+
+func (cpu *CPU) GetHL() uint16 {
+	return uint16(cpu.Get(H))<<8 | uint16(cpu.Get(L))
+}
+
+func (cpu *CPU) Set(r Register, val byte) byte {
+	cpu.r[r] = val
+	return cpu.Get(r)
+}
+
+func (cpu *CPU) Run(opcode Opcode) {
+	// opcode := 0x47 // LD B, A
+
+	instr := Decode(opcode)
+	switch i := instr.(type) {
+	case LoadRegisterInstr:
+		cpu.Set(i.dest, cpu.Get(i.source))
+	}
+}
+
+func Init() CPU {
+	return CPU{
+		r: Registers{
+			A: 0, B: 0, C: 0, D: 0, E: 0, F: 0, H: 0, L: 0,
+		}, SP: 0, PC: 0,
+	}
+}

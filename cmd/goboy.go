@@ -1,0 +1,4 @@
+package goboy
+
+func main() {
+}
