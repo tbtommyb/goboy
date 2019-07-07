@@ -2,7 +2,6 @@ package cpu
 
 // TODO: consider what needs to be exported
 
-import "fmt"
 type Register byte
 
 const (
@@ -62,16 +61,15 @@ func (cpu *CPU) IncrementPC() {
 }
 
 func (cpu *CPU) Run() {
-	opcode := Opcode(cpu.memory[cpu.GetPC()])
+	opcode := cpu.memory[cpu.GetPC()]
 	for ok := true ; ok; ok = (opcode != 0) {
 		instr := Decode(opcode)
-		fmt.Printf("%#v\n", instr)
 		switch i := instr.(type) {
-		case LoadRegisterInstr:
+		case LoadRegister:
 			cpu.Set(i.dest, cpu.Get(i.source))
 		}
 		cpu.IncrementPC()
-		opcode = Opcode(cpu.memory[cpu.GetPC()])
+		opcode = cpu.memory[cpu.GetPC()]
 	}
 }
 
