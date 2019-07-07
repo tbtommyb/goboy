@@ -29,6 +29,7 @@ func TestSetAndGetRegister(t *testing.T) {
 		t.Fatalf("Expected 0x88, got %x", actual)
 	}
 
+	// TODO: broken test
 	if regValue := cpu.Get(C); regValue != 3 {
 		t.Fatalf("Expected 3, got %d", regValue)
 	}

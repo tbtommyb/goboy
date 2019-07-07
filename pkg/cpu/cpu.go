@@ -60,16 +60,22 @@ func (cpu *CPU) IncrementPC() {
 	cpu.PC += 1
 }
 
+func (cpu *CPU) fetchAndIncrement() byte {
+	value := cpu.memory[cpu.GetPC()]
+	cpu.IncrementPC()
+	return value
+}
+
 func (cpu *CPU) Run() {
-	opcode := cpu.memory[cpu.GetPC()]
+	opcode := cpu.fetchAndIncrement()
 	for ok := true ; ok; ok = (opcode != 0) {
-		instr := Decode(opcode)
+		instr := cpu.Decode(opcode)
 		switch i := instr.(type) {
 		case LoadRegister:
 			cpu.Set(i.dest, cpu.Get(i.source))
 		}
 		cpu.IncrementPC()
-		opcode = cpu.memory[cpu.GetPC()]
+		opcode = cpu.fetchAndIncrement()
 	}
 }
 
