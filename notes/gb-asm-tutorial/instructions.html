@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en-US">
+    <head>
+        <meta charset="utf-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>
+            Instruction cheat sheet - GB ASM tutorial
+        </title>
+        <link rel="icon" href="img/favicon.ico" type="image/x-icon" />
+        <meta property="og:title" content="GB ASM Tutorial" />
+        <meta property="og:description" content="A complete guide to programming Game Boy games in assembly." />
+        <meta property="og:url" content="https://eldred.fr/gb-asm-tutorial/" />
+        <meta property="og:image" content="https://eldred.fr/gb-asm-tutorial/img/favicon.png" />
+
+        <meta name="author" content="Eldred Habert" />
+        <meta name="description" content="A complete Game Boy assembly programming tutorial, providing resources for beginners and experts alike!" />
+        <meta name="keywords" content="Game Boy, Game Boy Color, assembly, ASM, programming, games, tutorial" />
+        <link rel="author" href="../index.html" />
+        <link rel="prev" href="resources.html" />
+        <link rel="next" href="data_manip.html" />
+
+        <link rel="stylesheet" href="css/normalize.css" />
+        <link rel="stylesheet" href="css/common.css" />
+    </head>
+    <body>
+        <main>
+            <article>
+                <h1>
+                    Instruction cheat sheet
+                </h1>
+                
+                <p>
+                    You can check the effects, flag results, cycle counts etc. of all GBz80 instructions here.
+                    <br />
+                    Notes:
+                </p>
+                <ul>
+                    <li><code>immX</code> means a X-bit immediate value.</li>
+                    <li><code>regX</code> means a X-bit register. (Note: <code>af</code> isn't part of the <code>reg16</code> group)</li>
+                    <li><code>opX</code> means either a <code>regX</code>, or an <code>immX</code>.</li>
+                    <li><code>mem16</code> means a 16-bit immediate value, that is used to address memory.</li>
+                    <li>M-Cycles are 1MHz cycles, not the 4MHz clock cycles.</li>
+                    <li>Flag alterations are noted as such: <code>-</code> means "unaffected", <code>0</code> or <code>1</code> means the flag is set to that value, and anything else describes what value the flag is set to.</li>
+                </ul>
+                
+                <h2>Data manipulation</h2>
+                <ul>
+                    <li><a href="data_manip.html#ld">Load: <code>ld</code></a></li>
+                    <li><a href="data_manip.html#ldh">IO load: <code>ldh</code></a></li>
+                    <li><a href="data_manip.html#ldi_ldd">Block load: <code>ldi, ldd</code></a></li>
+                    <li><a href="data_manip.html#push_pop">Stack: <code>push, pop</code></a></li>
+                </ul>
+                
+                <!--
+                Table for one instruction:
+                
+                <table class="invert-stripes">
+                    <tr>
+                        <th rowspan="2">Syntax</th><th rowspan="2">Effect</th><th rowspan="2">Size</th><th rowspan="2">M-Cycles</th><th colspan="4">Flags</th>
+                    </tr>
+                    <tr>
+                        <th>C</th><th>Z</th><th>H</th><th>N</th>
+                    </tr>
+                    <tr>
+                        <td><code>Syntax</code></td><td>Effect</td><td>Bytes</td><td>Cycles</td><td>C</td><td>Z</td><td>H</td><td>N</td>
+                    </tr>
+                </table>
+                
+                -->
+            </article>
+
+            <aside>
+                <nav id="tutorial-index">
+                    <b id="index-title">Navigation</b>
+                    <br /><a href="resources.html">Previous: External resources</a>
+                    <br /><a href="data_manip.html">Next: Data manipulation</a>
+
+                    <br /><br />
+                    <small>Click [Expand] to expand a section, or [Expand all] to deploy everything</small>
+                    <br />
+
+                    <a href="index.html">GB ASM Programming</a>
+                    <input type="checkbox" id="index-navcheckbox">
+                    <label for="index-navcheckbox"></label>
+                    <ol>
+                        <li>
+                            <a href="introduction.html">Introduction</a>
+                            <input type="checkbox" id="introduction-navcheckbox">
+                            <label for="introduction-navcheckbox"></label>
+                            <ol>
+                                <li>
+                                    <a href="what_is_gb.html">What is Game Boy?</a>
+                                </li>
+                                <li>
+                                    <a href="concepts.html">Basic concepts</a>
+                                </li>
+                                <li>
+                                    <a href="tools.html">Tools</a>
+                                </li>
+                            </ol>
+                        </li>
+                        <li>
+                            <a href="basics.html">Basics</a>
+                            <input type="checkbox" id="basics-navcheckbox">
+                            <label for="basics-navcheckbox"></label>
+                            <ol>
+                                <li>
+                                    <a href="syntax.html">ASM syntax</a>
+                                </li>
+                                <li>
+                                    <a href="registers.html">Registers</a>
+                                </li>
+                                <li>
+                                    <a href="memory.html">Memory</a>
+                                </li>
+                                <li>
+                                    <a href="flags.html">Flags</a>
+                                </li>
+                                <li>
+                                    <a href="arithmetics.html">Arithmetics &amp; boolean algebra</a>
+                                </li>
+                                <li>
+                                    <a href="interlude.html">Interlude</a>
+                                </li>
+                                <li>
+                                    <a href="jumping.html">Jumping around</a>
+                                </li>
+                                <li>
+                                    <a href="displaying.html">Displaying</a>
+                                </li>
+                                <li>
+                                    <a href="hello-world.html">Hello World!</a>
+                                </li>
+                            </ol>
+                        </li>
+                        <li>
+                            <a href="intermediate.html">Intermediate</a>
+                            <input type="checkbox" id="intermediate-navcheckbox">
+                            <label for="intermediate-navcheckbox"></label>
+                            <ol>
+                                <li>
+                                    <a href="memories.html">Memory types</a>
+                                </li>
+                                <li>
+                                    <a href="stack.html">The Stack</a>
+                                </li>
+                                <li>
+                                    <a href="calling.html">London Calling</a>
+                                </li>
+                            </ol>
+                        </li>
+                        <li>
+                            <a href="extras.html">Extras</a>
+                            <input type="checkbox" id="extras-navcheckbox" checked>
+                            <label for="extras-navcheckbox"></label>
+                            <ol>
+                                <li>
+                                    <a href="resources.html">External resources</a>
+                                </li>
+                                <li>
+                                    <a href="instructions.html" class="current">Instruction cheat sheet</a>
+                                    <input type="checkbox" id="instructions-navcheckbox" checked>
+                                    <label for="instructions-navcheckbox"></label>
+                                    <ol>
+                                        <li>
+                                            <a href="data_manip.html">Data manipulation</a>
+                                        </li>
+                                    </ol>
+                                </li>
+                            </ol>
+                        </li>
+                    </ol>
+
+
+                    <hr>
+
+                    <a href="https://github.com/ISSOtm/gb-asm-tutorial/issues">Report issue</a>
+                </nav>
+            </aside>
+        </main>
+
+        <nav id="navbar">
+            <a href="../index.html" id="site-name">ISSOtm's</a> &mdash; <a href="index.html">GB programming</a>
+            <a id="to-top" href="instructions.html#">Back to top</a>
+        </nav>
+    </body>
+</html>

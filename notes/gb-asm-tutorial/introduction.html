@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en-US">
+    <head>
+        <meta charset="utf-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>
+            Introduction - GB ASM tutorial
+        </title>
+        <link rel="icon" href="img/favicon.ico" type="image/x-icon" />
+        <meta property="og:title" content="GB ASM Tutorial" />
+        <meta property="og:description" content="A complete guide to programming Game Boy games in assembly." />
+        <meta property="og:url" content="https://eldred.fr/gb-asm-tutorial/" />
+        <meta property="og:image" content="https://eldred.fr/gb-asm-tutorial/img/favicon.png" />
+
+        <meta name="author" content="Eldred Habert" />
+        <meta name="description" content="A complete Game Boy assembly programming tutorial, providing resources for beginners and experts alike!" />
+        <meta name="keywords" content="Game Boy, Game Boy Color, assembly, ASM, programming, games, tutorial" />
+        <link rel="author" href="../index.html" />
+        <link rel="prev" href="index.html" />
+        <link rel="next" href="what_is_gb.html" />
+
+        <link rel="stylesheet" href="css/normalize.css" />
+        <link rel="stylesheet" href="css/common.css" />
+    </head>
+    <body>
+        <main>
+            <article>
+                <h1>
+                    Introduction
+                </h1>
+                
+                <h2>A word of warning</h2>
+                <p>
+                    <strong>ASM isn't a difficult language. Except sometimes.</strong>
+                    <br />
+                    ASM is a very unique kind of language, so in the beginning, it's somewhat difficult to grasp. If you know the language C, you will probably recognize pointers and process everything much more smoothly; it's however possible to learn ASM even as your first language. I agree with several people that writing ASM isn't too hard, but writing large amounts of code properly is difficult and requires discipline. However, in this tutorial, I will do my best to teach that discipline, and patterns that will help writing complex code cleanly. Lastly, be aware that ASM has no facilities whatosever - after all, you're dealing with the hardware raw - so there will be quite a lot before we get something shown on-screen.
+                </p>
+                <p>
+                    Note that this tutorial is primarily intended for people who have some programming experience. If you're OK with learning another language before ASM, I recommend C. Having learned some language prior, basically any language, will also be helpful in constructing ASM code, because you will be used to constructs such as ifs, loops, etc. ASM is fairly backwards in that regard, but it will be touched upon in due time.
+                    <br />
+                    If you only ever did object-oriented (or, less likely, functional) programming, ASM may take you by surprise quite a bit. ASM is the CPU's language, and CPUs are fundamentally imperative - thus, ASM is an imperative language. I think there exist some C++ solutions for the Game Boy, but given how difficult it is to make a game run smoothly using ASM (let alone C), I <b>strongly</b> don't recommend using C++ on the Game Boy, no ifs not buts.
+                </p>
+                
+                <p>Still with me? Then <a href="what_is_gb.html">let's get going</a>!</p>
+            </article>
+
+            <aside>
+                <nav id="tutorial-index">
+                    <b id="index-title">Navigation</b>
+                    <br /><a href="index.html">Previous: GB ASM Programming</a>
+                    <br /><a href="what_is_gb.html">Next: What is Game Boy?</a>
+
+                    <br /><br />
+                    <small>Click [Expand] to expand a section, or [Expand all] to deploy everything</small>
+                    <br />
+
+                    <a href="index.html">GB ASM Programming</a>
+                    <input type="checkbox" id="index-navcheckbox">
+                    <label for="index-navcheckbox"></label>
+                    <ol>
+                        <li>
+                            <a href="introduction.html" class="current">Introduction</a>
+                            <input type="checkbox" id="introduction-navcheckbox" checked>
+                            <label for="introduction-navcheckbox"></label>
+                            <ol>
+                                <li>
+                                    <a href="what_is_gb.html">What is Game Boy?</a>
+                                </li>
+                                <li>
+                                    <a href="concepts.html">Basic concepts</a>
+                                </li>
+                                <li>
+                                    <a href="tools.html">Tools</a>
+                                </li>
+                            </ol>
+                        </li>
+                        <li>
+                            <a href="basics.html">Basics</a>
+                            <input type="checkbox" id="basics-navcheckbox">
+                            <label for="basics-navcheckbox"></label>
+                            <ol>
+                                <li>
+                                    <a href="syntax.html">ASM syntax</a>
+                                </li>
+                                <li>
+                                    <a href="registers.html">Registers</a>
+                                </li>
+                                <li>
+                                    <a href="memory.html">Memory</a>
+                                </li>
+                                <li>
+                                    <a href="flags.html">Flags</a>
+                                </li>
+                                <li>
+                                    <a href="arithmetics.html">Arithmetics &amp; boolean algebra</a>
+                                </li>
+                                <li>
+                                    <a href="interlude.html">Interlude</a>
+                                </li>
+                                <li>
+                                    <a href="jumping.html">Jumping around</a>
+                                </li>
+                                <li>
+                                    <a href="displaying.html">Displaying</a>
+                                </li>
+                                <li>
+                                    <a href="hello-world.html">Hello World!</a>
+                                </li>
+                            </ol>
+                        </li>
+                        <li>
+                            <a href="intermediate.html">Intermediate</a>
+                            <input type="checkbox" id="intermediate-navcheckbox">
+                            <label for="intermediate-navcheckbox"></label>
+                            <ol>
+                                <li>
+                                    <a href="memories.html">Memory types</a>
+                                </li>
+                                <li>
+                                    <a href="stack.html">The Stack</a>
+                                </li>
+                                <li>
+                                    <a href="calling.html">London Calling</a>
+                                </li>
+                            </ol>
+                        </li>
+                        <li>
+                            <a href="extras.html">Extras</a>
+                            <input type="checkbox" id="extras-navcheckbox">
+                            <label for="extras-navcheckbox"></label>
+                            <ol>
+                                <li>
+                                    <a href="resources.html">External resources</a>
+                                </li>
+                                <li>
+                                    <a href="instructions.html">Instruction cheat sheet</a>
+                                    <input type="checkbox" id="instructions-navcheckbox">
+                                    <label for="instructions-navcheckbox"></label>
+                                    <ol>
+                                        <li>
+                                            <a href="data_manip.html">Data manipulation</a>
+                                        </li>
+                                    </ol>
+                                </li>
+                            </ol>
+                        </li>
+                    </ol>
+
+
+                    <hr>
+
+                    <a href="https://github.com/ISSOtm/gb-asm-tutorial/issues">Report issue</a>
+                </nav>
+            </aside>
+        </main>
+
+        <nav id="navbar">
+            <a href="../index.html" id="site-name">ISSOtm's</a> &mdash; <a href="index.html">GB programming</a>
+            <a id="to-top" href="introduction.html#">Back to top</a>
+        </nav>
+    </body>
+</html>
