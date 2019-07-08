@@ -68,14 +68,14 @@ func (cpu *CPU) fetchAndIncrement() byte {
 
 func (cpu *CPU) Run() {
 	opcode := cpu.fetchAndIncrement()
-	for ok := true ; ok; ok = (opcode != 0) {
+	for ok := true; ok; ok = (opcode != 0) {
 		instr := cpu.Decode(opcode)
 		switch i := instr.(type) {
 		case LoadRegister:
 			cpu.set(i.dest, cpu.Get(i.source))
 		case LoadImmediate:
 			cpu.set(i.dest, i.immediate)
-	        case InvalidInstruction:
+		case InvalidInstruction:
 			return
 		}
 		opcode = cpu.fetchAndIncrement()

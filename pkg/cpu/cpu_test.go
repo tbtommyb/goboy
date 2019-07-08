@@ -14,7 +14,10 @@ func encode(instructions []Instruction) []byte {
 }
 
 func TestIncrementPC(t *testing.T) {
-	testCases := []struct{instructions []Instruction; expected uint16}{
+	testCases := []struct {
+		instructions []Instruction
+		expected     uint16
+	}{
 		{instructions: []Instruction{}, expected: 1},
 		{instructions: []Instruction{LoadRegister{source: A, dest: B}}, expected: 2},
 		{instructions: []Instruction{LoadRegister{source: A, dest: B}, LoadRegister{source: B, dest: C}}, expected: 3},
@@ -26,8 +29,8 @@ func TestIncrementPC(t *testing.T) {
 		cpu.LoadProgram(encode(test.instructions))
 		cpu.Run()
 
-		if currentPC := cpu.GetPC(); currentPC - initialPC != test.expected {
-			t.Errorf("Incorrect PC value. Expected %d, got %d", test.expected, currentPC - initialPC)
+		if currentPC := cpu.GetPC(); currentPC-initialPC != test.expected {
+			t.Errorf("Incorrect PC value. Expected %d, got %d", test.expected, currentPC-initialPC)
 		}
 	}
 }
@@ -42,7 +45,7 @@ func TestLoadProgram(t *testing.T) {
 	cpu.Run()
 
 	expectedOpcode := LoadRegister{source: B, dest: C}.Opcode()[0]
-	if actual := cpu.memory[ProgramStartAddress + 1]; actual != expectedOpcode {
+	if actual := cpu.memory[ProgramStartAddress+1]; actual != expectedOpcode {
 		t.Errorf("Expected 0x88, got %x", actual)
 	}
 }

@@ -9,11 +9,12 @@ const DestRegisterMask = 0x38
 const DestRegisterShift = 3
 const SourceRegisterMask = 0x7
 
-type Instruction interface{
+type Instruction interface {
 	Opcode() []byte
 }
 
-type InvalidInstruction struct { opcode byte }
+type InvalidInstruction struct{ opcode byte }
+
 func (i InvalidInstruction) Opcode() []byte { return []byte{i.opcode} }
 
 type LoadRegister struct {
@@ -21,16 +22,16 @@ type LoadRegister struct {
 }
 
 func (i LoadRegister) Opcode() []byte {
-	return []byte{byte(LoadRegisterPattern | i.source | i.dest << DestRegisterShift)}
+	return []byte{byte(LoadRegisterPattern | i.source | i.dest<<DestRegisterShift)}
 }
 
 type LoadImmediate struct {
-	dest Register
+	dest      Register
 	immediate byte
 }
 
 func (i LoadImmediate) Opcode() []byte {
-	return []byte{byte(LoadImmediatePattern | i.dest << DestRegisterShift), i.immediate}
+	return []byte{byte(LoadImmediatePattern | i.dest<<DestRegisterShift), i.immediate}
 }
 
 func (cpu *CPU) Decode(op byte) Instruction {
