@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en-US">
+    <head>
+        <meta charset="utf-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>
+            Flags - GB ASM tutorial
+        </title>
+        <link rel="icon" href="img/favicon.ico" type="image/x-icon" />
+        <meta property="og:title" content="GB ASM Tutorial" />
+        <meta property="og:description" content="A complete guide to programming Game Boy games in assembly." />
+        <meta property="og:url" content="https://eldred.fr/gb-asm-tutorial/" />
+        <meta property="og:image" content="https://eldred.fr/gb-asm-tutorial/img/favicon.png" />
+
+        <meta name="author" content="Eldred Habert" />
+        <meta name="description" content="A complete Game Boy assembly programming tutorial, providing resources for beginners and experts alike!" />
+        <meta name="keywords" content="Game Boy, Game Boy Color, assembly, ASM, programming, games, tutorial" />
+        <link rel="author" href="../index.html" />
+        <link rel="prev" href="memory.html" />
+        <link rel="next" href="arithmetics.html" />
+
+        <link rel="stylesheet" href="css/normalize.css" />
+        <link rel="stylesheet" href="css/common.css" />
+    </head>
+    <body>
+        <main>
+            <article>
+                <h1>
+                    Flags
+                </h1>
+                
+                <p>
+                    In this section, we will see new instructions at the same time as the flags, to help understand how instructions work with flags.
+                </p>
+                
+                <h2>The <code>f</code> register</h2>
+                <p>
+                    <code>f</code> being an 8-bit register, it has 8 bits. Bits 0-3 are always zero. Bits 4-7 are called <code>C</code>, <code>H</code>, <code>N</code>, and <code>Z</code>, in that order. Note that, to avoid confusing register <code>c</code> and flag <code>c</code>, flags sometimes get an "<code>f</code>" appended to them (eg. <code>CF</code>, <code>ZF</code>). However, that notation will not work when referencing the flags in the source code &mdash; it's only useful for discussion.
+                </p>
+                <p>
+                    As always, each of these letters stands for something:
+                </p>
+                <dl>
+                    <dt>c</dt><dd>Carry</dd>
+                    <dt>h</dt><dd>Half-carry</dd>
+                    <dt>n</dt><dd>Add/Subtract (ok, this one doesn't make sense)</dd>
+                    <dt>z</dt><dd>Zero</dd>
+                </dl>
+                <p>
+                    Remember that flags are just bits of the <code>f</code> register. As such, a flag is said to be <em>set</em> when its corresponding bit is 1. (It thus equates to "true" by law of non-zero, but that doesn't matter a lot here.)
+                </p>
+                
+                <h2>Z - Zero</h2>
+                <p>
+                    <code>Z</code> is the simplest flag of them all. It generally follows the rule of thumb "If the instruction's result was zero, then it's set; otherwise, it's reset." Simple enough. And to illustrate that, let's talk about <code>inc</code> and <code>dec</code>.
+                </p>
+                
+                <h3><code>inc</code> and <code>dec</code></h3>
+                <p>
+                    <code>inc</code> has a simple purpose - <b>inc</b>rement a register's value. The purpose of <code>dec</code> is left as an exercise for the most alert of our readers. There are two flavors of <code>inc</code> and <code>dec</code>: 8-bit inc/dec and 16-bit inc/dec. 8-bit inc/dec affects the Z flag as you'd expect: if the register holds 0 <em>after</em> the operation, Z is set. Otherwise, it's reset. Note that, obviously, overflow applies, as demonstrated below.
+                </p>
+<pre>
+    ld b, $FF
+    dec b
+    ; B = $FE, Z reset
+    inc b
+    ; B = $FF, Z reset
+    inc b
+    ; B = $00, Z set
+    inc b
+    ; B = $01, Z reset
+    dec b
+    ; B = $00, Z set
+
+    ld b, $FE
+    ; B = $FE, Z set (keep in mind, `ld` doesn't affect flags!)
+    inc b
+    ; B = $FF, Z reset
+    ld b, 0
+    ; B = $00, Z reset
+</pre>
+                <p>
+                    Remember how in the previous lesson, I said that <code>[hl]</code> basically was an 8-bit register? Well, it delivers: <code>inc [hl]</code> and <code>dec [hl]</code> are a thing! This directly modifies the byte in memory that <code>hl</code> points to, affecting flags.
+                </p>
+                <p>
+                    Also, for future reference, note that <code>inc</code> and <code>dec</code> modify the H an N flags. Given how little importance they have, I won't explain how yet.
+                </p>
+                <p>
+                    As for the 16-bit flavor of <code>inc</code> and <code>dec</code>, it takes any of the three 16-bit registers, and increments/decrements their content. The twist is, flags are preserved. All of them.
+                </p>
+                
+                <h2>C - Carry</h2>
+                <p>
+                    This one is also straightforward... or confusing, because different instructions make it work differently. The general rule is: it <em>extends</em> the current operation. Confused? Here's a slow start: remember in the <a href="concepts.html">Basic Concepts</a> lesson, we talked about overflow, and I mentioned that "we don't have space to store that ninth bit"? Well, there isn't space to store it in the register itself, but <em>since the carry extends the current operation</em>, that ninth bit is stashed in the Carry bit/flag instead.
+                </p>
+                
+                <h3>8-bit <code>add</code></h3>
+                <p>
+                    Here's a concrete example: now introducing the <code>add</code> instruction! It also comes in two flavors, but this will be discussed more in the next chapter. For now, we will consider <code>add a, X</code>, where X is either an 8-bit register, or an immediate 8-bit value. It basically takes <code>a</code>'s content, adds X to that, and stores the result back in <code>a</code>. This updates both the Z and C flags. (And the H and N flags, but we'll see that later.)
+                </p>
+<pre>
+    ld a, $EF
+    ld b, $10
+
+    add a, b
+    ; A = $FF, Z reset, C reset
+    add a, b
+    ; A = $0F, Z reset, C set
+    add a, b
+    ; A = $1F, Z reset, C reset
+    add a, $E1
+    ; A = $00, Z set, C set
+    add a, 0
+    ; A = $00, Z set, C reset
+</pre>
+                <p>
+                    We'll see different uses of the Carry flag in the upcoming lessons.
+                </p>
+                
+                <h2>H &amp; N - The BCD flags</h2>
+                <p>
+                    These flags are updated by a lot of instructions, and they work in a kind of obtuse way... furthermore, they are used by exactly <em>one</em> instruction. What??!? Well, that instruction is pret~ty useful when doing <a href="https://en.wikipedia.org/wiki/Binary-coded_decimal">Binary-Coded Decimal (<abbr>BCD</abbr>)</a>. That will be discussed in the next section, because it's simpler to explain what it does than how it works. Don't worry, there will still be a detailed explanation for those whose OCD is triggering like crazy right now.
+                </p>
+
+            </article>
+
+            <aside>
+                <nav id="tutorial-index">
+                    <b id="index-title">Navigation</b>
+                    <br /><a href="memory.html">Previous: Memory</a>
+                    <br /><a href="arithmetics.html">Next: Arithmetics &amp; boolean algebra</a>
+
+                    <br /><br />
+                    <small>Click [Expand] to expand a section, or [Expand all] to deploy everything</small>
+                    <br />
+
+                    <a href="index.html">GB ASM Programming</a>
+                    <input type="checkbox" id="index-navcheckbox">
+                    <label for="index-navcheckbox"></label>
+                    <ol>
+                        <li>
+                            <a href="introduction.html">Introduction</a>
+                            <input type="checkbox" id="introduction-navcheckbox">
+                            <label for="introduction-navcheckbox"></label>
+                            <ol>
+                                <li>
+                                    <a href="what_is_gb.html">What is Game Boy?</a>
+                                </li>
+                                <li>
+                                    <a href="concepts.html">Basic concepts</a>
+                                </li>
+                                <li>
+                                    <a href="tools.html">Tools</a>
+                                </li>
+                            </ol>
+                        </li>
+                        <li>
+                            <a href="basics.html">Basics</a>
+                            <input type="checkbox" id="basics-navcheckbox" checked>
+                            <label for="basics-navcheckbox"></label>
+                            <ol>
+                                <li>
+                                    <a href="syntax.html">ASM syntax</a>
+                                </li>
+                                <li>
+                                    <a href="registers.html">Registers</a>
+                                </li>
+                                <li>
+                                    <a href="memory.html">Memory</a>
+                                </li>
+                                <li>
+                                    <a href="flags.html" class="current">Flags</a>
+                                </li>
+                                <li>
+                                    <a href="arithmetics.html">Arithmetics &amp; boolean algebra</a>
+                                </li>
+                                <li>
+                                    <a href="interlude.html">Interlude</a>
+                                </li>
+                                <li>
+                                    <a href="jumping.html">Jumping around</a>
+                                </li>
+                                <li>
+                                    <a href="displaying.html">Displaying</a>
+                                </li>
+                                <li>
+                                    <a href="hello-world.html">Hello World!</a>
+                                </li>
+                            </ol>
+                        </li>
+                        <li>
+                            <a href="intermediate.html">Intermediate</a>
+                            <input type="checkbox" id="intermediate-navcheckbox">
+                            <label for="intermediate-navcheckbox"></label>
+                            <ol>
+                                <li>
+                                    <a href="memories.html">Memory types</a>
+                                </li>
+                                <li>
+                                    <a href="stack.html">The Stack</a>
+                                </li>
+                                <li>
+                                    <a href="calling.html">London Calling</a>
+                                </li>
+                            </ol>
+                        </li>
+                        <li>
+                            <a href="extras.html">Extras</a>
+                            <input type="checkbox" id="extras-navcheckbox">
+                            <label for="extras-navcheckbox"></label>
+                            <ol>
+                                <li>
+                                    <a href="resources.html">External resources</a>
+                                </li>
+                                <li>
+                                    <a href="instructions.html">Instruction cheat sheet</a>
+                                    <input type="checkbox" id="instructions-navcheckbox">
+                                    <label for="instructions-navcheckbox"></label>
+                                    <ol>
+                                        <li>
+                                            <a href="data_manip.html">Data manipulation</a>
+                                        </li>
+                                    </ol>
+                                </li>
+                            </ol>
+                        </li>
+                    </ol>
+
+
+                    <hr>
+
+                    <a href="https://github.com/ISSOtm/gb-asm-tutorial/issues">Report issue</a>
+                </nav>
+            </aside>
+        </main>
+
+        <nav id="navbar">
+            <a href="../index.html" id="site-name">ISSOtm's</a> &mdash; <a href="index.html">GB programming</a>
+            <a id="to-top" href="flags.html#">Back to top</a>
+        </nav>
+    </body>
+</html>

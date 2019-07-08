@@ -1,0 +1,15 @@
+* CPU info
+** Registers
+| A | 111 | 7 |
+| B | 000 | 0 |
+| C | 001 | 1 |
+| D | 101 | 5 |
+| E | 011 | 3 |
+| H | 100 | 4 |
+| L | 101 | 5 | same as D?
+* Memory
+0x0000 to 0xFFFF
+Program starts at 0x150
+* Instructions
+** LD R, R
+01dddsss

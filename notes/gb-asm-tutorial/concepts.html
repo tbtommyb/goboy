@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en-US">
+    <head>
+        <meta charset="utf-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>
+            Basic concepts - GB ASM tutorial
+        </title>
+        <link rel="icon" href="img/favicon.ico" type="image/x-icon" />
+        <meta property="og:title" content="GB ASM Tutorial" />
+        <meta property="og:description" content="A complete guide to programming Game Boy games in assembly." />
+        <meta property="og:url" content="https://eldred.fr/gb-asm-tutorial/" />
+        <meta property="og:image" content="https://eldred.fr/gb-asm-tutorial/img/favicon.png" />
+
+        <meta name="author" content="Eldred Habert" />
+        <meta name="description" content="A complete Game Boy assembly programming tutorial, providing resources for beginners and experts alike!" />
+        <meta name="keywords" content="Game Boy, Game Boy Color, assembly, ASM, programming, games, tutorial" />
+        <link rel="author" href="../index.html" />
+        <link rel="prev" href="what_is_gb.html" />
+        <link rel="next" href="tools.html" />
+
+        <link rel="stylesheet" href="css/normalize.css" />
+        <link rel="stylesheet" href="css/common.css" />
+    </head>
+    <body>
+        <main>
+            <article>
+                <h1>
+                    Basic concepts
+                </h1>
+                
+                <p>
+                    You may know some (or all!) of the concepts explained in this page. If that's the case, feel free to skip them. I recommend reading anyways, I might say things you actually didn't know about.
+                </p>
+                
+                <h2>Binary and hexadecimal</h2>
+                <p>
+                    All data in a computer, this includes the Game Boy and the device you're using to read this very sentence (...I'm already hearing some snarky remarks about printing this page); only one type of data exists: numbers. More precisely, integers. Other data types are built using numbers. For example, non-integer numbers are stored using two integers (if you're curious as to how it's done, the computer stores the two integers int1 and int2 where <code>non_int = int1 * 2<sup>int2</sup></code>).
+                    <br />
+                    However, computers don't work with decimal numbers; as you may already know, computers work with binary: 0 and 1. This means, in a way, that they only work with these two digits. It's still possible to represent the number 2, just in a different way.
+                    <br />
+                    Binary is otherwise known as "base 2"; the base we're using, decimal, is called "base 10". The reason is, when I write 1337, it's decoded as follows:
+                </p>
+<pre>
+      1 * 10<sup>3</sup>  + 3 * 10<sup>2</sup> + 3 * 10<sup>1</sup> + 7 * 10<sup>0</sup>
+    = 1 * 1000 + 3 * 100 + 3 * 10  + 7 * 1
+    = 1000 + 300 + 30 + 7
+    = 1337
+</pre>
+                <p>
+                    Simple enough. Now, in binary (base 2), if I write 10100111001, it's decoded like this:
+                </p>
+<pre>
+      1 * 2<sup>10</sup> + 0 * 2<sup>9</sup>  + 1 * 2<sup>8</sup>  + 0 * 2<sup>7</sup>  + 0 * 2<sup>6</sup>  + 1 * 2<sup>5</sup>  + 1 * 2<sup>4</sup>  + 1 * 2<sup>3</sup>  + 0 * 2<sup>2</sup>  + 0 * 2<sup>1</sup>  + 1 * 2<sup>0</sup>
+    = 1 * 1024 + 0 * 512  + 1 * 256  + 0 * 128  + 0 * 64   + 1 * 32   + 1 * 16   + 1 * 8    + 0 * 4    + 0 * 2    + 1 * 1
+    = 1024 + 256 + 32 + 16 + 8 + 1
+    = 1337
+</pre>
+                <p>
+                    So, base 10 1337 = base 2 10100111001, huh? But then, how do we know what in what base "101" is? That's why there are conventions to note the base. By default, a number by itself is decimal. However, if the number has the "0b" or "%" prefix, it's a binary number. (Note that "%2" is just invalid, as much as saying "123#56" is a number). So, remember that "1337" and "%10100111001" are <strong>exactly</strong> the same thing.
+                </p>
+                <p>
+                    However, binary quickly becomes extremely cumbersome to work with: there are a lot of digits, and only zeros and ones, which makes it very error-prone. As such, programmers tend to use hexadecimal, or base 16 (since there are more than 10 symbols, after 9 comes A, then B, etc. up to F, which has value 15). Here's why: 16 = 2<sup>4</sup>. To explain, here's yet another base conversion, from hexadecimal "539":
+                </p>
+<pre>
+      5 * 16<sup>2</sup> + 3 * 16<sup>1</sup> + 9 * 16<sup>0</sup>
+    = 5 * 256  + 3 * 16   + 9 * 1
+    = 1280 + 48 + 9
+    = 1337
+</pre>
+                <p>
+                    Similarly, hexadecimal's prefixes are "0x" or "$", so <em>1337 = %10100111001 = $539</em>. But, you may ask, why is hex (abbreviation of hexadecimal) more convenient than binary? Well, as I said before, 16 = 2<sup>4</sup>. Here's a conversion table from hex to bin:
+                </p>
+                <table>
+                    <tr><th>Hex</th><th>Bin</th><th>Hex</th><th>Bin</th></tr>
+                    <tr><td>0</td><td style="text-align: right;">0</td><td>8</td><td style="text-align: right;">1000</td></tr>
+                    <tr><td>1</td><td style="text-align: right;">1</td><td>9</td><td style="text-align: right;">1001</td></tr>
+                    <tr><td>2</td><td style="text-align: right;">10</td><td>A</td><td style="text-align: right;">1010</td></tr>
+                    <tr><td>3</td><td style="text-align: right;">11</td><td>B</td><td style="text-align: right;">1011</td></tr>
+                    <tr><td>4</td><td style="text-align: right;">100</td><td>C</td><td style="text-align: right;">1100</td></tr>
+                    <tr><td>5</td><td style="text-align: right;">101</td><td>D</td><td style="text-align: right;">1101</td></tr>
+                    <tr><td>6</td><td style="text-align: right;">110</td><td>E</td><td style="text-align: right;">1110</td></tr>
+                    <tr><td>7</td><td style="text-align: right;">111</td><td>F</td><td style="text-align: right;">1111</td></tr>
+                </table>
+                <p>
+                    As you can see, <em>one hexadecimal character (a "nibble") replaces exactly 4 binary characters (bits)</em>! This is why hex is so convenient: it's trivial to convert to binary, uses only 6 extra symbols, and is four times as compact as binary. This is why you will barely see any binary, and mostly hex and decimal.
+                    <br />
+                    By the way, the letters used for hex are case-insensitive.
+                </p>
+                
+                <h2>Storage limitations</h2>
+                <p>
+                    You may have already heard the term "byte". A byte is a data unit (it's not a type!), it's simply a storage unit that can contain eight bits (= 2 nibbles, if you've been following). Using a small shortcut, "byte" is also used to designate any number (integer) that can fit into such an unit. Example: 42 is a byte, since 42 = 0x2A, 2 nibbles = OK.
+                    <br />
+                    Using some logic, we can determine that a byte can contain the integers $00 = 0 through $FF = 255.
+                </p>
+                <p>
+                    The CPU (and most components within the Game Boy, actually) can only manipulate one byte at a time. So, by default, the CPU can only manipulate the integers between 0 and 255. If you're picky, you may ask "What happens if I do 255 + 1?", and to answer that question, we're going to do some more binary.
+                    <br />
+                    Remember how you perform addition ? Let's do 293 + 12:
+                </p>
+<pre>
+     293
+    + 12
+
+    Add the low digits
+     293
+    + 12
+    ----
+       5
+
+    Keep adding
+     293
+    + 12
+    ----
+      05
+    
+    "10" is more than one digit, so we'll add an extra 1 to the next sum
+     293
+    + 12
+    ----
+     305
+</pre>
+                <p>
+                    Thing is, the same logic can be applied to binary.
+                </p>
+<pre>
+    Add the low digits
+     1010
+    +  11
+    -----
+        1
+    
+    Keep adding
+     1010 
+    +  11
+    -----
+       01
+    
+    "10" is more than one bit, so we'll add an extra 1 to the next sum
+     1010
+    +  11
+    -----
+      101
+    
+    Add some more
+     1010 (10)
+    +  11 (3)
+    -----
+     1101 (13)
+</pre>
+                <p>
+                    Now, let's consider what happens when doing 255 + 1:
+                </p>
+<pre>
+       1111 1111 (Spaces added to help understanding)
+    +          1
+    ------------
+               0
+    
+       1111 1111
+    +          1
+    ------------
+              00
+    
+       1111 1111
+    +          1
+    ------------
+             000
+    
+    (Skipping ahead a bit)
+
+    
+       1111 1111
+    +          1
+    ------------
+        000 0000
+    
+    
+       1111 1111
+    +          1
+    ------------
+       0000 0000
+    
+       1111 1111
+    +          1
+    ------------
+     1 0000 0000
+</pre>
+                <p>
+                    As you can see, we have a ninth bit (which is the carry from the last bit addition). But, as we said, we're working with units that can contain only 8 bits, so we have to drop that ninth bit. This is called <strong>overflow</strong> -- 256 = 0. It sounds weird, it is weird, but that's how computers work. You can even leverage overflow, sometimes.
+                    <br />
+                    You might be wondering how your computer is able to present the correct result when asked "255 + 1". It's simple, it uses more bytes. First, it adds the bytes together, which yields 0, plus the carry bit. Thus, it knows that it must add 1 to the second byte. ($00FF + $0001 = $0000 + $0100, if you follow my lead)
+                </p>
+                <p>
+                    If you're working with decimal numbers, it's not obvious how many bits a number uses, unless you know your powers of 2 by heart (...I do :3). Here's how to apply overflow anyways, and in a simple manner: modulo arithmetics. The modulo operation, usually noted "A % B", consists in performing integer division of A and B, and keeping only the remainder. Example: 7 / 3 = 2 remainder 1, so 7 % 3 = 1. Another way to calculate A % B is to subtract B from A until A is smaller than B: 7 - 3 = 4, 4 - 3 = 1, 1 &lt; 3 so 7 % 3 = 1 (NB: if A is negative, you must instead add B until the result is positive). The reason why modulo arithmetics are convenient is that working with a byte basically means applying modulo 256 to the result of all your operations.
+                </p>
+                
+                <h2>Bits, form ranks!</h2>
+                <p>
+                    There are 8 bits in a byte, and sometimes we'll want to designate some bits individually. Thus, we give them numbers: 0 through 7. Why not 1 through 8? You'll see later why, but in computers, it's more convenient and makes more sense to start indices and indexes at 0. Anyways, remember the binary formula with " * 2^n"? Well, conveniently, the values "n" took went from 0 to 7! (Scroll up if you need a refresher) for that reason, the rightmost bit is called bit 0, and the leftmost bit is bit 7. A memorization technique is that the formula can thus be written <code>sum(bit_N * 2^N for N in [0; 7])</code>.
+                </p>
+                
+                <h2>Smuggling negatives into the mix</h2>
+                <p>
+                    Developers got a helping hand from mathematicians for this one. As I said previously, only positive numbers can be manipulated. Well, actually, you can use negative ones too! That's partially possible thanks to overflow. Let me being the explanation by stating that 255 = -1. Shocking? Not so much; remember how, due to overflow, 256 = 0? Well, subtract 1 on both sides, and you have 255 = -1. Another way to prove it is to take any byte, for example 70, and adding 255 to it. This gives 325, but remember from the paragraph above that we need to apply modulo 256. Let's calculate it: 325 - 256 = 69. So, essentially, 70 + 255 = 69 = 70 - 1.
+                </p>
+                <p>
+                    Now, the question you may ask is, if 255 = -1, how do I differentiate both? The answer is that you don't, because you don't need to. Both numbers behave exactly in the same way! And while it's true that 1 = -255, that 0 = -256, and to push the logic further, that 255 = -1 = -257, a convention has been put in place to help define which numbers are negative and which aren't. Basically, if interpreting a byte in an <em>unsigned</em> manner, all 8 bits are interpreted as described previously.
+                </p>
+                <p>
+                    On the other hand, if interpreting (and note that it's an <strong>interpretation</strong>: the byte is neither signed or unsigned by itself, it only depends on how the code interprets it) a byte in a <em>signed</em> way, bit 7 instead holds a different meaning: the sign. If the bit is zero, bits 0 through 6 are interpreted normally. If the bit is one, the number is instead negative, and bits 0-6 are interpreted slightly differently; they are all inverted, then 1 is added to get the absolute value.
+                </p>
+                <p>
+                    Here's an example to help you understand:
+                </p>
+                <pre>$FF = %1111 1111 -&gt; negative of %111 1111 -&gt; %000 0000 + 1 = 1, thus $FF = -1</pre>
+                <p>
+                    Another explanation can be found <a href="https://en.wikipedia.org/wiki/Two's_complement">here</a>.
+                </p>
+                <p>
+                    This way of using negative numbers is called two's complement. It has the advantage that there's no conversion between signed and unsigned interpretations (-1 and 255 are encoded exactly the same way: $FF). This is how the CPU implements subtraction, too.
+                </p>
+                
+                <h2>Data is Code (and vice-versa), or About Compilation</h2>
+                <p>
+                    As I said, everything is numbers, to a computer. Nothing has a special significance (ever wondered why you can coerce a text editor into opening a JPEG?). This includes the very code you are about to learn how to write. For example, the simple instruction <code>xor a</code> (we'll see later what it means) is exactly the same as $AF, or 175. This has the implication that you can't distinguish data and code, which has benefits, but also one drawback. This is discussed in a later section.
+                </p>
+                <p>
+                    Here's how it works: first, you write your ASM code using a text format. Then you run it through a program known as a compiler, that turns the text into data. Then, the Game Boy's CPU will read the data, and interpret some bytes as code, and others as data. Some bytes might even end up being interpreted as both! We'll talk about this later.
+                </p>
+                <p>
+                    The process of turning the ASM text into data is known as <strong>compilation</strong>, or, in the case of ASM, <em>assembling</em> / <em>assembly</em>.
+                </p>
+
+            </article>
+
+            <aside>
+                <nav id="tutorial-index">
+                    <b id="index-title">Navigation</b>
+                    <br /><a href="what_is_gb.html">Previous: What is Game Boy?</a>
+                    <br /><a href="tools.html">Next: Tools</a>
+
+                    <br /><br />
+                    <small>Click [Expand] to expand a section, or [Expand all] to deploy everything</small>
+                    <br />
+
+                    <a href="index.html">GB ASM Programming</a>
+                    <input type="checkbox" id="index-navcheckbox">
+                    <label for="index-navcheckbox"></label>
+                    <ol>
+                        <li>
+                            <a href="introduction.html">Introduction</a>
+                            <input type="checkbox" id="introduction-navcheckbox" checked>
+                            <label for="introduction-navcheckbox"></label>
+                            <ol>
+                                <li>
+                                    <a href="what_is_gb.html">What is Game Boy?</a>
+                                </li>
+                                <li>
+                                    <a href="concepts.html" class="current">Basic concepts</a>
+                                </li>
+                                <li>
+                                    <a href="tools.html">Tools</a>
+                                </li>
+                            </ol>
+                        </li>
+                        <li>
+                            <a href="basics.html">Basics</a>
+                            <input type="checkbox" id="basics-navcheckbox">
+                            <label for="basics-navcheckbox"></label>
+                            <ol>
+                                <li>
+                                    <a href="syntax.html">ASM syntax</a>
+                                </li>
+                                <li>
+                                    <a href="registers.html">Registers</a>
+                                </li>
+                                <li>
+                                    <a href="memory.html">Memory</a>
+                                </li>
+                                <li>
+                                    <a href="flags.html">Flags</a>
+                                </li>
+                                <li>
+                                    <a href="arithmetics.html">Arithmetics &amp; boolean algebra</a>
+                                </li>
+                                <li>
+                                    <a href="interlude.html">Interlude</a>
+                                </li>
+                                <li>
+                                    <a href="jumping.html">Jumping around</a>
+                                </li>
+                                <li>
+                                    <a href="displaying.html">Displaying</a>
+                                </li>
+                                <li>
+                                    <a href="hello-world.html">Hello World!</a>
+                                </li>
+                            </ol>
+                        </li>
+                        <li>
+                            <a href="intermediate.html">Intermediate</a>
+                            <input type="checkbox" id="intermediate-navcheckbox">
+                            <label for="intermediate-navcheckbox"></label>
+                            <ol>
+                                <li>
+                                    <a href="memories.html">Memory types</a>
+                                </li>
+                                <li>
+                                    <a href="stack.html">The Stack</a>
+                                </li>
+                                <li>
+                                    <a href="calling.html">London Calling</a>
+                                </li>
+                            </ol>
+                        </li>
+                        <li>
+                            <a href="extras.html">Extras</a>
+                            <input type="checkbox" id="extras-navcheckbox">
+                            <label for="extras-navcheckbox"></label>
+                            <ol>
+                                <li>
+                                    <a href="resources.html">External resources</a>
+                                </li>
+                                <li>
+                                    <a href="instructions.html">Instruction cheat sheet</a>
+                                    <input type="checkbox" id="instructions-navcheckbox">
+                                    <label for="instructions-navcheckbox"></label>
+                                    <ol>
+                                        <li>
+                                            <a href="data_manip.html">Data manipulation</a>
+                                        </li>
+                                    </ol>
+                                </li>
+                            </ol>
+                        </li>
+                    </ol>
+
+
+                    <hr>
+
+                    <a href="https://github.com/ISSOtm/gb-asm-tutorial/issues">Report issue</a>
+                </nav>
+            </aside>
+        </main>
+
+        <nav id="navbar">
+            <a href="../index.html" id="site-name">ISSOtm's</a> &mdash; <a href="index.html">GB programming</a>
+            <a id="to-top" href="concepts.html#">Back to top</a>
+        </nav>
+    </body>
+</html>

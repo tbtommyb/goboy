@@ -19,6 +19,7 @@ func TestLoadRegisterDecode(t *testing.T) {
 	}
 }
 
+// TODO: Decode requires access to memory so test ends up the same as cpu_test
 func TestLoadImmediateOpcode(t *testing.T) {}
 func TestLoadImmediateDecode(t *testing.T) {}
 

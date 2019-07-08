@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en-US">
+    <head>
+        <meta charset="utf-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>
+            Displaying - GB ASM tutorial
+        </title>
+        <link rel="icon" href="img/favicon.ico" type="image/x-icon" />
+        <meta property="og:title" content="GB ASM Tutorial" />
+        <meta property="og:description" content="A complete guide to programming Game Boy games in assembly." />
+        <meta property="og:url" content="https://eldred.fr/gb-asm-tutorial/" />
+        <meta property="og:image" content="https://eldred.fr/gb-asm-tutorial/img/favicon.png" />
+
+        <meta name="author" content="Eldred Habert" />
+        <meta name="description" content="A complete Game Boy assembly programming tutorial, providing resources for beginners and experts alike!" />
+        <meta name="keywords" content="Game Boy, Game Boy Color, assembly, ASM, programming, games, tutorial" />
+        <link rel="author" href="../index.html" />
+        <link rel="prev" href="jumping.html" />
+        <link rel="next" href="hello-world.html" />
+
+        <link rel="stylesheet" href="css/normalize.css" />
+        <link rel="stylesheet" href="css/common.css" />
+    </head>
+    <body>
+        <main>
+            <article>
+                <h1>
+                    Displaying
+                </h1>
+                
+                <p>
+                    Let's talk quickly about how to display stuff on-screen. This is one of the most complex parts of the Game Boy, but for now we will cover just the basics.
+                </p>
+                
+                <h2>Overview</h2>
+                <p>
+                    Let's quickly see how pixels are rendered to the screen. It's important that you grasp this at a surface level; we will see all of this in practice in the next lesson.
+                </p>
+                <p>
+                    The Game Boy has a 4-color LCD, 144 pixels tall, 160 pixels wide. It's refreshed roughly 60 times per second; one refreshing period (basically the time between two consecutive redraws of the top-left pixel) is called a <strong>frame</strong>. If u gud at math, you will have figured out that a frame is roughly a 60th of a second.
+                </p>
+                <p>
+                    During a frame, the LCD's pixels are refreshed, line by line. The concept is inherited from old CRT TVs, where an electron beam has to sweep across the entire screen. First, the beam traces a line, from left to right, then it moves back to the beginning of the next row, during a small time called <strong>horizontal blanking</strong> (HBlank). Then it repeats with the next line, and so on.<br>
+                    When the beam has drawn the last line, it moves back to the top of the screen, and waits a little bit until the next frame. This is called <strong>vertical blanking</strong> (VBlank).
+                </p>
+                
+                <h3>Do you speak LCD?</h3>
+                <p>
+                    The Game Boy doesn't use a CRT display (thank god), but it also presents these two concepts. How do we interface with that? Let's introduce address $FF44, the <code>LY</code> register (it's not the same "register" concept as a CPU register, but that's how we call it). This register indicates which scanline the LCD is currently drawing: 0-143, or if the LCD is in the VBlank period (144-153). You can read from LY, but not write to it.
+                </p>
+<pre>
+    ; Wait until VBlank
+.notVBlanking
+    ldh a, [rLY] ; Read the LCD's drawing status
+    ; NOTE: ldh is a shorter and faster version of ld for addresses in the $FF00-$FFFF range
+    cp 144
+    jr c, .notVBlanking ; The LCD is VBlanking between LY 144 and 153
+</pre>
+                <p>
+                    We can also read the status of the LCD using address $FF41, the <code>STAT</code> register. More specifically, the lower two bits. There are four modes:
+                </p>
+                <dl>
+                    <dt>Mode 0</dt><dd>HBlank</dd>
+                    <dt>Mode 1</dt><dd>VBlank</dd>
+                    <dt>Mode 2</dt><dd>OAM search</dd>
+                    <dt>Mode 3</dt><dd>Rendering</dd>
+                </dl>
+                <p>
+                    We will explain the four modes below.
+                </p>
+                
+                <h3>VRAM</h3>
+                <p>
+                    The Video RAM (VRAM) is the section of memory between $8000 and $9FFF. The bulk of the graphics data is stored there. But before we talk about how data is stored there, we need to clear something up: accessing VRAM is delicate. Why? Well, as you know, the CPU (Central Processing Unit) is a chip that processes instructions. But the Game Boy also possesses a PPU (Pixel Processing Unit), which can be considered a very primitive GPU (you can't even program it, just set some registers that it uses as rendering parameters. No shaders! Whee.)
+                </p>
+                <p>
+                    The problem lies in that the PPU accesses VRAM to perform rendering, and the CPU cannot access VRAM while the PPU is accessing it. You can consider the VRAM "locked" by the PPU. What does it mean for the CPU? Reading from VRAM yields $FF, and writes have no effect. So we need to be careful! But how do we do that? We will turn the LCD off, which puts the PPU to sleep and grants us (the CPU) unlimited access to VRAM. Cool or what? The problem is that while the LCD is turned off, all pixels are fully white.
+                </p>
+                <p>
+                    There exists a solution to access VRAM safely with the LCD turned on, but for the sake of simplicity I'm omitting it for now. Now, let's focus on how to store the data to be drawn.
+                </p>
+                
+                <h2>Picture this</h2>
+                <p>
+                    Okay, pixels. However, we won't be dealing with individual pixels. That would cause problems, basically room and processing power. So how does it work? Using tiles. Tiles are units of 8x8 pixels, which are then "assembled" on what's called a tile map / tilemap. Here's an example of tiles (please note that the blank tiles at the beginning are simply uninitialized):<br>
+                    <img src="https://eldred.fr/gb-asm-tutorial/img/cloud_tiles.png" /><br />
+                    and how they're assembled on the tilemap:<br />
+                    <img src="https://eldred.fr/gb-asm-tutorial/img/cloud_tilemap.png" /><br />
+                    You can notice that this cuts down on the repetition, which is the primary pro of tilemapping.
+                    <br />
+                    Please note that these are Game Boy Color graphics, and thus use more colors than available on the Game Boy. For the sake of simplicity, GBC support will be omitted from the Hello World.
+                </p>
+                <p>
+                    Each pixel can be one of four colours; since 4 = 2^<b>2</b>, this requires 2 bits per pixel (bpp). Thus, we have 8 * 8 pixels * 2 bpp / 8 bits-per-byte = 16 bytes per tile. The Game Boy stores tiles between $8000 and $97FF, which leaves space for 384 tiles, which can be considered in three "blocks" of 128 tiles.
+                </p>
+                <p>
+                    The Game Boy then stores two tile maps of 32  * 32 tiles (256 * 256 pixels), one at $9800-$9BFF, one at $9C00-$9FFF. But, alert readers will have noticed that 256x256 pixels is roughly 1.5x1.5 times larger than the 144x160 pixel screen. That's simply enough because we can <em>scroll</em> the screen around the tilemap! Meet <code>SCY</code> and <code>SCX</code> ($FF42 and $FF43, respectively). These registers specify the coordinates of the top-left corner of the screen, relative to the tilemap. Thus, increasing SCY appears to scroll the display up (because the "focus" moves downwards), and decreasing SCX scrolls right. But what happens when we're reaching the edge of the tilemap? Helpfully, it wraps around!
+                </p>
+                <p>
+                    And one final thing: each pixel of a tile doesn't have an intrinsic color -- colors are applied using a palette, specified by the <b>b</b>ack<b>g</b>round <b>p</b>alette, or <code>BGP</code>, register. The formatting of the palette is a little weird, so bear with me for a second. The <code>BGP</code> register is split into 4 groups of 2 bits each. The lower 2 bits specify which color is color #0, then color #1, etc. (Remember that each pixel is encoded using 2 bits, which when combined yields one of 0 through 3, which is simply the color index to use in the palette.)
+                </p>
+<pre>
+BGP:  %33 22 11 00
+</pre>
+                <p>
+                    If the color is set to %00, then that's white. %01 is light gray, %10 is dark gray, and %11 is fully dark. So, the palette <code>%11 11 11 11</code> has the screen fully black, and <code>%11 10 01 00</code> maps every color (but you could shuffle colors around with <code>%10 00 01 11</code>, for example.)
+                </p>
+                
+                <hr />
+                <p>
+                    Here's a recap of what needs to be done to display stuff:
+                </p>
+                <ul>
+                    <li>Copy tiles to VRAM</li>
+                    <li>Write to tilemap</li>
+                    <li>Set scrolling (SCY, SCX)</li>
+                    <li>Set palette</li>
+                </ul>
+                <p>
+                    Doesn't sound simple? Well, that's what we're going to do next! Don't worry.
+                </p>
+
+            </article>
+
+            <aside>
+                <nav id="tutorial-index">
+                    <b id="index-title">Navigation</b>
+                    <br /><a href="jumping.html">Previous: Jumping around</a>
+                    <br /><a href="hello-world.html">Next: Hello World!</a>
+
+                    <br /><br />
+                    <small>Click [Expand] to expand a section, or [Expand all] to deploy everything</small>
+                    <br />
+
+                    <a href="index.html">GB ASM Programming</a>
+                    <input type="checkbox" id="index-navcheckbox">
+                    <label for="index-navcheckbox"></label>
+                    <ol>
+                        <li>
+                            <a href="introduction.html">Introduction</a>
+                            <input type="checkbox" id="introduction-navcheckbox">
+                            <label for="introduction-navcheckbox"></label>
+                            <ol>
+                                <li>
+                                    <a href="what_is_gb.html">What is Game Boy?</a>
+                                </li>
+                                <li>
+                                    <a href="concepts.html">Basic concepts</a>
+                                </li>
+                                <li>
+                                    <a href="tools.html">Tools</a>
+                                </li>
+                            </ol>
+                        </li>
+                        <li>
+                            <a href="basics.html">Basics</a>
+                            <input type="checkbox" id="basics-navcheckbox" checked>
+                            <label for="basics-navcheckbox"></label>
+                            <ol>
+                                <li>
+                                    <a href="syntax.html">ASM syntax</a>
+                                </li>
+                                <li>
+                                    <a href="registers.html">Registers</a>
+                                </li>
+                                <li>
+                                    <a href="memory.html">Memory</a>
+                                </li>
+                                <li>
+                                    <a href="flags.html">Flags</a>
+                                </li>
+                                <li>
+                                    <a href="arithmetics.html">Arithmetics &amp; boolean algebra</a>
+                                </li>
+                                <li>
+                                    <a href="interlude.html">Interlude</a>
+                                </li>
+                                <li>
+                                    <a href="jumping.html">Jumping around</a>
+                                </li>
+                                <li>
+                                    <a href="displaying.html" class="current">Displaying</a>
+                                </li>
+                                <li>
+                                    <a href="hello-world.html">Hello World!</a>
+                                </li>
+                            </ol>
+                        </li>
+                        <li>
+                            <a href="intermediate.html">Intermediate</a>
+                            <input type="checkbox" id="intermediate-navcheckbox">
+                            <label for="intermediate-navcheckbox"></label>
+                            <ol>
+                                <li>
+                                    <a href="memories.html">Memory types</a>
+                                </li>
+                                <li>
+                                    <a href="stack.html">The Stack</a>
+                                </li>
+                                <li>
+                                    <a href="calling.html">London Calling</a>
+                                </li>
+                            </ol>
+                        </li>
+                        <li>
+                            <a href="extras.html">Extras</a>
+                            <input type="checkbox" id="extras-navcheckbox">
+                            <label for="extras-navcheckbox"></label>
+                            <ol>
+                                <li>
+                                    <a href="resources.html">External resources</a>
+                                </li>
+                                <li>
+                                    <a href="instructions.html">Instruction cheat sheet</a>
+                                    <input type="checkbox" id="instructions-navcheckbox">
+                                    <label for="instructions-navcheckbox"></label>
+                                    <ol>
+                                        <li>
+                                            <a href="data_manip.html">Data manipulation</a>
+                                        </li>
+                                    </ol>
+                                </li>
+                            </ol>
+                        </li>
+                    </ol>
+
+
+                    <hr>
+
+                    <a href="https://github.com/ISSOtm/gb-asm-tutorial/issues">Report issue</a>
+                </nav>
+            </aside>
+        </main>
+
+        <nav id="navbar">
+            <a href="../index.html" id="site-name">ISSOtm's</a> &mdash; <a href="index.html">GB programming</a>
+            <a id="to-top" href="displaying.html#">Back to top</a>
+        </nav>
+    </body>
+</html>

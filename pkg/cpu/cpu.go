@@ -39,7 +39,7 @@ func (cpu *CPU) GetHL() uint16 {
 	return uint16(cpu.Get(H))<<8 | uint16(cpu.Get(L))
 }
 
-func (cpu *CPU) Set(r Register, val byte) byte {
+func (cpu *CPU) set(r Register, val byte) byte {
 	cpu.r[r] = val
 	return cpu.Get(r)
 }
@@ -72,13 +72,17 @@ func (cpu *CPU) Run() {
 		instr := cpu.Decode(opcode)
 		switch i := instr.(type) {
 		case LoadRegister:
-			cpu.Set(i.dest, cpu.Get(i.source))
+			cpu.set(i.dest, cpu.Get(i.source))
+		case LoadImmediate:
+			cpu.set(i.dest, i.immediate)
+	        case InvalidInstruction:
+			return
 		}
-		cpu.IncrementPC()
 		opcode = cpu.fetchAndIncrement()
 	}
 }
 
+// TODO: RunProgram convenience method?
 func (cpu *CPU) LoadProgram(program []byte) {
 	cpu.memory.Load(ProgramStartAddress, program)
 }

@@ -1,0 +1,208 @@
+
+body {
+    margin-top: 50px;
+    padding: 0 40px 40px 0;
+
+    background-color: #eee;
+
+    font-family: sans-serif;
+    font-size: 16px;
+}
+
+
+#navbar {
+    /* Use two colors from the monochrome GB palette, but avoid it for the whole page - it's pretty ugly. */
+    background-color: #9bbc0f;
+    color: #0f380f;
+
+    padding: 10px 2% 13px 2%;
+    font-size: 18px;
+
+    position: fixed;
+    top: 0;
+    height: 23px;
+    width: 96%;
+}
+
+#navbar a {
+    text-decoration: none;
+    color: inherit;
+}
+
+#navbar a:hover {
+    text-decoration: underline;
+}
+
+#site-name {
+    font-size: 20px;
+    font-weight: bold;
+}
+
+#to-top {
+    float: right;
+    background-color: #9bbc0f;
+    margin-right: 10px;
+}
+
+
+main {
+    /* Make children position relative to this */
+    position: relative;
+    padding: 0 20px;
+
+    display: flex;
+    flex-flow: row-reverse nowrap;
+}
+
+@media screen and (max-width: 500px) {
+    main {
+        flex-flow: column-reverse nowrap;
+    }
+}
+
+main article {
+    flex-grow: 10;
+    text-align: justify;
+    /* Somehow this fixes horizontal overflow issues. Thanks @uki-nz ! */
+    min-width: 0;
+}
+
+
+table {
+    border-collapse: collapse;
+}
+
+tr:nth-child(2n) td, .invert-stripes > tbody > tr:nth-child(2n+1) td {
+    background-color: #9bbc0f80;
+}
+
+tr:nth-child(2n+1) td, .invert-stripes > tbody > tr:nth-child(2n) td {
+    background-color: #30623080;
+}
+
+th {
+    background-color: #0f380f80;
+    padding: 5px;
+}
+
+td {
+    padding: 10px;
+}
+
+
+pre {
+    overflow-x: auto;
+
+    background-color: #ddd;
+    border-radius: 10px;
+    padding: 10px;
+}
+
+code {
+    white-space: nowrap;
+
+    background-color: #e0e0e0;
+    border-radius: 3px;
+    padding: 0 5px;
+}
+
+
+/* Bump up readability somewhat, keeping code blocks more condensed */
+p {
+    line-height: 1.4;
+}
+
+pre {
+    line-height: 1.2;
+}
+
+
+/* Sidebar */
+
+#tutorial-index {
+    flex-grow: 1;
+
+    /* Fixed would work as well, I just want a tiny superfluous thingy */
+    position: -webkit-sticky;
+    position: sticky;
+    top: 50px;
+
+    border: 1px solid black;
+    margin-right: 30px;
+    margin-top: 20px;
+    padding: 10px;
+}
+
+@media print {
+    /* Hide the index if printing the page */
+    #tutorial-index {
+        display: none;
+    }
+}
+
+#index-title {
+    font-size: 18px;
+}
+
+/* List number formatting */
+#tutorial-index > ol {
+    list-style-type: upper-roman;
+}
+
+#tutorial-index > ol > li > ol {
+    list-style-type: decimal;
+}
+
+#tutorial-index > ol > li > ol > li > ol {
+    list-style-type: lower-alpha;
+}
+
+/* Collapsing styling for checkbox trick */
+#tutorial-index > ol ol {
+    /* Use visibility instead of display: none to avoid the box resizing horizontally when the sub-list pops up */
+    visibility: hidden;
+    height: 0;
+    opacity: 0;
+    transition: visibility 0.25s step-end, height 0.25s step-end, opacity 0.25s ease-in;
+}
+
+#tutorial-index > ol :checked + label + ol, #tutorial-index > :checked + label + ol ol {
+    visibility: visible;
+    height: 100%;
+    opacity: 1;
+    transition: visibility 0.25s step-start, height 0.25s step-start, opacity 0.25s ease-out;
+}
+
+/* Hide trick's checkbox */
+#tutorial-index input[type="checkbox"] {
+    display: none;
+}
+
+/* Dynamically alter displayed text (JS-less!) */
+#tutorial-index > ol :checked + label::after {
+    content: "[Collapse]";
+}
+
+#tutorial-index > ol input[type="checkbox"]:not(:checked) + label::after {
+    content: "[Expand]";
+}
+
+/* Root level has "Expand all" button */
+#tutorial-index > :checked + label::after {
+    content: "[Collapse all]";
+}
+
+#tutorial-index > input[type="checkbox"]:not(:checked) + label::after {
+    content: "[Expand all]";
+}
+
+/* Eye-candy */
+#tutorial-index label {
+    font-size: 80%;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+a.current {
+    font-weight: bold;
+}
