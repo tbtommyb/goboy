@@ -17,6 +17,10 @@ type InvalidInstruction struct{ opcode byte }
 
 func (i InvalidInstruction) Opcode() []byte { return []byte{i.opcode} }
 
+type EmptyInstruction struct{ opcode byte }
+
+func (i EmptyInstruction) Opcode() []byte { return []byte{i.opcode} }
+
 type LoadRegister struct {
 	source, dest Register
 }
@@ -46,6 +50,8 @@ func (cpu *CPU) Decode(op byte) Instruction {
 		dest := Register(op & DestRegisterMask >> DestRegisterShift) // TODO extract this
 		immediate := cpu.fetchAndIncrement()
 		return LoadImmediate{dest, immediate}
+	case op == 0:
+		return EmptyInstruction{opcode: 0}
 	default:
 		return InvalidInstruction{opcode: op}
 	}

@@ -5,3 +5,8 @@
 - Added decoder to turn opcode into struct. Seems more self-documenting than lots of bitwise operations.
 - tests currently are quite low level using `get` and `set`.
 - for next post talk about immediate instr, which will involve basic memory model and working PC. Can then change tests to pass in instruction opcodes and test state, which involves less knowledge about implementation details.
+* LD R, R
+Changed things to allow multi-opcode instructions.
+Added memory and a proper loop.
+Added Opcode() method to Instruction interface
+Added InvalidInstruction and EmptyInstruction

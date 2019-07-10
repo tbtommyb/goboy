@@ -1,5 +1,7 @@
 package cpu
 
+import "fmt"
+
 // TODO: consider what needs to be exported
 
 type Register byte
@@ -76,6 +78,8 @@ func (cpu *CPU) Run() {
 		case LoadImmediate:
 			cpu.set(i.dest, i.immediate)
 		case InvalidInstruction:
+			panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
+		case EmptyInstruction:
 			return
 		}
 		opcode = cpu.fetchAndIncrement()

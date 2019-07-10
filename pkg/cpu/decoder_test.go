@@ -31,3 +31,12 @@ func TestInvalidOpcode(t *testing.T) {
 		t.Errorf("Expected InvalidInstruction, got %#v\n", actual)
 	}
 }
+
+func TestEmptyOpcode(t *testing.T) {
+	cpu := Init()
+	actual := cpu.Decode(0x00)
+	expected := EmptyInstruction{opcode: 0}
+	if actual != expected {
+		t.Errorf("Expected EmptyInstruction, got %#v\n", actual)
+	}
+}
