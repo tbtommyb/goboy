@@ -28,7 +28,7 @@ func TestInvalidOpcode(t *testing.T) {
 	actual := cpu.Decode(0xFF)
 	expected := InvalidInstruction{opcode: 0xFF}
 	if actual != expected {
-		t.Errorf("Expected InvalidInstruction, got %#v\n", actual)
+		t.Errorf("Expected %#v, got %#v\n", expected, actual)
 	}
 }
 
@@ -37,6 +37,25 @@ func TestEmptyOpcode(t *testing.T) {
 	actual := cpu.Decode(0x00)
 	expected := EmptyInstruction{opcode: 0}
 	if actual != expected {
-		t.Errorf("Expected EmptyInstruction, got %#v\n", actual)
+		t.Errorf("Expected %#v, got %#v\n", expected, actual)
+	}
+}
+
+// TODO: deduplicate these tests
+func TestLoadRegisterMemoryDecode(t *testing.T) {
+	cpu := Init()
+	actual := cpu.Decode(0x46)
+	expected := LoadRegisterMemory{dest: B}
+	if actual != expected {
+		t.Errorf("Expected %#v, got %#v\n", expected, actual)
+	}
+}
+
+func TestStoreMemoryRegisterDecode(t *testing.T) {
+	cpu := Init()
+	actual := cpu.Decode(0x77)
+	expected := StoreMemoryRegister{source: A}
+	if actual != expected {
+		t.Errorf("Expected %#v, got %#v\n", expected, actual)
 	}
 }

@@ -77,6 +77,10 @@ func (cpu *CPU) Run() {
 			cpu.set(i.dest, cpu.Get(i.source))
 		case LoadImmediate:
 			cpu.set(i.dest, i.immediate)
+		case LoadRegisterMemory:
+			cpu.set(i.dest, cpu.memory[cpu.GetHL()])
+		case StoreMemoryRegister:
+			cpu.memory[cpu.GetHL()] = cpu.Get(i.source)
 		case InvalidInstruction:
 			panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 		case EmptyInstruction:

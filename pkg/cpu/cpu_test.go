@@ -79,3 +79,37 @@ func TestSetAndGetRegister(t *testing.T) {
 		t.Errorf("Expected 3, got %d", regValue)
 	}
 }
+
+func TestLoadRegisterMemory(t *testing.T) {
+	cpu := Init()
+	var expected byte = 0xFF
+	cpu.memory.Load(0x1234, []byte{expected})
+
+	cpu.LoadProgram(encode([]Instruction{
+		LoadImmediate{dest: H, immediate: 0x12},
+		LoadImmediate{dest: L, immediate: 0x34},
+		LoadRegisterMemory{dest: A},
+	}))
+	cpu.Run()
+
+	if actual := cpu.Get(A); actual != expected {
+		t.Errorf("Expected %#X, got %#X", expected, actual)
+	}
+}
+
+func TestStoreMemoryRegister(t *testing.T) {
+	cpu := Init()
+	var expected byte = 0xFF
+
+	cpu.LoadProgram(encode([]Instruction{
+		LoadImmediate{dest: A, immediate: expected},
+		LoadImmediate{dest: H, immediate: 0x12},
+		LoadImmediate{dest: L, immediate: 0x34},
+		StoreMemoryRegister{source: A},
+	}))
+	cpu.Run()
+
+	if actual := cpu.memory[0x1234]; actual != expected {
+		t.Errorf("Expected %#X, got %#X", expected, actual)
+	}
+}
