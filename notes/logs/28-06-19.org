@@ -12,3 +12,4 @@ Added Opcode() method to Instruction interface
 Added InvalidInstruction and EmptyInstruction
 Need to handle cycles correctly
 Added LoadMemoryRegister and StoreMemoryRegister instructions
+Simplified decoder test structure a little

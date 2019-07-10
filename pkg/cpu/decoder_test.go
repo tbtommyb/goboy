@@ -2,60 +2,39 @@ package cpu
 
 import "testing"
 
-func TestLoadRegisterOpcode(t *testing.T) {
-	cpu := Init()
-	instr := cpu.Decode(0x47)
-	if actual := instr.Opcode(); actual[0] != byte(0x47) {
-		t.Errorf("Expected opcode 0x47, got %x", actual[0])
-	}
-}
-
-func TestLoadRegisterDecode(t *testing.T) {
-	cpu := Init()
-	actual := cpu.Decode(0x47)
-	expected := LoadRegister{source: A, dest: B}
-	if actual != expected {
-		t.Errorf("Expected LD B, A, got %#v", actual)
-	}
-}
-
 // TODO: Decode requires access to memory so test ends up the same as cpu_test
 func TestLoadImmediateOpcode(t *testing.T) {}
 func TestLoadImmediateDecode(t *testing.T) {}
 
-func TestInvalidOpcode(t *testing.T) {
+func TestSimpleDecodes(t *testing.T) {
 	cpu := Init()
-	actual := cpu.Decode(0xFF)
-	expected := InvalidInstruction{opcode: 0xFF}
-	if actual != expected {
-		t.Errorf("Expected %#v, got %#v\n", expected, actual)
+
+	testCases := map[byte]Instruction{
+		0xFF: InvalidInstruction{opcode: 0xFF},
+		0x77: StoreMemoryRegister{source: A},
+		0x46: LoadRegisterMemory{dest: B},
+		0x00: EmptyInstruction{opcode: 0},
+		0x47: LoadRegister{source: A, dest: B},
+	}
+
+	for instruction, expected := range testCases {
+		actual := cpu.Decode(instruction)
+		if actual != expected {
+			t.Errorf("Expected %#v, got %#v\n", expected, actual)
+		}
 	}
 }
 
-func TestEmptyOpcode(t *testing.T) {
+// Not sure how useful these tests are
+func TestSimpleOpcodes(t *testing.T) {
 	cpu := Init()
-	actual := cpu.Decode(0x00)
-	expected := EmptyInstruction{opcode: 0}
-	if actual != expected {
-		t.Errorf("Expected %#v, got %#v\n", expected, actual)
-	}
-}
 
-// TODO: deduplicate these tests
-func TestLoadRegisterMemoryDecode(t *testing.T) {
-	cpu := Init()
-	actual := cpu.Decode(0x46)
-	expected := LoadRegisterMemory{dest: B}
-	if actual != expected {
-		t.Errorf("Expected %#v, got %#v\n", expected, actual)
-	}
-}
+	testCases := []byte{0x47}
 
-func TestStoreMemoryRegisterDecode(t *testing.T) {
-	cpu := Init()
-	actual := cpu.Decode(0x77)
-	expected := StoreMemoryRegister{source: A}
-	if actual != expected {
-		t.Errorf("Expected %#v, got %#v\n", expected, actual)
+	for _, instruction := range testCases {
+		actual := cpu.Decode(instruction).Opcode()
+		if actual[0] != instruction {
+			t.Errorf("Expected %#v, got %#v\n", instruction, actual)
+		}
 	}
 }
