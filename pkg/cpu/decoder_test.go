@@ -13,7 +13,7 @@ func TestSimpleDecodes(t *testing.T) {
 		0xFF: InvalidInstruction{opcode: 0xFF},
 		0x77: StoreMemoryRegister{source: A},
 		0x46: LoadRegisterMemory{dest: B},
-		0x00: EmptyInstruction{opcode: 0},
+		0x00: EmptyInstruction{},
 		0x47: LoadRegister{source: A, dest: B},
 	}
 

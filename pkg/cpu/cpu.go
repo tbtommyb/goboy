@@ -69,8 +69,7 @@ func (cpu *CPU) fetchAndIncrement() byte {
 }
 
 func (cpu *CPU) Run() {
-	opcode := cpu.fetchAndIncrement()
-	for ok := true; ok; ok = (opcode != 0) {
+	for opcode := cpu.fetchAndIncrement(); opcode != 0; opcode = cpu.fetchAndIncrement() {
 		instr := cpu.Decode(opcode)
 		switch i := instr.(type) {
 		case LoadRegister:
@@ -83,10 +82,7 @@ func (cpu *CPU) Run() {
 			cpu.memory[cpu.GetHL()] = cpu.Get(i.source)
 		case InvalidInstruction:
 			panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
-		case EmptyInstruction:
-			return
 		}
-		opcode = cpu.fetchAndIncrement()
 	}
 }
 
