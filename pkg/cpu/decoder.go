@@ -4,8 +4,11 @@ const LoadMask = 0xC0
 const LoadPattern = 0x40
 const LoadImmediateMask = 0xC7
 const LoadImmediatePattern = 0x6
-const LoadPairMask = 0xCF
+const LoadStorePairMask = 0xCF
 const LoadPairPattern = 0xA
+const StorePairPattern = 0x2
+const LoadOrStorePairFlag = 0x8
+const LoadOrStorePairShift = 3
 
 const DestRegisterMask = 0x38
 const DestRegisterShift = 3
@@ -49,7 +52,11 @@ type LoadPair struct {
 }
 
 func (i LoadPair) Opcode() []byte {
-	return []byte{byte(LoadPairPattern | (i.source-PairRegisterBaseValue)<<PairRegisterShift)}
+	if i.dest == A {
+		return []byte{byte(LoadPairPattern | (i.source-PairRegisterBaseValue)<<PairRegisterShift)}
+	} else {
+		return []byte{byte(StorePairPattern | (i.dest-PairRegisterBaseValue)<<PairRegisterShift)}
+	}
 }
 
 func Decode(op byte) Instruction {
@@ -63,10 +70,14 @@ func Decode(op byte) Instruction {
 		// LD D, n. 0b00ddd110
 		dest := Register(op & DestRegisterMask >> DestRegisterShift) // TODO: extract this
 		return LoadImmediate{dest: dest}
-	case op&LoadPairMask == LoadPairPattern:
-		// LD, r, (pair)
-		pair := op & PairRegisterMask >> PairRegisterShift
-		return LoadPair{dest: A, source: Register(PairRegisterBaseValue | pair)}
+	case op&LoadStorePairMask == LoadPairPattern:
+		// LD, r, (pair). 0b00ss1010
+		// TODO: cover HLI and HLD with this instruction
+		pair := Register((op & PairRegisterMask >> PairRegisterShift) | PairRegisterBaseValue)
+		return LoadPair{dest: A, source: pair}
+	case op&LoadStorePairMask == StorePairPattern:
+		pair := Register((op & PairRegisterMask >> PairRegisterShift) | PairRegisterBaseValue)
+		return LoadPair{source: A, dest: pair}
 	case op == 0:
 		return EmptyInstruction{}
 	default:

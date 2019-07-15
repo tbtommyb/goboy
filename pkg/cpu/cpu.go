@@ -57,6 +57,14 @@ func (cpu *CPU) GetHL() uint16 {
 }
 
 func (cpu *CPU) set(r Register, val byte) byte {
+	if r == BC {
+		cpu.memory.Set(cpu.GetBC(), val)
+		return val
+	}
+	if r == DE {
+		cpu.memory.Set(cpu.GetDE(), val)
+		return val
+	}
 	if r == M {
 		cpu.memory.Set(cpu.GetHL(), val)
 		return val
