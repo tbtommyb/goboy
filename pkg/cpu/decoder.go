@@ -58,7 +58,7 @@ func (i StoreMemoryRegister) Opcode() []byte {
 	return []byte{byte(StoreMemoryRegisterPattern | i.source)}
 }
 
-func (cpu *CPU) Decode(op byte) Instruction {
+func Decode(op byte) Instruction {
 	switch {
 	case op&LoadRegisterMemoryMask == LoadRegisterMemoryPattern:
 		// LD D, (HL), 0b01ddd110
@@ -79,8 +79,7 @@ func (cpu *CPU) Decode(op byte) Instruction {
 	case op&LoadImmediateMask == LoadImmediatePattern:
 		// LD D, n. 0b00ddd110
 		dest := Register(op & DestRegisterMask >> DestRegisterShift) // TODO extract this
-		immediate := cpu.fetchAndIncrement()
-		return LoadImmediate{dest, immediate}
+		return LoadImmediate{dest: dest}
 	case op == 0:
 		return EmptyInstruction{}
 	default:

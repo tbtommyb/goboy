@@ -81,11 +81,12 @@ func (cpu *CPU) fetchAndIncrement() byte {
 
 func (cpu *CPU) Run() {
 	for opcode := cpu.fetchAndIncrement(); opcode != 0; opcode = cpu.fetchAndIncrement() {
-		instr := cpu.Decode(opcode)
+		instr := Decode(opcode)
 		switch i := instr.(type) {
 		case LoadRegister:
 			cpu.set(i.dest, cpu.Get(i.source))
 		case LoadImmediate:
+			i.immediate = cpu.fetchAndIncrement()
 			cpu.set(i.dest, i.immediate)
 		case LoadRegisterMemory:
 			cpu.set(i.dest, cpu.memory[cpu.GetHL()])
