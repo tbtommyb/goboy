@@ -23,6 +23,7 @@ type CPU struct {
 	r      Registers
 	SP, PC uint16
 	memory Memory
+	cycles uint
 }
 
 func (cpu *CPU) Get(r Register) byte {
@@ -38,6 +39,7 @@ func (cpu *CPU) GetDE() uint16 {
 }
 
 func (cpu *CPU) GetHL() uint16 {
+	cpu.IncrementCycles()
 	return uint16(cpu.Get(H))<<8 | uint16(cpu.Get(L))
 }
 
@@ -62,9 +64,18 @@ func (cpu *CPU) IncrementPC() {
 	cpu.PC += 1
 }
 
+func (cpu *CPU) GetCycles() uint {
+	return cpu.cycles
+}
+
+func (cpu *CPU) IncrementCycles() {
+	cpu.cycles += 1
+}
+
 func (cpu *CPU) fetchAndIncrement() byte {
 	value := cpu.memory[cpu.GetPC()]
 	cpu.IncrementPC()
+	cpu.IncrementCycles()
 	return value
 }
 

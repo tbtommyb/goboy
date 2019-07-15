@@ -113,3 +113,28 @@ func TestStoreMemoryRegister(t *testing.T) {
 		t.Errorf("Expected %#X, got %#X", expected, actual)
 	}
 }
+
+func TestInstructionCycles(t *testing.T) {
+	// one more than the instruction cycle count because fetching the empty
+	// instruction that ends the Run() loop costs a cycle
+	testCases := []struct {
+		instructions []Instruction
+		expected     uint
+	}{
+		{instructions: []Instruction{LoadRegister{source: A, dest: B}}, expected: 2},
+		{instructions: []Instruction{LoadImmediate{dest: H, immediate: 0x12}}, expected: 3},
+		{instructions: []Instruction{StoreMemoryRegister{source: A}}, expected: 3},
+		{instructions: []Instruction{LoadImmediate{dest: H, immediate: 0x12}, StoreMemoryRegister{source: A}}, expected: 5},
+	}
+
+	for _, test := range testCases {
+		cpu := Init()
+		initialCycles := cpu.GetCycles()
+		cpu.LoadProgram(encode(test.instructions))
+		cpu.Run()
+
+		if cycles := cpu.GetCycles(); cycles-initialCycles != test.expected {
+			t.Errorf("Incorrect cycles value. Expected %d, got %d", test.expected, cycles-initialCycles)
+		}
+	}
+}
