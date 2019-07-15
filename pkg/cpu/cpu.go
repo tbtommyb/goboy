@@ -1,7 +1,5 @@
 package cpu
 
-import "fmt"
-
 // TODO: consider what needs to be exported
 
 type Register byte
@@ -23,6 +21,7 @@ type CPU struct {
 	r      Registers
 	SP, PC uint16
 	memory Memory
+	cycles uint32
 }
 
 func (cpu *CPU) Get(r Register) byte {
@@ -71,18 +70,20 @@ func (cpu *CPU) fetchAndIncrement() byte {
 func (cpu *CPU) Run() {
 	for opcode := cpu.fetchAndIncrement(); opcode != 0; opcode = cpu.fetchAndIncrement() {
 		instr := cpu.Decode(opcode)
-		switch i := instr.(type) {
-		case LoadRegister:
-			cpu.set(i.dest, cpu.Get(i.source))
-		case LoadImmediate:
-			cpu.set(i.dest, i.immediate)
-		case LoadRegisterMemory:
-			cpu.set(i.dest, cpu.memory[cpu.GetHL()])
-		case StoreMemoryRegister:
-			cpu.memory[cpu.GetHL()] = cpu.Get(i.source)
-		case InvalidInstruction:
-			panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
+		var output byte
+		for _, microOp := range instr.MicroOps(cpu) {
+			output = microOp(&output)
 		}
+
+		// val := cpu.fetchAndIncrement()
+		// cpu.set(i.dest, val)
+		// case LoadRegisterMemory:
+		// 	cpu.set(i.dest, cpu.memory[cpu.GetHL()])
+		// case StoreMemoryRegister:
+		// 	cpu.memory[cpu.GetHL()] = cpu.Get(i.source)
+		// case InvalidInstruction:
+		// 	panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
+		// }
 	}
 }
 

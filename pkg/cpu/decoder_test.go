@@ -10,10 +10,10 @@ func TestSimpleDecodes(t *testing.T) {
 	cpu := Init()
 
 	testCases := map[byte]Instruction{
-		0xFF: InvalidInstruction{opcode: 0xFF},
-		0x77: StoreMemoryRegister{source: A},
-		0x46: LoadRegisterMemory{dest: B},
-		0x00: EmptyInstruction{},
+		// 0xFF: InvalidInstruction{opcode: 0xFF},
+		// 0x77: StoreMemoryRegister{source: A},
+		// 0x46: LoadRegisterMemory{dest: B},
+		// 0x00: EmptyInstruction{},
 		0x47: LoadRegister{source: A, dest: B},
 	}
 
