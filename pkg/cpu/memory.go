@@ -20,5 +20,5 @@ func (m Memory) Get(address uint16) byte {
 }
 
 func InitMemory() Memory {
-	return make(Memory, 8000)
+	return make(Memory, 0xFFFF)
 }

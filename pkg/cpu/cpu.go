@@ -97,6 +97,11 @@ func (cpu *CPU) IncrementCycles() {
 	cpu.cycles += 1
 }
 
+func (cpu *CPU) computeOffset(offset uint16) uint16 {
+	cpu.IncrementCycles()
+	return 0xFF00 + offset
+}
+
 func (cpu *CPU) fetchAndIncrement() byte {
 	value := cpu.memory[cpu.GetPC()]
 	cpu.IncrementPC()
@@ -115,6 +120,18 @@ func (cpu *CPU) Run() {
 			cpu.set(i.dest, i.immediate)
 		case LoadPair:
 			cpu.set(i.dest, cpu.Get(i.source))
+		case LoadRelativeC:
+			source := cpu.memory.Get(cpu.computeOffset(uint16(cpu.Get(C))))
+			cpu.set(A, source)
+		case LoadRelativeN:
+			value := cpu.memory.Get(cpu.computeOffset(uint16(cpu.fetchAndIncrement())))
+			cpu.set(A, value)
+		case StoreRelativeC:
+			dest := cpu.computeOffset(uint16(cpu.Get(C)))
+			cpu.memory.Set(dest, cpu.Get(A))
+		case StoreRelativeN:
+			dest := cpu.computeOffset(uint16(cpu.fetchAndIncrement()))
+			cpu.memory.Set(dest, cpu.Get(A))
 		case InvalidInstruction:
 			panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 		}

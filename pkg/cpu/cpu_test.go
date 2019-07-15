@@ -148,6 +148,71 @@ func TestStorePair(t *testing.T) {
 	}
 }
 
+func TestLoadRelativeC(t *testing.T) {
+	cpu := Init()
+
+	var expected byte = 0xFF
+	cpu.memory.Set(0xFF03, expected)
+
+	cpu.LoadProgram(encode([]Instruction{
+		LoadImmediate{dest: C, immediate: 3},
+		LoadRelativeC{},
+	}))
+	cpu.Run()
+
+	if actual := cpu.Get(A); actual != expected {
+		t.Errorf("Expected %#X, got %#X", expected, actual)
+	}
+}
+
+func TestStoreRelativeC(t *testing.T) {
+	cpu := Init()
+
+	var expected byte = 0xFF
+
+	cpu.LoadProgram(encode([]Instruction{
+		LoadImmediate{dest: C, immediate: 3},
+		LoadImmediate{dest: A, immediate: expected},
+		StoreRelativeC{},
+	}))
+	cpu.Run()
+
+	if actual := cpu.memory.Get(0xFF03); actual != expected {
+		t.Errorf("Expected %#X, got %#X", expected, actual)
+	}
+}
+
+func TestLoadRelativeN(t *testing.T) {
+	cpu := Init()
+
+	var expected byte = 0xFF
+	cpu.memory.Set(0xFF03, expected)
+
+	cpu.LoadProgram(encode([]Instruction{
+		LoadRelativeN{immediate: 3},
+	}))
+	cpu.Run()
+
+	if actual := cpu.Get(A); actual != expected {
+		t.Errorf("Expected %#X, got %#X", expected, actual)
+	}
+}
+
+func TestStoreRelativeN(t *testing.T) {
+	cpu := Init()
+
+	var expected byte = 0xFF
+
+	cpu.LoadProgram(encode([]Instruction{
+		LoadImmediate{dest: A, immediate: expected},
+		StoreRelativeN{immediate: 3},
+	}))
+	cpu.Run()
+
+	if actual := cpu.memory.Get(0xFF03); actual != expected {
+		t.Errorf("Expected %#X, got %#X", expected, actual)
+	}
+}
 func TestInstructionCycles(t *testing.T) {
 	// one more than the instruction cycle count because fetching the empty
 	// instruction that ends the Run() loop costs a cycle
@@ -160,6 +225,11 @@ func TestInstructionCycles(t *testing.T) {
 		{instructions: []Instruction{Load{dest: M, source: A}}, expected: 3},
 		{instructions: []Instruction{LoadImmediate{dest: H, immediate: 0x12}, Load{source: A, dest: M}}, expected: 5},
 		{instructions: []Instruction{LoadImmediate{immediate: 0x12, dest: M}}, expected: 4},
+		{instructions: []Instruction{LoadPair{source: A, dest: BC}}, expected: 3},
+		{instructions: []Instruction{LoadRelativeC{}}, expected: 3},
+		{instructions: []Instruction{StoreRelativeC{}}, expected: 3},
+		{instructions: []Instruction{LoadRelativeN{}}, expected: 4},
+		{instructions: []Instruction{StoreRelativeN{}}, expected: 4},
 	}
 
 	for _, test := range testCases {
