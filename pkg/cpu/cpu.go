@@ -7,14 +7,16 @@ import "fmt"
 type Register byte
 
 const (
-	A Register = 0x7
-	B          = 0x0
-	C          = 0x1
-	D          = 0x2
-	E          = 0x3
-	H          = 0x4
-	L          = 0x5
-	M          = 0x6 // memory reference through H:L
+	A  Register = 0x7
+	B           = 0x0
+	C           = 0x1
+	D           = 0x2
+	E           = 0x3
+	H           = 0x4
+	L           = 0x5
+	M           = 0x6 // memory reference through H:L
+	BC          = 0x8
+	DE          = 0x9
 )
 
 type Registers map[Register]byte
@@ -27,6 +29,12 @@ type CPU struct {
 }
 
 func (cpu *CPU) Get(r Register) byte {
+	if r == BC {
+		return cpu.memory.Get(cpu.GetBC())
+	}
+	if r == DE {
+		return cpu.memory.Get(cpu.GetDE())
+	}
 	if r == M {
 		return cpu.memory.Get(cpu.GetHL())
 	}
@@ -34,10 +42,12 @@ func (cpu *CPU) Get(r Register) byte {
 }
 
 func (cpu *CPU) GetBC() uint16 {
+	cpu.IncrementCycles()
 	return uint16(cpu.Get(B))<<8 | uint16(cpu.Get(C))
 }
 
 func (cpu *CPU) GetDE() uint16 {
+	cpu.IncrementCycles()
 	return uint16(cpu.Get(D))<<8 | uint16(cpu.Get(E))
 }
 
@@ -95,6 +105,8 @@ func (cpu *CPU) Run() {
 		case LoadImmediate:
 			i.immediate = cpu.fetchAndIncrement()
 			cpu.set(i.dest, i.immediate)
+		case LoadPair:
+			cpu.set(i.dest, cpu.Get(i.source))
 		case InvalidInstruction:
 			panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 		}

@@ -114,6 +114,23 @@ func TestStoreMemory(t *testing.T) {
 	}
 }
 
+func TestLoadPair(t *testing.T) {
+	cpu := Init()
+	var expected byte = 0xFF
+	cpu.memory.Load(0x1234, []byte{expected})
+
+	cpu.LoadProgram(encode([]Instruction{
+		LoadImmediate{dest: B, immediate: 0x12},
+		LoadImmediate{dest: C, immediate: 0x34},
+		LoadPair{dest: A, source: BC},
+	}))
+	cpu.Run()
+
+	if actual := cpu.Get(A); actual != expected {
+		t.Errorf("Expected %#X, got %#X", expected, actual)
+	}
+}
+
 func TestInstructionCycles(t *testing.T) {
 	// one more than the instruction cycle count because fetching the empty
 	// instruction that ends the Run() loop costs a cycle
