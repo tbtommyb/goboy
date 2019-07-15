@@ -11,6 +11,14 @@ func (m Memory) Load(start int, data []byte) {
 	}
 }
 
+func (m Memory) Set(address uint16, value byte) {
+	m[address] = value
+}
+
+func (m Memory) Get(address uint16) byte {
+	return m[address]
+}
+
 func InitMemory() Memory {
 	return make(Memory, 8000)
 }

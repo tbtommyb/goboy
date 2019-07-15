@@ -5,11 +5,12 @@ import "testing"
 func TestSimpleDecodes(t *testing.T) {
 	testCases := map[byte]Instruction{
 		0xFF: InvalidInstruction{opcode: 0xFF},
-		0x77: StoreMemoryRegister{source: A},
-		0x46: LoadRegisterMemory{dest: B},
+		0x77: Load{source: A, dest: M},
+		0x46: Load{source: M, dest: B},
 		0x00: EmptyInstruction{},
-		0x47: LoadRegister{source: A, dest: B},
+		0x47: Load{source: A, dest: B},
 		0x6:  LoadImmediate{dest: B},
+		0x36: LoadImmediate{dest: M},
 	}
 
 	for instruction, expected := range testCases {
@@ -22,7 +23,7 @@ func TestSimpleDecodes(t *testing.T) {
 
 // Not sure how useful these tests are
 func TestSimpleOpcodes(t *testing.T) {
-	testCases := []byte{0xFF, 0x77, 0x46, 0x80, 0x47, 0x6}
+	testCases := []byte{0xFF, 0x77, 0x46, 0x80, 0x47, 0x6, 0x36}
 
 	for _, instruction := range testCases {
 		actual := Decode(instruction).Opcode()

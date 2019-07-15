@@ -19,8 +19,8 @@ func TestIncrementPC(t *testing.T) {
 		expected     uint16
 	}{
 		{instructions: []Instruction{}, expected: 1},
-		{instructions: []Instruction{LoadRegister{source: A, dest: B}}, expected: 2},
-		{instructions: []Instruction{LoadRegister{source: A, dest: B}, LoadRegister{source: B, dest: C}}, expected: 3},
+		{instructions: []Instruction{Load{source: A, dest: B}}, expected: 2},
+		{instructions: []Instruction{Load{source: A, dest: B}, Load{source: B, dest: C}}, expected: 3},
 	}
 
 	for _, test := range testCases {
@@ -39,12 +39,12 @@ func TestLoadProgram(t *testing.T) {
 	cpu := Init()
 
 	cpu.LoadProgram(encode([]Instruction{
-		LoadRegister{source: A, dest: B},
-		LoadRegister{source: B, dest: C},
+		Load{source: A, dest: B},
+		Load{source: B, dest: C},
 	}))
 	cpu.Run()
 
-	expectedOpcode := LoadRegister{source: B, dest: C}.Opcode()[0]
+	expectedOpcode := Load{source: B, dest: C}.Opcode()[0]
 	if actual := cpu.memory[ProgramStartAddress+1]; actual != expectedOpcode {
 		t.Errorf("Expected 0x88, got %x", actual)
 	}
@@ -68,10 +68,10 @@ func TestSetAndGetRegister(t *testing.T) {
 
 	cpu.LoadProgram(encode([]Instruction{
 		LoadImmediate{dest: A, immediate: 3},
-		LoadRegister{source: A, dest: B},
-		LoadRegister{source: B, dest: C},
-		LoadRegister{source: C, dest: D},
-		LoadRegister{source: D, dest: E},
+		Load{source: A, dest: B},
+		Load{source: B, dest: C},
+		Load{source: C, dest: D},
+		Load{source: D, dest: E},
 	}))
 	cpu.Run()
 
@@ -80,7 +80,7 @@ func TestSetAndGetRegister(t *testing.T) {
 	}
 }
 
-func TestLoadRegisterMemory(t *testing.T) {
+func TestLoadMemory(t *testing.T) {
 	cpu := Init()
 	var expected byte = 0xFF
 	cpu.memory.Load(0x1234, []byte{expected})
@@ -88,7 +88,7 @@ func TestLoadRegisterMemory(t *testing.T) {
 	cpu.LoadProgram(encode([]Instruction{
 		LoadImmediate{dest: H, immediate: 0x12},
 		LoadImmediate{dest: L, immediate: 0x34},
-		LoadRegisterMemory{dest: A},
+		Load{dest: A, source: M},
 	}))
 	cpu.Run()
 
@@ -97,7 +97,7 @@ func TestLoadRegisterMemory(t *testing.T) {
 	}
 }
 
-func TestStoreMemoryRegister(t *testing.T) {
+func TestStoreMemory(t *testing.T) {
 	cpu := Init()
 	var expected byte = 0xFF
 
@@ -105,7 +105,7 @@ func TestStoreMemoryRegister(t *testing.T) {
 		LoadImmediate{dest: A, immediate: expected},
 		LoadImmediate{dest: H, immediate: 0x12},
 		LoadImmediate{dest: L, immediate: 0x34},
-		StoreMemoryRegister{source: A},
+		Load{source: A, dest: M},
 	}))
 	cpu.Run()
 
@@ -121,10 +121,11 @@ func TestInstructionCycles(t *testing.T) {
 		instructions []Instruction
 		expected     uint
 	}{
-		{instructions: []Instruction{LoadRegister{source: A, dest: B}}, expected: 2},
+		{instructions: []Instruction{Load{source: A, dest: B}}, expected: 2},
 		{instructions: []Instruction{LoadImmediate{dest: H, immediate: 0x12}}, expected: 3},
-		{instructions: []Instruction{StoreMemoryRegister{source: A}}, expected: 3},
-		{instructions: []Instruction{LoadImmediate{dest: H, immediate: 0x12}, StoreMemoryRegister{source: A}}, expected: 5},
+		{instructions: []Instruction{Load{dest: M, source: A}}, expected: 3},
+		{instructions: []Instruction{LoadImmediate{dest: H, immediate: 0x12}, Load{source: A, dest: M}}, expected: 5},
+		{instructions: []Instruction{LoadImmediate{immediate: 0x12, dest: M}}, expected: 4},
 	}
 
 	for _, test := range testCases {

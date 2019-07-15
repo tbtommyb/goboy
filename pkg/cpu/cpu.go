@@ -10,11 +10,11 @@ const (
 	A Register = 0x7
 	B          = 0x0
 	C          = 0x1
-	D          = 0x5
+	D          = 0x2
 	E          = 0x3
-	F          = 0x2 // TODO: made up number
 	H          = 0x4
-	L          = 0x6 // TODO: should be 0x5 but avoiding duplicate with D
+	L          = 0x5
+	M          = 0x6 // memory reference through H:L
 )
 
 type Registers map[Register]byte
@@ -27,6 +27,9 @@ type CPU struct {
 }
 
 func (cpu *CPU) Get(r Register) byte {
+	if r == M {
+		return cpu.memory.Get(cpu.GetHL())
+	}
 	return byte(cpu.r[r])
 }
 
@@ -44,8 +47,12 @@ func (cpu *CPU) GetHL() uint16 {
 }
 
 func (cpu *CPU) set(r Register, val byte) byte {
+	if r == M {
+		cpu.memory.Set(cpu.GetHL(), val)
+		return val
+	}
 	cpu.r[r] = val
-	return cpu.Get(r)
+	return val
 }
 
 func (cpu *CPU) GetSP() uint16 {
@@ -83,15 +90,11 @@ func (cpu *CPU) Run() {
 	for opcode := cpu.fetchAndIncrement(); opcode != 0; opcode = cpu.fetchAndIncrement() {
 		instr := Decode(opcode)
 		switch i := instr.(type) {
-		case LoadRegister:
+		case Load:
 			cpu.set(i.dest, cpu.Get(i.source))
 		case LoadImmediate:
 			i.immediate = cpu.fetchAndIncrement()
 			cpu.set(i.dest, i.immediate)
-		case LoadRegisterMemory:
-			cpu.set(i.dest, cpu.memory[cpu.GetHL()])
-		case StoreMemoryRegister:
-			cpu.memory[cpu.GetHL()] = cpu.Get(i.source)
 		case InvalidInstruction:
 			panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 		}
@@ -106,7 +109,7 @@ func (cpu *CPU) LoadProgram(program []byte) {
 func Init() CPU {
 	return CPU{
 		r: Registers{
-			A: 0, B: 0, C: 0, D: 0, E: 0, F: 0, H: 0, L: 0,
+			A: 0, B: 0, C: 0, D: 0, E: 0, H: 0, L: 0,
 		}, SP: 0, PC: ProgramStartAddress,
 		memory: InitMemory(),
 	}
