@@ -15,10 +15,16 @@ func TestSimpleDecodes(t *testing.T) {
 		0x1A: LoadPair{dest: A, source: DE},
 		0x2:  LoadPair{dest: BC, source: A},
 		0x12: LoadPair{dest: DE, source: A},
-		0xF2: LoadRelativeC{},
-		0xF0: LoadRelativeN{},
-		0xE2: StoreRelativeC{},
-		0xE0: StoreRelativeN{},
+		0xF2: LoadRelative{addressType: RelativeC},
+		0xF0: LoadRelative{addressType: RelativeN},
+		0xE2: StoreRelative{addressType: RelativeC},
+		0xE0: StoreRelative{addressType: RelativeN},
+		0xFA: LoadNN{},
+		0xEA: StoreNN{},
+		0x2A: LoadIncrement{increment: 1},
+		0x3A: LoadIncrement{increment: -1},
+		0x22: StoreIncrement{increment: 1},
+		0x32: StoreIncrement{increment: -1},
 	}
 
 	for instruction, expected := range testCases {
@@ -29,9 +35,9 @@ func TestSimpleDecodes(t *testing.T) {
 	}
 }
 
-// Not sure how useful these tests are
+//TODO: use keys of testCases
 func TestSimpleOpcodes(t *testing.T) {
-	testCases := []byte{0xFF, 0x77, 0x46, 0x80, 0x47, 0x6, 0x36, 0xA, 0x1A, 0x2, 0x12, 0xF2, 0xF0, 0xE2, 0xE0}
+	testCases := []byte{0xFF, 0x77, 0x46, 0x80, 0x47, 0x6, 0x36, 0xA, 0x1A, 0x2, 0x12, 0xF2, 0xF0, 0xE2, 0xE0, 0xFA, 0xEA, 0x2A, 0x3A, 0x22, 0x32}
 
 	for _, instruction := range testCases {
 		actual := Decode(instruction).Opcode()

@@ -19,6 +19,13 @@ const (
 	DE          = 0x9
 )
 
+type AddressType byte
+
+const (
+	RelativeN AddressType = 0x0
+	RelativeC             = 0x2
+)
+
 type Registers map[Register]byte
 
 type CPU struct {
@@ -54,6 +61,12 @@ func (cpu *CPU) GetDE() uint16 {
 func (cpu *CPU) GetHL() uint16 {
 	cpu.IncrementCycles()
 	return uint16(cpu.Get(H))<<8 | uint16(cpu.Get(L))
+}
+
+func (cpu *CPU) SetHL(value uint16) uint16 {
+	cpu.set(H, byte(value>>8))
+	cpu.set(L, byte(value))
+	return value
 }
 
 func (cpu *CPU) set(r Register, val byte) byte {
@@ -120,18 +133,43 @@ func (cpu *CPU) Run() {
 			cpu.set(i.dest, i.immediate)
 		case LoadPair:
 			cpu.set(i.dest, cpu.Get(i.source))
-		case LoadRelativeC:
-			source := cpu.memory.Get(cpu.computeOffset(uint16(cpu.Get(C))))
-			cpu.set(A, source)
-		case LoadRelativeN:
-			value := cpu.memory.Get(cpu.computeOffset(uint16(cpu.fetchAndIncrement())))
-			cpu.set(A, value)
-		case StoreRelativeC:
-			dest := cpu.computeOffset(uint16(cpu.Get(C)))
+		case LoadRelative:
+			var source uint16
+			switch i.addressType {
+			case RelativeC:
+				source = cpu.computeOffset(uint16(cpu.Get(C)))
+			case RelativeN:
+				source = cpu.computeOffset(uint16(cpu.fetchAndIncrement()))
+			}
+			cpu.set(A, cpu.memory.Get(source))
+		case StoreRelative:
+			var dest uint16
+			switch i.addressType {
+			case RelativeC:
+				dest = cpu.computeOffset(uint16(cpu.Get(C)))
+			case RelativeN:
+				dest = cpu.computeOffset(uint16(cpu.fetchAndIncrement()))
+			}
 			cpu.memory.Set(dest, cpu.Get(A))
-		case StoreRelativeN:
-			dest := cpu.computeOffset(uint16(cpu.fetchAndIncrement()))
+		case LoadNN:
+			var source uint16
+			source |= uint16(cpu.fetchAndIncrement()) << 8
+			source |= uint16(cpu.fetchAndIncrement())
+			cpu.set(A, cpu.memory.Get(source))
+		case StoreNN:
+			var dest uint16
+			dest |= uint16(cpu.fetchAndIncrement()) << 8
+			dest |= uint16(cpu.fetchAndIncrement())
 			cpu.memory.Set(dest, cpu.Get(A))
+		case LoadIncrement:
+			// TODO: increment can be negative. Improve the casting
+			hl := cpu.GetHL()
+			cpu.set(A, cpu.memory.Get(hl))
+			cpu.SetHL(uint16(int(hl) + i.increment))
+		case StoreIncrement:
+			hl := cpu.GetHL()
+			cpu.memory.Set(hl, cpu.Get(A))
+			cpu.SetHL(uint16(int(hl) + i.increment))
 		case InvalidInstruction:
 			panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 		}

@@ -1,6 +1,8 @@
 package cpu
 
-import "testing"
+import (
+	"testing"
+)
 
 func encode(instructions []Instruction) []byte {
 	var opcodes []byte
@@ -32,6 +34,16 @@ func TestIncrementPC(t *testing.T) {
 		if currentPC := cpu.GetPC(); currentPC-initialPC != test.expected {
 			t.Errorf("Incorrect PC value. Expected %d, got %d", test.expected, currentPC-initialPC)
 		}
+	}
+}
+
+func TestSetGetHL(t *testing.T) {
+	var expected uint16 = 0x1000
+	cpu := Init()
+	cpu.SetHL(expected)
+
+	if actual := cpu.GetHL(); actual != expected {
+		t.Errorf("Expected %x, got %x", expected, actual)
 	}
 }
 
@@ -156,7 +168,7 @@ func TestLoadRelativeC(t *testing.T) {
 
 	cpu.LoadProgram(encode([]Instruction{
 		LoadImmediate{dest: C, immediate: 3},
-		LoadRelativeC{},
+		LoadRelative{addressType: RelativeC},
 	}))
 	cpu.Run()
 
@@ -173,7 +185,7 @@ func TestStoreRelativeC(t *testing.T) {
 	cpu.LoadProgram(encode([]Instruction{
 		LoadImmediate{dest: C, immediate: 3},
 		LoadImmediate{dest: A, immediate: expected},
-		StoreRelativeC{},
+		StoreRelative{addressType: RelativeC},
 	}))
 	cpu.Run()
 
@@ -182,6 +194,7 @@ func TestStoreRelativeC(t *testing.T) {
 	}
 }
 
+// TODO: reduce duplication in these tests
 func TestLoadRelativeN(t *testing.T) {
 	cpu := Init()
 
@@ -189,7 +202,7 @@ func TestLoadRelativeN(t *testing.T) {
 	cpu.memory.Set(0xFF03, expected)
 
 	cpu.LoadProgram(encode([]Instruction{
-		LoadRelativeN{immediate: 3},
+		LoadRelative{addressType: RelativeN, immediate: 3},
 	}))
 	cpu.Run()
 
@@ -205,7 +218,7 @@ func TestStoreRelativeN(t *testing.T) {
 
 	cpu.LoadProgram(encode([]Instruction{
 		LoadImmediate{dest: A, immediate: expected},
-		StoreRelativeN{immediate: 3},
+		StoreRelative{addressType: RelativeN, immediate: 3},
 	}))
 	cpu.Run()
 
@@ -213,6 +226,119 @@ func TestStoreRelativeN(t *testing.T) {
 		t.Errorf("Expected %#X, got %#X", expected, actual)
 	}
 }
+
+func TestLoadNN(t *testing.T) {
+	cpu := Init()
+
+	var expected byte = 0xFF
+	cpu.memory.Set(0xFF03, expected)
+
+	cpu.LoadProgram(encode([]Instruction{
+		LoadNN{immediate: 0xFF03},
+	}))
+	cpu.Run()
+
+	if actual := cpu.Get(A); actual != expected {
+		t.Errorf("Expected %#X, got %#X", expected, actual)
+	}
+}
+
+func TestStoreNN(t *testing.T) {
+	cpu := Init()
+
+	var expected byte = 0xFF
+
+	cpu.LoadProgram(encode([]Instruction{
+		LoadImmediate{dest: A, immediate: expected},
+		StoreNN{immediate: 0xFF03},
+	}))
+	cpu.Run()
+
+	if actual := cpu.memory.Get(0xFF03); actual != expected {
+		t.Errorf("Expected %#X, got %#X", expected, actual)
+	}
+}
+
+func TestLoadIncrement(t *testing.T) {
+	cpu := Init()
+	var expected byte = 0xFF
+	cpu.memory.Load(0x1234, []byte{expected})
+
+	cpu.LoadProgram(encode([]Instruction{
+		LoadImmediate{dest: H, immediate: 0x12},
+		LoadImmediate{dest: L, immediate: 0x34},
+		LoadIncrement{increment: 1},
+	}))
+	cpu.Run()
+
+	if actual := cpu.Get(A); actual != expected {
+		t.Errorf("Expected %#X, got %#X", expected, actual)
+	}
+	if hl := cpu.GetHL(); hl != 0x1235 {
+		t.Errorf("Expected %#X, got %#X", 0x1235, hl)
+	}
+}
+
+func TestLoadDecrement(t *testing.T) {
+	cpu := Init()
+	var expected byte = 0xFF
+	cpu.memory.Load(0x1234, []byte{expected})
+
+	cpu.LoadProgram(encode([]Instruction{
+		LoadImmediate{dest: H, immediate: 0x12},
+		LoadImmediate{dest: L, immediate: 0x34},
+		LoadIncrement{increment: -1},
+	}))
+	cpu.Run()
+
+	if actual := cpu.Get(A); actual != expected {
+		t.Errorf("Expected %#X, got %#X", expected, actual)
+	}
+	if hl := cpu.GetHL(); hl != 0x1233 {
+		t.Errorf("Expected %#X, got %#X", 0x1233, hl)
+	}
+}
+
+func TestStoreIncrement(t *testing.T) {
+	cpu := Init()
+	var expected byte = 0xFF
+
+	cpu.LoadProgram(encode([]Instruction{
+		LoadImmediate{dest: A, immediate: expected},
+		LoadImmediate{dest: H, immediate: 0x12},
+		LoadImmediate{dest: L, immediate: 0x34},
+		StoreIncrement{increment: 1},
+	}))
+	cpu.Run()
+
+	if actual := cpu.memory[0x1234]; actual != expected {
+		t.Errorf("Expected %#X, got %#X", expected, actual)
+	}
+	if hl := cpu.GetHL(); hl != 0x1235 {
+		t.Errorf("Expected %#X, got %#X", 0x1235, hl)
+	}
+}
+
+func TestStoreDecrement(t *testing.T) {
+	cpu := Init()
+	var expected byte = 0xFF
+
+	cpu.LoadProgram(encode([]Instruction{
+		LoadImmediate{dest: A, immediate: expected},
+		LoadImmediate{dest: H, immediate: 0x12},
+		LoadImmediate{dest: L, immediate: 0x34},
+		StoreIncrement{increment: -1},
+	}))
+	cpu.Run()
+
+	if actual := cpu.memory[0x1234]; actual != expected {
+		t.Errorf("Expected %#X, got %#X", expected, actual)
+	}
+	if hl := cpu.GetHL(); hl != 0x1233 {
+		t.Errorf("Expected %#X, got %#X", 0x1233, hl)
+	}
+}
+
 func TestInstructionCycles(t *testing.T) {
 	// one more than the instruction cycle count because fetching the empty
 	// instruction that ends the Run() loop costs a cycle
@@ -226,10 +352,16 @@ func TestInstructionCycles(t *testing.T) {
 		{instructions: []Instruction{LoadImmediate{dest: H, immediate: 0x12}, Load{source: A, dest: M}}, expected: 5},
 		{instructions: []Instruction{LoadImmediate{immediate: 0x12, dest: M}}, expected: 4},
 		{instructions: []Instruction{LoadPair{source: A, dest: BC}}, expected: 3},
-		{instructions: []Instruction{LoadRelativeC{}}, expected: 3},
-		{instructions: []Instruction{StoreRelativeC{}}, expected: 3},
-		{instructions: []Instruction{LoadRelativeN{}}, expected: 4},
-		{instructions: []Instruction{StoreRelativeN{}}, expected: 4},
+		{instructions: []Instruction{LoadRelative{addressType: RelativeC}}, expected: 3},
+		{instructions: []Instruction{StoreRelative{addressType: RelativeC}}, expected: 3},
+		{instructions: []Instruction{LoadRelative{addressType: RelativeN}}, expected: 4},
+		{instructions: []Instruction{StoreRelative{addressType: RelativeN}}, expected: 4},
+		{instructions: []Instruction{StoreNN{}}, expected: 5},
+		{instructions: []Instruction{LoadNN{}}, expected: 5},
+		{instructions: []Instruction{LoadIncrement{increment: 1}}, expected: 3},
+		{instructions: []Instruction{LoadIncrement{increment: -11}}, expected: 3},
+		{instructions: []Instruction{StoreIncrement{increment: 1}}, expected: 3},
+		{instructions: []Instruction{StoreIncrement{increment: -11}}, expected: 3},
 	}
 
 	for _, test := range testCases {
