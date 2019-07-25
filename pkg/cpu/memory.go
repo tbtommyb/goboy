@@ -3,6 +3,7 @@ package cpu
 type Memory []byte
 
 const ProgramStartAddress = 0x150
+const StackStartAddress = 0xFF80
 
 // TODO: use pointer?
 func (m Memory) Load(start int, data []byte) {

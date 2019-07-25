@@ -378,6 +378,26 @@ func TestHLtoSP(t *testing.T) {
 	}
 }
 
+func TestPush(t *testing.T) {
+	cpu := Init()
+
+	startingSP := cpu.GetSP()
+	cpu.LoadProgram(encode([]Instruction{
+		LoadRegisterPairImmediate{dest: HL, immediate: 0x1236},
+		Push{source: HL},
+	}))
+	cpu.Run()
+
+	currentSP := cpu.GetSP()
+	if currentSP != startingSP-2 {
+		t.Errorf("SP incorrect: %#v\n", currentSP)
+	}
+
+	if actual := cpu.memory[currentSP : currentSP+2]; actual[0] != 0x36 || actual[1] != 0x12 {
+		t.Errorf("Expected %#X, got %#X%X", 0x1236, actual[0], actual[1])
+	}
+}
+
 func TestInstructionCycles(t *testing.T) {
 	testCases := []struct {
 		instructions []Instruction

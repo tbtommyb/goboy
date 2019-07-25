@@ -21,6 +21,7 @@ const SourceRegisterMask = 0x7
 const PairRegisterShift = 4
 const PairRegisterMask = 0x30
 const PairRegisterBaseValue = 0x8 // Used to give pairs unique numbers
+const PushRegisterBaseValue = 0x10
 
 const MoveRelative = 0xF0
 const LoadRelativePattern = 0xF0
@@ -31,6 +32,9 @@ const LoadRegisterPairImmediateMask = 0xCF
 const LoadRegisterPairImmediatePattern = 0x1
 
 const HLtoSPPattern = 0xF9
+
+const PushMask = 0xCF
+const PushPattern = 0xC5
 
 type Instruction interface {
 	Opcode() []byte
@@ -148,6 +152,14 @@ func (i LoadRegisterPairImmediate) Opcode() []byte {
 	return []byte{byte(LoadRegisterPairImmediatePattern | (i.dest-PairRegisterBaseValue)<<PairRegisterShift), byte(i.immediate), byte(i.immediate >> 8)}
 }
 
+type Push struct {
+	source Register
+}
+
+func (i Push) Opcode() []byte {
+	return []byte{byte(PushPattern | (i.source-PushRegisterBaseValue)<<PairRegisterShift)}
+}
+
 func source(opcode byte) Register {
 	return Register(opcode & SourceRegisterMask)
 }
@@ -160,8 +172,18 @@ func pair(opcode byte) Register {
 	return Register((opcode & PairRegisterMask >> PairRegisterShift) | PairRegisterBaseValue)
 }
 
+func pushPair(opcode byte) Register {
+	return Register((opcode & PairRegisterMask >> PairRegisterShift) | PushRegisterBaseValue)
+}
+
 func addressType(opcode byte) AddressType {
 	return AddressType(opcode & MoveRelativeAddressing)
+}
+
+// TODO: reliance on this feels like antipattern
+func isAddressing(opcode byte) bool {
+	address := addressType(opcode)
+	return address == RelativeN || address == RelativeC || address == RelativeNN
 }
 
 func Decode(op byte) Instruction {
@@ -194,12 +216,12 @@ func Decode(op byte) Instruction {
 		// TODO: ordering dependence with LoadRelativePattern
 		// LD SP, HL. 0b 1111 1001
 		return HLtoSP{}
-	case op&MoveRelative == LoadRelativePattern && addressType(op) <= RelativeNN:
+	case op&MoveRelative == LoadRelativePattern && isAddressing(op):
 		// LD A, (C). 0b1111 0010
 		// LD A, n. 0b1111 0000
 		// LD A, nn. 0b1111 1010
 		return LoadRelative{addressType: addressType(op)}
-	case op&MoveRelative == StoreRelativePattern && addressType(op) <= RelativeNN:
+	case op&MoveRelative == StoreRelativePattern && isAddressing(op):
 		// LD (C), A. 0b1110 0010
 		// LD n, A. 0b1110 0000
 		// LD nn, A. 0b1110 1010
@@ -207,6 +229,9 @@ func Decode(op byte) Instruction {
 	case op&LoadRegisterPairImmediateMask == LoadRegisterPairImmediatePattern:
 		// LD dd, nn. 0b00dd 0001
 		return LoadRegisterPairImmediate{dest: pair(op)}
+	case op&PushMask == PushPattern:
+		// PUSH qq. 0b11qq 0101
+		return Push{source: pushPair(op)}
 	case op == 0:
 		return EmptyInstruction{}
 	default:

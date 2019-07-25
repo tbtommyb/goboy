@@ -7,18 +7,22 @@ import "fmt"
 type Register byte
 
 const (
-	A  Register = 0x7
-	B           = 0x0
-	C           = 0x1
-	D           = 0x2
-	E           = 0x3
-	H           = 0x4
-	L           = 0x5
-	M           = 0x6 // memory reference through H:L
-	BC          = 0x8 // pairs have 0x8 added as an offset to create unique values
-	DE          = 0x9
-	HL          = 0xA
-	SP          = 0xB
+	A      Register = 0x7
+	B               = 0x0
+	C               = 0x1
+	D               = 0x2
+	E               = 0x3
+	H               = 0x4
+	L               = 0x5
+	M               = 0x6 // memory reference through H:L
+	BC              = 0x8 // pairs have 0x8 added as an offset to create unique values
+	DE              = 0x9
+	HL              = 0xA
+	SP              = 0xB
+	PushBC          = 0x10 // pairs have 0x10 added as an offset to create unique values
+	PushDE          = 0x11
+	PushHL          = 0x12
+	PushAF          = 0x13
 )
 
 type AddressType byte
@@ -33,22 +37,23 @@ type Registers map[Register]byte
 
 type CPU struct {
 	r      Registers
+	flags  Register
 	SP, PC uint16
 	memory Memory
 	cycles uint
 }
 
 func (cpu *CPU) Get(r Register) byte {
-	if r == BC {
+	switch r {
+	case BC:
 		return cpu.memory.Get(cpu.GetBC())
-	}
-	if r == DE {
+	case DE:
 		return cpu.memory.Get(cpu.GetDE())
-	}
-	if r == M {
+	case M:
 		return cpu.memory.Get(cpu.GetHL())
+	default:
+		return byte(cpu.r[r])
 	}
-	return byte(cpu.r[r])
 }
 
 func (cpu *CPU) Set(r Register, val byte) byte {
@@ -79,6 +84,10 @@ func (cpu *CPU) SetRegisterPair(r Register, val uint16) uint16 {
 		cpu.SetSP(val)
 	}
 	return val
+}
+
+func (cpu *CPU) GetFlags() byte {
+	return byte(cpu.flags)
 }
 
 func (cpu *CPU) GetBC() uint16 {
@@ -135,12 +144,37 @@ func (cpu *CPU) IncrementSP() {
 	cpu.SP += 1
 }
 
+func (cpu *CPU) DecrementSP() {
+	cpu.SP -= 1
+}
+
+// TODO: create separate stack structure
+func (cpu *CPU) PushStack(val byte) byte {
+	cpu.DecrementSP()
+	return cpu.Set(SP, val)
+}
+
 func (cpu *CPU) GetPC() uint16 {
 	return cpu.PC
 }
 
 func (cpu *CPU) IncrementPC() {
 	cpu.PC += 1
+}
+
+func (cpu *CPU) SplitPair(r Register) (byte, byte) {
+	switch r {
+	case PushBC:
+		return cpu.Get(B), cpu.Get(C)
+	case PushDE:
+		return cpu.Get(D), cpu.Get(E)
+	case PushHL:
+		return cpu.Get(H), cpu.Get(L)
+	case PushAF:
+		return cpu.Get(A), cpu.GetFlags()
+	default:
+		panic(fmt.Sprintf("Invalid register %x", r))
+	}
 }
 
 func (cpu *CPU) GetCycles() uint {
@@ -224,6 +258,10 @@ func (cpu *CPU) Run() {
 			cpu.SetRegisterPair(i.dest, immediate)
 		case HLtoSP:
 			cpu.SetRegisterPair(SP, cpu.GetHL())
+		case Push:
+			high, low := cpu.SplitPair(i.source)
+			cpu.PushStack(high)
+			cpu.PushStack(low)
 		case InvalidInstruction:
 			panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 		}
@@ -239,7 +277,7 @@ func Init() CPU {
 	return CPU{
 		r: Registers{
 			A: 0, B: 0, C: 0, D: 0, E: 0, H: 0, L: 0,
-		}, SP: 0, PC: ProgramStartAddress,
+		}, SP: StackStartAddress, PC: ProgramStartAddress,
 		memory: InitMemory(),
 	}
 }
