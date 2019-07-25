@@ -21,8 +21,8 @@ func TestIncrementPC(t *testing.T) {
 		expected     uint16
 	}{
 		{instructions: []Instruction{}, expected: 1},
-		{instructions: []Instruction{Load{source: A, dest: B}}, expected: 2},
-		{instructions: []Instruction{Load{source: A, dest: B}, Load{source: B, dest: C}}, expected: 3},
+		{instructions: []Instruction{Move{source: A, dest: B}}, expected: 2},
+		{instructions: []Instruction{Move{source: A, dest: B}, Move{source: B, dest: C}}, expected: 3},
 	}
 
 	for _, test := range testCases {
@@ -51,12 +51,12 @@ func TestLoadProgram(t *testing.T) {
 	cpu := Init()
 
 	cpu.LoadProgram(encode([]Instruction{
-		Load{source: A, dest: B},
-		Load{source: B, dest: C},
+		Move{source: A, dest: B},
+		Move{source: B, dest: C},
 	}))
 	cpu.Run()
 
-	expectedOpcode := Load{source: B, dest: C}.Opcode()[0]
+	expectedOpcode := Move{source: B, dest: C}.Opcode()[0]
 	if actual := cpu.memory[ProgramStartAddress+1]; actual != expectedOpcode {
 		t.Errorf("Expected 0x88, got %x", actual)
 	}
@@ -66,7 +66,7 @@ func TestLoadImmediate(t *testing.T) {
 	cpu := Init()
 
 	cpu.LoadProgram(encode([]Instruction{
-		LoadImmediate{dest: A, immediate: 0xFF},
+		MoveImmediate{dest: A, immediate: 0xFF},
 	}))
 	cpu.Run()
 
@@ -79,11 +79,11 @@ func TestSetAndGetRegister(t *testing.T) {
 	cpu := Init()
 
 	cpu.LoadProgram(encode([]Instruction{
-		LoadImmediate{dest: A, immediate: 3},
-		Load{source: A, dest: B},
-		Load{source: B, dest: C},
-		Load{source: C, dest: D},
-		Load{source: D, dest: E},
+		MoveImmediate{dest: A, immediate: 3},
+		Move{source: A, dest: B},
+		Move{source: B, dest: C},
+		Move{source: C, dest: D},
+		Move{source: D, dest: E},
 	}))
 	cpu.Run()
 
@@ -98,9 +98,9 @@ func TestLoadMemory(t *testing.T) {
 	cpu.memory.Load(0x1234, []byte{expected})
 
 	cpu.LoadProgram(encode([]Instruction{
-		LoadImmediate{dest: H, immediate: 0x12},
-		LoadImmediate{dest: L, immediate: 0x34},
-		Load{dest: A, source: M},
+		MoveImmediate{dest: H, immediate: 0x12},
+		MoveImmediate{dest: L, immediate: 0x34},
+		Move{dest: A, source: M},
 	}))
 	cpu.Run()
 
@@ -114,10 +114,10 @@ func TestStoreMemory(t *testing.T) {
 	var expected byte = 0xFF
 
 	cpu.LoadProgram(encode([]Instruction{
-		LoadImmediate{dest: A, immediate: expected},
-		LoadImmediate{dest: H, immediate: 0x12},
-		LoadImmediate{dest: L, immediate: 0x34},
-		Load{source: A, dest: M},
+		MoveImmediate{dest: A, immediate: expected},
+		MoveImmediate{dest: H, immediate: 0x12},
+		MoveImmediate{dest: L, immediate: 0x34},
+		Move{source: A, dest: M},
 	}))
 	cpu.Run()
 
@@ -126,15 +126,15 @@ func TestStoreMemory(t *testing.T) {
 	}
 }
 
-func TestLoadPair(t *testing.T) {
+func TestMoveIndirectLoad(t *testing.T) {
 	cpu := Init()
 	var expected byte = 0xFF
 	cpu.memory.Load(0x1234, []byte{expected})
 
 	cpu.LoadProgram(encode([]Instruction{
-		LoadImmediate{dest: B, immediate: 0x12},
-		LoadImmediate{dest: C, immediate: 0x34},
-		LoadPair{dest: A, source: BC},
+		MoveImmediate{dest: B, immediate: 0x12},
+		MoveImmediate{dest: C, immediate: 0x34},
+		MoveIndirect{dest: A, source: BC},
 	}))
 	cpu.Run()
 
@@ -143,15 +143,15 @@ func TestLoadPair(t *testing.T) {
 	}
 }
 
-func TestStorePair(t *testing.T) {
+func TestMoveIndirectStore(t *testing.T) {
 	cpu := Init()
 	var expected byte = 0xFF
 
 	cpu.LoadProgram(encode([]Instruction{
-		LoadImmediate{dest: A, immediate: expected},
-		LoadImmediate{dest: B, immediate: 0x12},
-		LoadImmediate{dest: C, immediate: 0x34},
-		LoadPair{source: A, dest: BC},
+		MoveImmediate{dest: A, immediate: expected},
+		MoveImmediate{dest: B, immediate: 0x12},
+		MoveImmediate{dest: C, immediate: 0x34},
+		MoveIndirect{source: A, dest: BC},
 	}))
 	cpu.Run()
 
@@ -167,7 +167,7 @@ func TestLoadRelativeC(t *testing.T) {
 	cpu.memory.Set(0xFF03, expected)
 
 	cpu.LoadProgram(encode([]Instruction{
-		LoadImmediate{dest: C, immediate: 3},
+		MoveImmediate{dest: C, immediate: 3},
 		LoadRelative{addressType: RelativeC},
 	}))
 	cpu.Run()
@@ -183,8 +183,8 @@ func TestStoreRelativeC(t *testing.T) {
 	var expected byte = 0xFF
 
 	cpu.LoadProgram(encode([]Instruction{
-		LoadImmediate{dest: C, immediate: 3},
-		LoadImmediate{dest: A, immediate: expected},
+		MoveImmediate{dest: C, immediate: 3},
+		MoveImmediate{dest: A, immediate: expected},
 		StoreRelative{addressType: RelativeC},
 	}))
 	cpu.Run()
@@ -217,7 +217,7 @@ func TestStoreRelativeN(t *testing.T) {
 	var expected byte = 0xFF
 
 	cpu.LoadProgram(encode([]Instruction{
-		LoadImmediate{dest: A, immediate: expected},
+		MoveImmediate{dest: A, immediate: expected},
 		StoreRelative{addressType: RelativeN, immediate: 3},
 	}))
 	cpu.Run()
@@ -234,7 +234,7 @@ func TestLoadNN(t *testing.T) {
 	cpu.memory.Set(0xFF03, expected)
 
 	cpu.LoadProgram(encode([]Instruction{
-		LoadNN{immediate: 0xFF03},
+		LoadRelative{addressType: RelativeNN, immediate: 0xFF03},
 	}))
 	cpu.Run()
 
@@ -249,8 +249,8 @@ func TestStoreNN(t *testing.T) {
 	var expected byte = 0xFF
 
 	cpu.LoadProgram(encode([]Instruction{
-		LoadImmediate{dest: A, immediate: expected},
-		StoreNN{immediate: 0xFF03},
+		MoveImmediate{dest: A, immediate: expected},
+		StoreRelative{addressType: RelativeNN, immediate: 0xFF03},
 	}))
 	cpu.Run()
 
@@ -265,9 +265,9 @@ func TestLoadIncrement(t *testing.T) {
 	cpu.memory.Load(0x1234, []byte{expected})
 
 	cpu.LoadProgram(encode([]Instruction{
-		LoadImmediate{dest: H, immediate: 0x12},
-		LoadImmediate{dest: L, immediate: 0x34},
-		LoadIncrement{increment: 1},
+		MoveImmediate{dest: H, immediate: 0x12},
+		MoveImmediate{dest: L, immediate: 0x34},
+		LoadIncrement{},
 	}))
 	cpu.Run()
 
@@ -285,9 +285,9 @@ func TestLoadDecrement(t *testing.T) {
 	cpu.memory.Load(0x1234, []byte{expected})
 
 	cpu.LoadProgram(encode([]Instruction{
-		LoadImmediate{dest: H, immediate: 0x12},
-		LoadImmediate{dest: L, immediate: 0x34},
-		LoadIncrement{increment: -1},
+		MoveImmediate{dest: H, immediate: 0x12},
+		MoveImmediate{dest: L, immediate: 0x34},
+		LoadDecrement{},
 	}))
 	cpu.Run()
 
@@ -304,10 +304,10 @@ func TestStoreIncrement(t *testing.T) {
 	var expected byte = 0xFF
 
 	cpu.LoadProgram(encode([]Instruction{
-		LoadImmediate{dest: A, immediate: expected},
-		LoadImmediate{dest: H, immediate: 0x12},
-		LoadImmediate{dest: L, immediate: 0x34},
-		StoreIncrement{increment: 1},
+		MoveImmediate{dest: A, immediate: expected},
+		MoveImmediate{dest: H, immediate: 0x12},
+		MoveImmediate{dest: L, immediate: 0x34},
+		StoreIncrement{},
 	}))
 	cpu.Run()
 
@@ -324,10 +324,10 @@ func TestStoreDecrement(t *testing.T) {
 	var expected byte = 0xFF
 
 	cpu.LoadProgram(encode([]Instruction{
-		LoadImmediate{dest: A, immediate: expected},
-		LoadImmediate{dest: H, immediate: 0x12},
-		LoadImmediate{dest: L, immediate: 0x34},
-		StoreIncrement{increment: -1},
+		MoveImmediate{dest: A, immediate: expected},
+		MoveImmediate{dest: H, immediate: 0x12},
+		MoveImmediate{dest: L, immediate: 0x34},
+		StoreDecrement{},
 	}))
 	cpu.Run()
 
@@ -345,23 +345,24 @@ func TestInstructionCycles(t *testing.T) {
 	testCases := []struct {
 		instructions []Instruction
 		expected     uint
+		message      string
 	}{
-		{instructions: []Instruction{Load{source: A, dest: B}}, expected: 2},
-		{instructions: []Instruction{LoadImmediate{dest: H, immediate: 0x12}}, expected: 3},
-		{instructions: []Instruction{Load{dest: M, source: A}}, expected: 3},
-		{instructions: []Instruction{LoadImmediate{dest: H, immediate: 0x12}, Load{source: A, dest: M}}, expected: 5},
-		{instructions: []Instruction{LoadImmediate{immediate: 0x12, dest: M}}, expected: 4},
-		{instructions: []Instruction{LoadPair{source: A, dest: BC}}, expected: 3},
-		{instructions: []Instruction{LoadRelative{addressType: RelativeC}}, expected: 3},
-		{instructions: []Instruction{StoreRelative{addressType: RelativeC}}, expected: 3},
-		{instructions: []Instruction{LoadRelative{addressType: RelativeN}}, expected: 4},
-		{instructions: []Instruction{StoreRelative{addressType: RelativeN}}, expected: 4},
-		{instructions: []Instruction{StoreNN{}}, expected: 5},
-		{instructions: []Instruction{LoadNN{}}, expected: 5},
-		{instructions: []Instruction{LoadIncrement{increment: 1}}, expected: 3},
-		{instructions: []Instruction{LoadIncrement{increment: -11}}, expected: 3},
-		{instructions: []Instruction{StoreIncrement{increment: 1}}, expected: 3},
-		{instructions: []Instruction{StoreIncrement{increment: -11}}, expected: 3},
+		{instructions: []Instruction{Move{source: A, dest: B}}, expected: 2, message: "Move"},
+		{instructions: []Instruction{MoveImmediate{dest: H, immediate: 0x12}}, expected: 3, message: "Move immediate"},
+		{instructions: []Instruction{Move{dest: M, source: A}}, expected: 3, message: "Move memory"},
+		{instructions: []Instruction{MoveImmediate{dest: H, immediate: 0x12}, Move{source: A, dest: M}}, expected: 5, message: "Move immediate and move"},
+		{instructions: []Instruction{MoveImmediate{immediate: 0x12, dest: M}}, expected: 4, message: "Move immediate memory"},
+		{instructions: []Instruction{MoveIndirect{source: A, dest: BC}}, expected: 3, message: "Load Pair BC"},
+		{instructions: []Instruction{LoadRelative{addressType: RelativeC}}, expected: 3, message: "Load Relative C"},
+		{instructions: []Instruction{StoreRelative{addressType: RelativeC}}, expected: 3, message: "Store Relative C"},
+		{instructions: []Instruction{LoadRelative{addressType: RelativeN}}, expected: 4, message: "Load Relative N"},
+		{instructions: []Instruction{StoreRelative{addressType: RelativeN}}, expected: 4, message: "Store Relative N"},
+		{instructions: []Instruction{LoadRelative{addressType: RelativeNN}}, expected: 5, message: "Load NN"},
+		{instructions: []Instruction{StoreRelative{addressType: RelativeNN}}, expected: 5, message: "Store NN"},
+		{instructions: []Instruction{LoadIncrement{}}, expected: 3, message: "Load increment"},
+		{instructions: []Instruction{LoadDecrement{}}, expected: 3, message: "Load decrement"},
+		{instructions: []Instruction{StoreIncrement{}}, expected: 3, message: "Store increment"},
+		{instructions: []Instruction{StoreDecrement{}}, expected: 3, message: "Store decrement"},
 	}
 
 	for _, test := range testCases {
@@ -371,7 +372,7 @@ func TestInstructionCycles(t *testing.T) {
 		cpu.Run()
 
 		if cycles := cpu.GetCycles(); cycles-initialCycles != test.expected {
-			t.Errorf("Incorrect cycles value. Expected %d, got %d", test.expected, cycles-initialCycles)
+			t.Errorf("%s: Incorrect cycles value. Expected %d, got %d", test.message, test.expected, cycles-initialCycles)
 		}
 	}
 }
