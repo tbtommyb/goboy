@@ -1,3 +1,4 @@
+//go:generate stringer -type=Flag
 package cpu
 
 import "fmt"
@@ -5,23 +6,39 @@ import "fmt"
 // TODO: consider what needs to be exported
 
 type Register byte
+type RegisterPair byte
+type AddressType byte
+type Flag byte
+type Registers map[Register]byte
+type CPU struct {
+	r      Registers
+	flags  byte
+	SP, PC uint16
+	memory Memory
+	cycles uint
+}
+type FlagSet struct {
+	Zero, Negative, HalfCarry, FullCarry bool
+}
 
 const (
-	A  Register = 0x7
-	B           = 0x0
-	C           = 0x1
-	D           = 0x2
-	E           = 0x3
-	H           = 0x4
-	L           = 0x5
-	M           = 0x6 // memory reference through H:L
-	BC          = 0x8 // pairs have 0x8 added as an offset to create unique values
-	DE          = 0x9
-	HL          = 0xA
-	SP          = 0xB
+	A Register = 0x7
+	B          = 0x0
+	C          = 0x1
+	D          = 0x2
+	E          = 0x3
+	H          = 0x4
+	L          = 0x5
+	M          = 0x6 // memory reference through H:L
 )
 
-type AddressType byte
+const (
+	BC RegisterPair = 0x0
+	DE              = 0x1
+	HL              = 0x2
+	SP              = 0x3
+	AF              = 0x4
+)
 
 const (
 	RelativeN  AddressType = 0x0
@@ -29,45 +46,79 @@ const (
 	RelativeNN             = 0xA
 )
 
-type Registers map[Register]byte
-
-type CPU struct {
-	r      Registers
-	SP, PC uint16
-	memory Memory
-	cycles uint
-}
+const (
+	Zero      Flag = 0x80
+	Negative       = 0x40
+	HalfCarry      = 0x20
+	FullCarry      = 0x10
+)
 
 func (cpu *CPU) Get(r Register) byte {
-	if r == BC {
-		return cpu.memory.Get(cpu.GetBC())
+	switch r {
+	case M:
+		return cpu.getMem(cpu.GetHL())
+	default:
+		return byte(cpu.r[r])
 	}
-	if r == DE {
-		return cpu.memory.Get(cpu.GetDE())
+}
+
+func (cpu *CPU) GetMem(r RegisterPair) byte {
+	switch r {
+	case BC:
+		return cpu.getMem(cpu.GetBC())
+	case DE:
+		return cpu.getMem(cpu.GetDE())
+	case HL:
+		return cpu.getMem(cpu.GetHL())
+	case SP:
+		return cpu.getMem(cpu.GetSP())
+	default:
+		panic(fmt.Sprintf("GetMem: Invalid register %x", r))
 	}
-	if r == M {
-		return cpu.memory.Get(cpu.GetHL())
+}
+
+func (cpu *CPU) GetPair(r RegisterPair) (byte, byte) {
+	switch r {
+	case BC:
+		return cpu.Get(B), cpu.Get(C)
+	case DE:
+		return cpu.Get(D), cpu.Get(E)
+	case HL:
+		return cpu.Get(H), cpu.Get(L)
+	case AF:
+		return cpu.Get(A), cpu.GetFlags()
+	default:
+		panic(fmt.Sprintf("GetPair: Invalid register %x", r))
 	}
-	return byte(cpu.r[r])
 }
 
 func (cpu *CPU) Set(r Register, val byte) byte {
 	switch r {
-	case BC:
-		cpu.memory.Set(cpu.GetBC(), val)
-	case DE:
-		cpu.memory.Set(cpu.GetDE(), val)
 	case M:
-		cpu.memory.Set(cpu.GetHL(), val)
-	case SP:
-		cpu.memory.Set(cpu.GetSP(), val)
+		cpu.writeMem(cpu.GetHL(), val)
 	default:
 		cpu.r[r] = val
 	}
 	return val
 }
 
-func (cpu *CPU) SetRegisterPair(r Register, val uint16) uint16 {
+func (cpu *CPU) SetMem(r RegisterPair, val byte) byte {
+	switch r {
+	case BC:
+		cpu.writeMem(cpu.GetBC(), val)
+	case DE:
+		cpu.writeMem(cpu.GetDE(), val)
+	case HL:
+		cpu.writeMem(cpu.GetHL(), val)
+	case SP:
+		cpu.writeMem(cpu.GetSP(), val)
+	default:
+		panic(fmt.Sprintf("SetMem: Invalid register %x", r))
+	}
+	return val
+}
+
+func (cpu *CPU) SetPair(r RegisterPair, val uint16) uint16 {
 	switch r {
 	case BC:
 		cpu.SetBC(val)
@@ -81,25 +132,12 @@ func (cpu *CPU) SetRegisterPair(r Register, val uint16) uint16 {
 	return val
 }
 
+func (cpu *CPU) GetFlags() byte {
+	return byte(cpu.flags)
+}
+
 func (cpu *CPU) GetBC() uint16 {
-	cpu.IncrementCycles()
-	return uint16(cpu.Get(B))<<8 | uint16(cpu.Get(C))
-}
-
-func (cpu *CPU) GetDE() uint16 {
-	cpu.IncrementCycles()
-	return uint16(cpu.Get(D))<<8 | uint16(cpu.Get(E))
-}
-
-func (cpu *CPU) GetHL() uint16 {
-	cpu.IncrementCycles()
-	return uint16(cpu.Get(H))<<8 | uint16(cpu.Get(L))
-}
-
-func (cpu *CPU) SetHL(value uint16) uint16 {
-	cpu.Set(H, byte(value>>8))
-	cpu.Set(L, byte(value))
-	return value
+	return mergePair(cpu.Get(B), cpu.Get(C))
 }
 
 func (cpu *CPU) SetBC(value uint16) uint16 {
@@ -108,10 +146,28 @@ func (cpu *CPU) SetBC(value uint16) uint16 {
 	return value
 }
 
+func (cpu *CPU) GetDE() uint16 {
+	return mergePair(cpu.Get(D), cpu.Get(E))
+}
+
 func (cpu *CPU) SetDE(value uint16) uint16 {
 	cpu.Set(D, byte(value>>8))
 	cpu.Set(E, byte(value))
 	return value
+}
+
+func (cpu *CPU) GetHL() uint16 {
+	return mergePair(cpu.Get(H), cpu.Get(L))
+}
+
+func (cpu *CPU) SetHL(value uint16) uint16 {
+	cpu.Set(H, byte(value>>8))
+	cpu.Set(L, byte(value))
+	return value
+}
+
+func (cpu *CPU) GetSP() uint16 {
+	return cpu.SP
 }
 
 func (cpu *CPU) SetSP(value uint16) uint16 {
@@ -119,20 +175,12 @@ func (cpu *CPU) SetSP(value uint16) uint16 {
 	return value
 }
 
-func (cpu *CPU) IncrementHL(current uint16) uint16 {
-	return cpu.SetHL(uint16(int(current + 1)))
-}
-
-func (cpu *CPU) DecrementHL(current uint16) uint16 {
-	return cpu.SetHL(uint16(int(current - 1)))
-}
-
-func (cpu *CPU) GetSP() uint16 {
-	return cpu.SP
-}
-
 func (cpu *CPU) IncrementSP() {
 	cpu.SP += 1
+}
+
+func (cpu *CPU) DecrementSP() {
+	cpu.SP -= 1
 }
 
 func (cpu *CPU) GetPC() uint16 {
@@ -151,16 +199,44 @@ func (cpu *CPU) IncrementCycles() {
 	cpu.cycles += 1
 }
 
+// TODO: create separate stack structure
+func (cpu *CPU) PushStack(val byte) byte {
+	cpu.DecrementSP()
+	return cpu.SetMem(SP, val)
+}
+
+func (cpu *CPU) PopStack() byte {
+	val := cpu.GetMem(SP)
+	cpu.IncrementSP()
+	return val
+}
+
 func (cpu *CPU) computeOffset(offset uint16) uint16 {
-	cpu.IncrementCycles()
 	return 0xFF00 + offset
 }
 
 func (cpu *CPU) fetchAndIncrement() byte {
-	value := cpu.memory[cpu.GetPC()]
+	value := cpu.memory.Get(cpu.GetPC())
 	cpu.IncrementPC()
 	cpu.IncrementCycles()
 	return value
+}
+
+func mergePair(high, low byte) uint16 {
+	return uint16(high)<<8 | uint16(low)
+}
+
+func (cpu *CPU) fetchRelative(i RelativeAddressingInstruction) uint16 {
+	switch addressType := i.AddressType(); addressType {
+	case RelativeC:
+		return cpu.computeOffset(uint16(cpu.Get(C)))
+	case RelativeN:
+		return cpu.computeOffset(uint16(cpu.fetchAndIncrement()))
+	case RelativeNN:
+		return mergePair(cpu.fetchAndIncrement(), cpu.fetchAndIncrement())
+	default:
+		panic(fmt.Sprintf("fetchRelative: invalid address type %d", addressType))
+	}
 }
 
 func (cpu *CPU) Run() {
@@ -172,62 +248,121 @@ func (cpu *CPU) Run() {
 		case MoveImmediate:
 			i.immediate = cpu.fetchAndIncrement()
 			cpu.Set(i.dest, i.immediate)
-		case MoveIndirect:
-			cpu.Set(i.dest, cpu.Get(i.source))
+		case LoadIndirect:
+			cpu.Set(i.dest, cpu.GetMem(i.source))
+		case StoreIndirect:
+			address := mergePair(cpu.GetPair(i.dest))
+			cpu.writeMem(address, cpu.Get(i.source))
 		case LoadRelative:
-			var source uint16
-			switch i.addressType {
-			case RelativeC:
-				source = cpu.computeOffset(uint16(cpu.Get(C)))
-			case RelativeN:
-				source = cpu.computeOffset(uint16(cpu.fetchAndIncrement()))
-			case RelativeNN:
-				source |= uint16(cpu.fetchAndIncrement()) << 8
-				source |= uint16(cpu.fetchAndIncrement())
-				cpu.IncrementCycles()
-			}
-
-			cpu.Set(A, cpu.memory.Get(source))
+			cpu.Set(A, cpu.getMem(cpu.fetchRelative(i)))
 		case StoreRelative:
-			var dest uint16
-			switch i.addressType {
-			case RelativeC:
-				dest = cpu.computeOffset(uint16(cpu.Get(C)))
-			case RelativeN:
-				dest = cpu.computeOffset(uint16(cpu.fetchAndIncrement()))
-			case RelativeNN:
-				dest |= uint16(cpu.fetchAndIncrement()) << 8
-				dest |= uint16(cpu.fetchAndIncrement())
-				cpu.IncrementCycles()
-			}
-			cpu.memory.Set(dest, cpu.Get(A))
+			cpu.writeMem(cpu.fetchRelative(i), cpu.Get(A))
 		case LoadIncrement:
-			hl := cpu.GetHL()
-			cpu.Set(A, cpu.memory.Get(hl))
-			cpu.IncrementHL(hl)
+			cpu.Set(A, cpu.GetMem(HL))
+			cpu.SetHL(cpu.GetHL() + 1)
 		case LoadDecrement:
-			hl := cpu.GetHL()
-			cpu.Set(A, cpu.memory.Get(hl))
-			cpu.DecrementHL(hl)
+			cpu.Set(A, cpu.GetMem(HL))
+			cpu.SetHL(cpu.GetHL() - 1)
 		case StoreIncrement:
-			hl := cpu.GetHL()
-			cpu.memory.Set(hl, cpu.Get(A))
-			cpu.IncrementHL(hl)
+			cpu.SetMem(HL, cpu.Get(A))
+			cpu.SetHL(cpu.GetHL() + 1)
 		case StoreDecrement:
-			hl := cpu.GetHL()
-			cpu.memory.Set(hl, cpu.Get(A))
-			cpu.DecrementHL(hl)
+			cpu.SetMem(HL, cpu.Get(A))
+			cpu.SetHL(cpu.GetHL() - 1)
 		case LoadRegisterPairImmediate:
 			var immediate uint16
 			immediate |= uint16(cpu.fetchAndIncrement())
 			immediate |= uint16(cpu.fetchAndIncrement()) << 8
-			cpu.SetRegisterPair(i.dest, immediate)
+			cpu.SetPair(i.dest, immediate)
 		case HLtoSP:
-			cpu.SetRegisterPair(SP, cpu.GetHL())
+			cpu.SetPair(SP, cpu.GetHL())
+			cpu.IncrementCycles() // TODO: remove need for this
+		case Push:
+			high, low := cpu.GetPair(i.source)
+			cpu.PushStack(high)
+			cpu.PushStack(low)
+			cpu.IncrementCycles() // TODO: remove need for this
+		case Pop:
+			low := cpu.PopStack()
+			high := cpu.PopStack()
+			cpu.SetPair(i.dest, mergePair(high, low))
+		case LoadHLSP:
+			// TODO: flags
+			immediate := int8(cpu.fetchAndIncrement())
+			cpu.SetPair(HL, cpu.GetSP()+uint16(immediate))
+			cpu.IncrementCycles() // TODO: remove need for this
+		case StoreSP:
+			var immediate uint16
+			immediate |= uint16(cpu.fetchAndIncrement())
+			immediate |= uint16(cpu.fetchAndIncrement()) << 8
+			cpu.writeMem(immediate, byte(cpu.GetSP()))
+			cpu.writeMem(immediate+1, byte(cpu.GetSP()>>8))
+		case Add:
+			a := cpu.Get(A)
+			b := cpu.Get(i.source)
+			result, flagSet := addOp(a, b, i.withCarry)
+			cpu.Set(A, result)
+			cpu.SetFlags(flagSet)
+		case AddImmediate:
+			a := cpu.Get(A)
+			b := cpu.fetchAndIncrement()
+			result, flagSet := addOp(a, b, i.withCarry)
+			cpu.Set(A, result)
+			cpu.SetFlags(flagSet)
 		case InvalidInstruction:
 			panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 		}
 	}
+}
+
+func addOp(a, b byte, withCarry bool) (byte, FlagSet) {
+	var carry byte
+	if withCarry {
+		carry = 1
+	}
+	result := a + b + carry
+	flagSet := FlagSet{
+		Zero:      result == 0,
+		Negative:  false,
+		HalfCarry: isHalfCarry(a, b, carry),
+		FullCarry: isFullCarry(a, b, carry),
+	}
+	return result, flagSet
+}
+
+func isHalfCarry(args ...byte) bool {
+	var sum byte
+	for _, arg := range args {
+		sum = sum + (arg & 0xf)
+	}
+	return sum > 0xf
+}
+
+func isFullCarry(args ...byte) bool {
+	var sum uint16
+	for _, arg := range args {
+		sum = uint16(sum) + uint16(arg)
+	}
+	return sum > 0xff
+}
+
+func (cpu *CPU) SetFlags(fs FlagSet) {
+	cpu.SetFlag(Zero, fs.Zero)
+	cpu.SetFlag(Negative, fs.Negative)
+	cpu.SetFlag(HalfCarry, fs.HalfCarry)
+	cpu.SetFlag(FullCarry, fs.FullCarry)
+}
+
+func (cpu *CPU) SetFlag(flag Flag, value bool) {
+	var bitValue int8
+	if value {
+		bitValue = 1
+	}
+	cpu.flags ^= byte((-bitValue ^ int8(cpu.flags)) & int8(flag))
+}
+
+func (cpu *CPU) isSet(flag Flag) bool {
+	return (cpu.flags & byte(flag)) > 0
 }
 
 // TODO: RunProgram convenience method?
@@ -235,11 +370,21 @@ func (cpu *CPU) LoadProgram(program []byte) {
 	cpu.memory.Load(ProgramStartAddress, program)
 }
 
+func (cpu *CPU) writeMem(address uint16, value byte) byte {
+	cpu.IncrementCycles()
+	return cpu.memory.Set(address, value)
+}
+
+func (cpu *CPU) getMem(address uint16) byte {
+	cpu.IncrementCycles()
+	return cpu.memory.Get(address)
+}
+
 func Init() CPU {
 	return CPU{
 		r: Registers{
 			A: 0, B: 0, C: 0, D: 0, E: 0, H: 0, L: 0,
-		}, SP: 0, PC: ProgramStartAddress,
+		}, SP: StackStartAddress, PC: ProgramStartAddress,
 		memory: InitMemory(),
 	}
 }
