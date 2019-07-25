@@ -51,6 +51,36 @@ func (cpu *CPU) Get(r Register) byte {
 	return byte(cpu.r[r])
 }
 
+func (cpu *CPU) Set(r Register, val byte) byte {
+	switch r {
+	case BC:
+		cpu.memory.Set(cpu.GetBC(), val)
+	case DE:
+		cpu.memory.Set(cpu.GetDE(), val)
+	case M:
+		cpu.memory.Set(cpu.GetHL(), val)
+	case SP:
+		cpu.memory.Set(cpu.GetSP(), val)
+	default:
+		cpu.r[r] = val
+	}
+	return val
+}
+
+func (cpu *CPU) SetRegisterPair(r Register, val uint16) uint16 {
+	switch r {
+	case BC:
+		cpu.SetBC(val)
+	case DE:
+		cpu.SetDE(val)
+	case HL:
+		cpu.SetHL(val)
+	case SP:
+		cpu.SetSP(val)
+	}
+	return val
+}
+
 func (cpu *CPU) GetBC() uint16 {
 	cpu.IncrementCycles()
 	return uint16(cpu.Get(B))<<8 | uint16(cpu.Get(C))
@@ -67,20 +97,20 @@ func (cpu *CPU) GetHL() uint16 {
 }
 
 func (cpu *CPU) SetHL(value uint16) uint16 {
-	cpu.set(H, byte(value>>8))
-	cpu.set(L, byte(value))
+	cpu.Set(H, byte(value>>8))
+	cpu.Set(L, byte(value))
 	return value
 }
 
 func (cpu *CPU) SetBC(value uint16) uint16 {
-	cpu.set(B, byte(value>>8))
-	cpu.set(C, byte(value))
+	cpu.Set(B, byte(value>>8))
+	cpu.Set(C, byte(value))
 	return value
 }
 
 func (cpu *CPU) SetDE(value uint16) uint16 {
-	cpu.set(D, byte(value>>8))
-	cpu.set(E, byte(value))
+	cpu.Set(D, byte(value>>8))
+	cpu.Set(E, byte(value))
 	return value
 }
 
@@ -95,34 +125,6 @@ func (cpu *CPU) IncrementHL(current uint16) uint16 {
 
 func (cpu *CPU) DecrementHL(current uint16) uint16 {
 	return cpu.SetHL(uint16(int(current - 1)))
-}
-
-func (cpu *CPU) set(r Register, val byte) byte {
-	switch r {
-	case BC:
-		cpu.memory.Set(cpu.GetBC(), val)
-	case DE:
-		cpu.memory.Set(cpu.GetDE(), val)
-	case M:
-		cpu.memory.Set(cpu.GetHL(), val)
-	default:
-		cpu.r[r] = val
-	}
-	return val
-}
-
-func (cpu *CPU) setRegisterPair(r Register, val uint16) uint16 {
-	switch r {
-	case BC:
-		cpu.SetBC(val)
-	case DE:
-		cpu.SetDE(val)
-	case HL:
-		cpu.SetHL(val)
-	case SP:
-		cpu.SetSP(val)
-	}
-	return val
 }
 
 func (cpu *CPU) GetSP() uint16 {
@@ -166,12 +168,12 @@ func (cpu *CPU) Run() {
 		instr := Decode(opcode)
 		switch i := instr.(type) {
 		case Move:
-			cpu.set(i.dest, cpu.Get(i.source))
+			cpu.Set(i.dest, cpu.Get(i.source))
 		case MoveImmediate:
 			i.immediate = cpu.fetchAndIncrement()
-			cpu.set(i.dest, i.immediate)
+			cpu.Set(i.dest, i.immediate)
 		case MoveIndirect:
-			cpu.set(i.dest, cpu.Get(i.source))
+			cpu.Set(i.dest, cpu.Get(i.source))
 		case LoadRelative:
 			var source uint16
 			switch i.addressType {
@@ -185,7 +187,7 @@ func (cpu *CPU) Run() {
 				cpu.IncrementCycles()
 			}
 
-			cpu.set(A, cpu.memory.Get(source))
+			cpu.Set(A, cpu.memory.Get(source))
 		case StoreRelative:
 			var dest uint16
 			switch i.addressType {
@@ -201,11 +203,11 @@ func (cpu *CPU) Run() {
 			cpu.memory.Set(dest, cpu.Get(A))
 		case LoadIncrement:
 			hl := cpu.GetHL()
-			cpu.set(A, cpu.memory.Get(hl))
+			cpu.Set(A, cpu.memory.Get(hl))
 			cpu.IncrementHL(hl)
 		case LoadDecrement:
 			hl := cpu.GetHL()
-			cpu.set(A, cpu.memory.Get(hl))
+			cpu.Set(A, cpu.memory.Get(hl))
 			cpu.DecrementHL(hl)
 		case StoreIncrement:
 			hl := cpu.GetHL()
@@ -219,9 +221,9 @@ func (cpu *CPU) Run() {
 			var immediate uint16
 			immediate |= uint16(cpu.fetchAndIncrement())
 			immediate |= uint16(cpu.fetchAndIncrement()) << 8
-			cpu.setRegisterPair(i.dest, immediate)
+			cpu.SetRegisterPair(i.dest, immediate)
 		case HLtoSP:
-			cpu.setRegisterPair(SP, cpu.GetHL())
+			cpu.SetRegisterPair(SP, cpu.GetHL())
 		case InvalidInstruction:
 			panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 		}
