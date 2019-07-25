@@ -15,8 +15,10 @@ const (
 	H           = 0x4
 	L           = 0x5
 	M           = 0x6 // memory reference through H:L
-	BC          = 0x8
+	BC          = 0x8 // pairs have 0x8 added as an offset to create unique values
 	DE          = 0x9
+	HL          = 0xA
+	SP          = 0xB
 )
 
 type AddressType byte
@@ -70,6 +72,23 @@ func (cpu *CPU) SetHL(value uint16) uint16 {
 	return value
 }
 
+func (cpu *CPU) SetBC(value uint16) uint16 {
+	cpu.set(B, byte(value>>8))
+	cpu.set(C, byte(value))
+	return value
+}
+
+func (cpu *CPU) SetDE(value uint16) uint16 {
+	cpu.set(D, byte(value>>8))
+	cpu.set(E, byte(value))
+	return value
+}
+
+func (cpu *CPU) SetSP(value uint16) uint16 {
+	cpu.SP = value
+	return value
+}
+
 func (cpu *CPU) IncrementHL(current uint16) uint16 {
 	return cpu.SetHL(uint16(int(current + 1)))
 }
@@ -79,19 +98,30 @@ func (cpu *CPU) DecrementHL(current uint16) uint16 {
 }
 
 func (cpu *CPU) set(r Register, val byte) byte {
-	if r == BC {
+	switch r {
+	case BC:
 		cpu.memory.Set(cpu.GetBC(), val)
-		return val
-	}
-	if r == DE {
+	case DE:
 		cpu.memory.Set(cpu.GetDE(), val)
-		return val
-	}
-	if r == M {
+	case M:
 		cpu.memory.Set(cpu.GetHL(), val)
-		return val
+	default:
+		cpu.r[r] = val
 	}
-	cpu.r[r] = val
+	return val
+}
+
+func (cpu *CPU) setRegisterPair(r Register, val uint16) uint16 {
+	switch r {
+	case BC:
+		cpu.SetBC(val)
+	case DE:
+		cpu.SetDE(val)
+	case HL:
+		cpu.SetHL(val)
+	case SP:
+		cpu.SetSP(val)
+	}
 	return val
 }
 
@@ -185,6 +215,11 @@ func (cpu *CPU) Run() {
 			hl := cpu.GetHL()
 			cpu.memory.Set(hl, cpu.Get(A))
 			cpu.DecrementHL(hl)
+		case LoadRegisterPairImmediate:
+			var immediate uint16
+			immediate |= uint16(cpu.fetchAndIncrement())
+			immediate |= uint16(cpu.fetchAndIncrement()) << 8
+			cpu.setRegisterPair(i.dest, immediate)
 		case InvalidInstruction:
 			panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 		}

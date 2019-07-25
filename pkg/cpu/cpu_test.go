@@ -339,30 +339,54 @@ func TestStoreDecrement(t *testing.T) {
 	}
 }
 
+func TestLoadRegisterPairImmediate(t *testing.T) {
+	cpu := Init()
+
+	cpu.LoadProgram(encode([]Instruction{
+		LoadRegisterPairImmediate{dest: BC, immediate: 0x1234},
+		LoadRegisterPairImmediate{dest: DE, immediate: 0x1235},
+		LoadRegisterPairImmediate{dest: HL, immediate: 0x1236},
+		LoadRegisterPairImmediate{dest: SP, immediate: 0x1237},
+	}))
+	cpu.Run()
+
+	if bc := cpu.GetBC(); bc != 0x1234 {
+		t.Errorf("Expected %#X, got %#X", 0x1234, bc)
+	}
+	if de := cpu.GetDE(); de != 0x1235 {
+		t.Errorf("Expected %#X, got %#X", 0x1235, de)
+	}
+	if hl := cpu.GetHL(); hl != 0x1236 {
+		t.Errorf("Expected %#X, got %#X", 0x1236, hl)
+	}
+	if sp := cpu.GetSP(); sp != 0x1237 {
+		t.Errorf("Expected %#X, got %#X", 0x1237, sp)
+	}
+}
+
 func TestInstructionCycles(t *testing.T) {
-	// one more than the instruction cycle count because fetching the empty
-	// instruction that ends the Run() loop costs a cycle
 	testCases := []struct {
 		instructions []Instruction
 		expected     uint
 		message      string
 	}{
-		{instructions: []Instruction{Move{source: A, dest: B}}, expected: 2, message: "Move"},
-		{instructions: []Instruction{MoveImmediate{dest: H, immediate: 0x12}}, expected: 3, message: "Move immediate"},
-		{instructions: []Instruction{Move{dest: M, source: A}}, expected: 3, message: "Move memory"},
-		{instructions: []Instruction{MoveImmediate{dest: H, immediate: 0x12}, Move{source: A, dest: M}}, expected: 5, message: "Move immediate and move"},
-		{instructions: []Instruction{MoveImmediate{immediate: 0x12, dest: M}}, expected: 4, message: "Move immediate memory"},
-		{instructions: []Instruction{MoveIndirect{source: A, dest: BC}}, expected: 3, message: "Load Pair BC"},
-		{instructions: []Instruction{LoadRelative{addressType: RelativeC}}, expected: 3, message: "Load Relative C"},
-		{instructions: []Instruction{StoreRelative{addressType: RelativeC}}, expected: 3, message: "Store Relative C"},
-		{instructions: []Instruction{LoadRelative{addressType: RelativeN}}, expected: 4, message: "Load Relative N"},
-		{instructions: []Instruction{StoreRelative{addressType: RelativeN}}, expected: 4, message: "Store Relative N"},
-		{instructions: []Instruction{LoadRelative{addressType: RelativeNN}}, expected: 5, message: "Load NN"},
-		{instructions: []Instruction{StoreRelative{addressType: RelativeNN}}, expected: 5, message: "Store NN"},
-		{instructions: []Instruction{LoadIncrement{}}, expected: 3, message: "Load increment"},
-		{instructions: []Instruction{LoadDecrement{}}, expected: 3, message: "Load decrement"},
-		{instructions: []Instruction{StoreIncrement{}}, expected: 3, message: "Store increment"},
-		{instructions: []Instruction{StoreDecrement{}}, expected: 3, message: "Store decrement"},
+		{instructions: []Instruction{Move{source: A, dest: B}}, expected: 1, message: "Move"},
+		{instructions: []Instruction{MoveImmediate{dest: H, immediate: 0x12}}, expected: 2, message: "Move immediate"},
+		{instructions: []Instruction{Move{dest: M, source: A}}, expected: 2, message: "Move memory"},
+		{instructions: []Instruction{MoveImmediate{dest: H, immediate: 0x12}, Move{source: A, dest: M}}, expected: 4, message: "Move immediate and move"},
+		{instructions: []Instruction{MoveImmediate{immediate: 0x12, dest: M}}, expected: 3, message: "Move immediate memory"},
+		{instructions: []Instruction{MoveIndirect{source: A, dest: BC}}, expected: 2, message: "Load Pair BC"},
+		{instructions: []Instruction{LoadRelative{addressType: RelativeC}}, expected: 2, message: "Load Relative C"},
+		{instructions: []Instruction{StoreRelative{addressType: RelativeC}}, expected: 2, message: "Store Relative C"},
+		{instructions: []Instruction{LoadRelative{addressType: RelativeN}}, expected: 3, message: "Load Relative N"},
+		{instructions: []Instruction{StoreRelative{addressType: RelativeN}}, expected: 3, message: "Store Relative N"},
+		{instructions: []Instruction{LoadRelative{addressType: RelativeNN}}, expected: 4, message: "Load NN"},
+		{instructions: []Instruction{StoreRelative{addressType: RelativeNN}}, expected: 4, message: "Store NN"},
+		{instructions: []Instruction{LoadIncrement{}}, expected: 2, message: "Load increment"},
+		{instructions: []Instruction{LoadDecrement{}}, expected: 2, message: "Load decrement"},
+		{instructions: []Instruction{StoreIncrement{}}, expected: 2, message: "Store increment"},
+		{instructions: []Instruction{StoreDecrement{}}, expected: 2, message: "Store decrement"},
+		{instructions: []Instruction{LoadRegisterPairImmediate{dest: BC, immediate: 0x1234}}, expected: 3, message: "Store decrement"},
 	}
 
 	for _, test := range testCases {
@@ -371,7 +395,9 @@ func TestInstructionCycles(t *testing.T) {
 		cpu.LoadProgram(encode(test.instructions))
 		cpu.Run()
 
-		if cycles := cpu.GetCycles(); cycles-initialCycles != test.expected {
+		// one more than the instruction cycle count because fetching the empty
+		// instruction that ends the Run() loop costs a cycle
+		if cycles := cpu.GetCycles(); cycles-initialCycles-1 != test.expected {
 			t.Errorf("%s: Incorrect cycles value. Expected %d, got %d", test.message, test.expected, cycles-initialCycles)
 		}
 	}

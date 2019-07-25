@@ -27,8 +27,8 @@ const LoadRelativePattern = 0xF0
 const StoreRelativePattern = 0xE0
 const MoveRelativeAddressing = 0xF
 
-const LoadNNPattern = 0xFA
-const StoreNNPattern = 0xEA
+const LoadRegisterPairImmediateMask = 0xCF
+const LoadRegisterPairImmediatePattern = 0x1
 
 type Instruction interface {
 	Opcode() []byte
@@ -76,6 +76,7 @@ type LoadRelative struct {
 	immediate   uint16
 }
 
+// TODO: check immediate ordering
 func (i LoadRelative) Opcode() []byte {
 	opcode := []byte{byte(LoadRelativePattern | i.addressType)}
 	switch i.addressType {
@@ -105,18 +106,6 @@ func (i StoreRelative) Opcode() []byte {
 	return opcode
 }
 
-type LoadNN struct{ immediate uint16 }
-
-func (i LoadNN) Opcode() []byte {
-	return []byte{byte(LoadNNPattern), byte(i.immediate >> 8), byte(i.immediate)}
-}
-
-type StoreNN struct{ immediate uint16 }
-
-func (i StoreNN) Opcode() []byte {
-	return []byte{byte(StoreNNPattern), byte(i.immediate >> 8), byte(i.immediate)}
-}
-
 type LoadIncrement struct{}
 
 func (i LoadIncrement) Opcode() []byte {
@@ -139,6 +128,15 @@ type StoreDecrement struct{}
 
 func (i StoreDecrement) Opcode() []byte {
 	return []byte{(StoreDecrementPattern)}
+}
+
+type LoadRegisterPairImmediate struct {
+	dest      Register
+	immediate uint16
+}
+
+func (i LoadRegisterPairImmediate) Opcode() []byte {
+	return []byte{byte(LoadRegisterPairImmediatePattern | (i.dest-PairRegisterBaseValue)<<PairRegisterShift), byte(i.immediate), byte(i.immediate >> 8)}
 }
 
 func source(opcode byte) Register {
@@ -193,6 +191,9 @@ func Decode(op byte) Instruction {
 		// LD n, A. 0b1110 0000
 		// LD nn, A. 0b1110 1010
 		return StoreRelative{addressType: addressType(op)}
+	case op&LoadRegisterPairImmediateMask == LoadRegisterPairImmediatePattern:
+		// LD dd, nn. 0b00dd 0001
+		return LoadRegisterPairImmediate{dest: pair(op)}
 	case op == 0:
 		return EmptyInstruction{}
 	default:
