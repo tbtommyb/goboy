@@ -364,6 +364,20 @@ func TestLoadRegisterPairImmediate(t *testing.T) {
 	}
 }
 
+func TestHLtoSP(t *testing.T) {
+	cpu := Init()
+
+	cpu.LoadProgram(encode([]Instruction{
+		LoadRegisterPairImmediate{dest: HL, immediate: 0x4321},
+		HLtoSP{},
+	}))
+	cpu.Run()
+
+	if sp := cpu.GetSP(); sp != 0x4321 {
+		t.Errorf("Expected %#X, got %#X", 0x4321, sp)
+	}
+}
+
 func TestInstructionCycles(t *testing.T) {
 	testCases := []struct {
 		instructions []Instruction
@@ -387,6 +401,7 @@ func TestInstructionCycles(t *testing.T) {
 		{instructions: []Instruction{StoreIncrement{}}, expected: 2, message: "Store increment"},
 		{instructions: []Instruction{StoreDecrement{}}, expected: 2, message: "Store decrement"},
 		{instructions: []Instruction{LoadRegisterPairImmediate{dest: BC, immediate: 0x1234}}, expected: 3, message: "Store decrement"},
+		{instructions: []Instruction{HLtoSP{}}, expected: 2, message: "HL to SP"},
 	}
 
 	for _, test := range testCases {

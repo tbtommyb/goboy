@@ -220,6 +220,8 @@ func (cpu *CPU) Run() {
 			immediate |= uint16(cpu.fetchAndIncrement())
 			immediate |= uint16(cpu.fetchAndIncrement()) << 8
 			cpu.setRegisterPair(i.dest, immediate)
+		case HLtoSP:
+			cpu.setRegisterPair(SP, cpu.GetHL())
 		case InvalidInstruction:
 			panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 		}

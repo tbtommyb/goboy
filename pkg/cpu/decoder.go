@@ -30,6 +30,8 @@ const MoveRelativeAddressing = 0xF
 const LoadRegisterPairImmediateMask = 0xCF
 const LoadRegisterPairImmediatePattern = 0x1
 
+const HLtoSPPattern = 0xF9
+
 type Instruction interface {
 	Opcode() []byte
 }
@@ -130,6 +132,13 @@ func (i StoreDecrement) Opcode() []byte {
 	return []byte{(StoreDecrementPattern)}
 }
 
+// TODO: maybe make this more generic?
+type HLtoSP struct{}
+
+func (i HLtoSP) Opcode() []byte {
+	return []byte{(HLtoSPPattern)}
+}
+
 type LoadRegisterPairImmediate struct {
 	dest      Register
 	immediate uint16
@@ -181,6 +190,10 @@ func Decode(op byte) Instruction {
 	case op&MoveIndirectMask == StoreIndirectPattern:
 		// LD (pair), r. 0b00ss 0010
 		return MoveIndirect{source: A, dest: pair(op)}
+	case op^HLtoSPPattern == 0:
+		// TODO: ordering dependence with LoadRelativePattern
+		// LD SP, HL. 0b 1111 1001
+		return HLtoSP{}
 	case op&MoveRelative == LoadRelativePattern && addressType(op) <= RelativeNN:
 		// LD A, (C). 0b1111 0010
 		// LD A, n. 0b1111 0000
