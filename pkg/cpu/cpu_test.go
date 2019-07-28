@@ -126,7 +126,7 @@ func TestStoreMemory(t *testing.T) {
 	}
 }
 
-func TestMoveIndirectLoad(t *testing.T) {
+func TestLoadIndirect(t *testing.T) {
 	cpu := Init()
 	var expected byte = 0xFF
 	cpu.memory.Load(0x1234, []byte{expected})
@@ -134,7 +134,7 @@ func TestMoveIndirectLoad(t *testing.T) {
 	cpu.LoadProgram(encode([]Instruction{
 		MoveImmediate{dest: B, immediate: 0x12},
 		MoveImmediate{dest: C, immediate: 0x34},
-		MoveIndirect{dest: A, source: BC},
+		LoadIndirect{dest: A, source: BC},
 	}))
 	cpu.Run()
 
@@ -143,7 +143,7 @@ func TestMoveIndirectLoad(t *testing.T) {
 	}
 }
 
-func TestMoveIndirectStore(t *testing.T) {
+func TestStoreIndirect(t *testing.T) {
 	cpu := Init()
 	var expected byte = 0xFF
 
@@ -151,7 +151,7 @@ func TestMoveIndirectStore(t *testing.T) {
 		MoveImmediate{dest: A, immediate: expected},
 		MoveImmediate{dest: B, immediate: 0x12},
 		MoveImmediate{dest: C, immediate: 0x34},
-		MoveIndirect{source: A, dest: BC},
+		StoreIndirect{source: A, dest: BC},
 	}))
 	cpu.Run()
 
@@ -430,7 +430,8 @@ func TestInstructionCycles(t *testing.T) {
 		{instructions: []Instruction{Move{dest: M, source: A}}, expected: 2, message: "Move memory"},
 		{instructions: []Instruction{MoveImmediate{dest: H, immediate: 0x12}, Move{source: A, dest: M}}, expected: 4, message: "Move immediate and move"},
 		{instructions: []Instruction{MoveImmediate{immediate: 0x12, dest: M}}, expected: 3, message: "Move immediate memory"},
-		{instructions: []Instruction{MoveIndirect{source: A, dest: BC}}, expected: 2, message: "Load Pair BC"},
+		{instructions: []Instruction{LoadIndirect{source: A, dest: BC}}, expected: 2, message: "Load Pair BC"},
+		{instructions: []Instruction{StoreIndirect{source: BC, dest: A}}, expected: 2, message: "Store Pair BC"},
 		{instructions: []Instruction{LoadRelative{addressType: RelativeC}}, expected: 2, message: "Load Relative C"},
 		{instructions: []Instruction{StoreRelative{addressType: RelativeC}}, expected: 2, message: "Store Relative C"},
 		{instructions: []Instruction{LoadRelative{addressType: RelativeN}}, expected: 3, message: "Load Relative N"},
@@ -441,7 +442,7 @@ func TestInstructionCycles(t *testing.T) {
 		{instructions: []Instruction{LoadDecrement{}}, expected: 2, message: "Load decrement"},
 		{instructions: []Instruction{StoreIncrement{}}, expected: 2, message: "Store increment"},
 		{instructions: []Instruction{StoreDecrement{}}, expected: 2, message: "Store decrement"},
-		{instructions: []Instruction{LoadRegisterPairImmediate{dest: BC, immediate: 0x1234}}, expected: 3, message: "Store decrement"},
+		{instructions: []Instruction{LoadRegisterPairImmediate{dest: BC, immediate: 0x1234}}, expected: 3, message: "Load register pair immediate"},
 		{instructions: []Instruction{HLtoSP{}}, expected: 2, message: "HL to SP"},
 		{instructions: []Instruction{Push{source: BC}}, expected: 4, message: "Push"},
 		{instructions: []Instruction{Pop{dest: BC}}, expected: 3, message: "Pop"},

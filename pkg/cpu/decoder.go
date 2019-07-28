@@ -65,16 +65,20 @@ func (i MoveImmediate) Opcode() []byte {
 	return []byte{byte(MoveImmediatePattern | i.dest<<DestRegisterShift), i.immediate}
 }
 
-type MoveIndirect struct {
+type LoadIndirect struct {
 	source, dest Register
 }
 
-func (i MoveIndirect) Opcode() []byte {
-	if i.dest == A {
-		return []byte{byte(LoadIndirectPattern | (i.source-PairRegisterBaseValue)<<PairRegisterShift)}
-	} else {
-		return []byte{byte(StoreIndirectPattern | (i.dest-PairRegisterBaseValue)<<PairRegisterShift)}
-	}
+func (i LoadIndirect) Opcode() []byte {
+	return []byte{byte(LoadIndirectPattern | (i.source-PairRegisterBaseValue)<<PairRegisterShift)}
+}
+
+type StoreIndirect struct {
+	source, dest Register
+}
+
+func (i StoreIndirect) Opcode() []byte {
+	return []byte{byte(StoreIndirectPattern | (i.dest-PairRegisterBaseValue)<<PairRegisterShift)}
 }
 
 type LoadRelative struct {
@@ -231,10 +235,10 @@ func Decode(op byte) Instruction {
 		return StoreDecrement{}
 	case op&MoveIndirectMask == LoadIndirectPattern:
 		// LD, r, (pair). 0b00dd 1010
-		return MoveIndirect{dest: A, source: pair(op)}
+		return LoadIndirect{dest: A, source: pair(op)}
 	case op&MoveIndirectMask == StoreIndirectPattern:
 		// LD (pair), r. 0b00ss 0010
-		return MoveIndirect{source: A, dest: pair(op)}
+		return StoreIndirect{source: A, dest: pair(op)}
 	case op^HLtoSPPattern == 0:
 		// TODO: ordering dependence with LoadRelativePattern
 		// LD SP, HL. 0b 1111 1001
