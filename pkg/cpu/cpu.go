@@ -44,31 +44,28 @@ const (
 func (cpu *CPU) Get(r Register) byte {
 	switch r {
 	case M:
-		cpu.IncrementCycles()
-		return cpu.memory.Get(cpu.GetHL())
+		return cpu.getMem(cpu.GetHL())
 	default:
 		return byte(cpu.r[r])
 	}
 }
 
 func (cpu *CPU) GetMem(r RegisterPair) byte {
-	cpu.IncrementCycles()
 	switch r {
 	case BC:
-		return cpu.memory.Get(cpu.GetBC())
+		return cpu.getMem(cpu.GetBC())
 	case DE:
-		return cpu.memory.Get(cpu.GetDE())
+		return cpu.getMem(cpu.GetDE())
 	case HL:
-		return cpu.memory.Get(cpu.GetHL())
+		return cpu.getMem(cpu.GetHL())
 	case SP:
-		return cpu.memory.Get(cpu.GetSP())
+		return cpu.getMem(cpu.GetSP())
 	default:
 		panic(fmt.Sprintf("GetMem: Invalid register %x", r))
 	}
 }
 
 func (cpu *CPU) GetPair(r RegisterPair) (byte, byte) {
-	cpu.IncrementCycles()
 	switch r {
 	case BC:
 		return cpu.Get(B), cpu.Get(C)
@@ -86,8 +83,7 @@ func (cpu *CPU) GetPair(r RegisterPair) (byte, byte) {
 func (cpu *CPU) Set(r Register, val byte) byte {
 	switch r {
 	case M:
-		cpu.IncrementCycles()
-		cpu.memory.Set(cpu.GetHL(), val)
+		cpu.writeMem(cpu.GetHL(), val)
 	default:
 		cpu.r[r] = val
 	}
@@ -95,16 +91,15 @@ func (cpu *CPU) Set(r Register, val byte) byte {
 }
 
 func (cpu *CPU) SetMem(r RegisterPair, val byte) byte {
-	cpu.IncrementCycles()
 	switch r {
 	case BC:
-		cpu.memory.Set(cpu.GetBC(), val)
+		cpu.writeMem(cpu.GetBC(), val)
 	case DE:
-		cpu.memory.Set(cpu.GetDE(), val)
+		cpu.writeMem(cpu.GetDE(), val)
 	case HL:
-		cpu.memory.Set(cpu.GetHL(), val)
+		cpu.writeMem(cpu.GetHL(), val)
 	case SP:
-		cpu.memory.Set(cpu.GetSP(), val)
+		cpu.writeMem(cpu.GetSP(), val)
 	default:
 		panic(fmt.Sprintf("SetMem: Invalid register %x", r))
 	}
@@ -205,12 +200,11 @@ func (cpu *CPU) PopStack() byte {
 }
 
 func (cpu *CPU) computeOffset(offset uint16) uint16 {
-	cpu.IncrementCycles()
 	return 0xFF00 + offset
 }
 
 func (cpu *CPU) fetchAndIncrement() byte {
-	value := cpu.memory[cpu.GetPC()]
+	value := cpu.memory.Get(cpu.GetPC())
 	cpu.IncrementPC()
 	cpu.IncrementCycles()
 	return value
@@ -227,7 +221,6 @@ func (cpu *CPU) fetchRelative(i RelativeAddressingInstruction) uint16 {
 	case RelativeN:
 		return cpu.computeOffset(uint16(cpu.fetchAndIncrement()))
 	case RelativeNN:
-		cpu.IncrementCycles()
 		return mergePair(cpu.fetchAndIncrement(), cpu.fetchAndIncrement())
 	default:
 		panic(fmt.Sprintf("fetchRelative: invalid address type %d", addressType))
@@ -247,11 +240,11 @@ func (cpu *CPU) Run() {
 			cpu.Set(i.dest, cpu.GetMem(i.source))
 		case StoreIndirect:
 			address := mergePair(cpu.GetPair(i.dest))
-			cpu.memory.Set(address, cpu.Get(i.source))
+			cpu.writeMem(address, cpu.Get(i.source))
 		case LoadRelative:
-			cpu.Set(A, cpu.memory.Get(cpu.fetchRelative(i)))
+			cpu.Set(A, cpu.getMem(cpu.fetchRelative(i)))
 		case StoreRelative:
-			cpu.memory.Set(cpu.fetchRelative(i), cpu.Get(A))
+			cpu.writeMem(cpu.fetchRelative(i), cpu.Get(A))
 		case LoadIncrement:
 			cpu.Set(A, cpu.GetMem(HL))
 			cpu.SetHL(cpu.GetHL() + 1)
@@ -276,10 +269,22 @@ func (cpu *CPU) Run() {
 			high, low := cpu.GetPair(i.source)
 			cpu.PushStack(high)
 			cpu.PushStack(low)
+			cpu.IncrementCycles() // TODO: remove need for this
 		case Pop:
 			low := cpu.PopStack()
 			high := cpu.PopStack()
 			cpu.SetPair(i.dest, mergePair(high, low))
+		case LoadHLSP:
+			// TODO: flags
+			immediate := int8(cpu.fetchAndIncrement())
+			cpu.SetPair(HL, cpu.GetSP()+uint16(immediate))
+			cpu.IncrementCycles() // TODO: remove need for this
+		case StoreSP:
+			var immediate uint16
+			immediate |= uint16(cpu.fetchAndIncrement())
+			immediate |= uint16(cpu.fetchAndIncrement()) << 8
+			cpu.writeMem(immediate, byte(cpu.GetSP()))
+			cpu.writeMem(immediate+1, byte(cpu.GetSP()>>8))
 		case InvalidInstruction:
 			panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 		}
@@ -289,6 +294,16 @@ func (cpu *CPU) Run() {
 // TODO: RunProgram convenience method?
 func (cpu *CPU) LoadProgram(program []byte) {
 	cpu.memory.Load(ProgramStartAddress, program)
+}
+
+func (cpu *CPU) writeMem(address uint16, value byte) byte {
+	cpu.IncrementCycles()
+	return cpu.memory.Set(address, value)
+}
+
+func (cpu *CPU) getMem(address uint16) byte {
+	cpu.IncrementCycles()
+	return cpu.memory.Get(address)
 }
 
 func Init() CPU {

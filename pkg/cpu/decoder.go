@@ -7,8 +7,8 @@ const MoveImmediateMask = 0xC7
 const MoveImmediatePattern = 0x6
 
 const LoadIncrementPattern = 0x2A
-const StoreIncrementPattern = 0x22
 const LoadDecrementPattern = 0x3A
+const StoreIncrementPattern = 0x22
 const StoreDecrementPattern = 0x32
 
 const MoveIndirectMask = 0xEF
@@ -21,7 +21,7 @@ const SourceRegisterMask = 0x7
 const PairRegisterShift = 4
 const PairRegisterMask = 0x30
 
-const MoveRelative = 0xF0
+const MoveRelativeMask = 0xF0
 const LoadRelativePattern = 0xF0
 const StoreRelativePattern = 0xE0
 const MoveRelativeAddressing = 0xF
@@ -34,6 +34,9 @@ const HLtoSPPattern = 0xF9
 const PushPopMask = 0xCF
 const PushPattern = 0xC5
 const PopPattern = 0xC1
+
+const LoadHLSPPattern = 0xF8
+const StoreSPPattern = 0x8
 
 type Instruction interface {
 	Opcode() []byte
@@ -187,6 +190,22 @@ func (i Pop) Opcode() []byte {
 	return []byte{byte(PopPattern | register<<PairRegisterShift)}
 }
 
+type LoadHLSP struct {
+	immediate int8
+}
+
+func (i LoadHLSP) Opcode() []byte {
+	return []byte{byte(LoadHLSPPattern), byte(i.immediate)}
+}
+
+type StoreSP struct {
+	immediate uint16
+}
+
+func (i StoreSP) Opcode() []byte {
+	return []byte{byte(StoreSPPattern), byte(i.immediate), byte(i.immediate >> 8)}
+}
+
 func source(opcode byte) Register {
 	return Register(opcode & SourceRegisterMask)
 }
@@ -256,12 +275,12 @@ func Decode(op byte) Instruction {
 		// TODO: ordering dependence with LoadRelativePattern
 		// LD SP, HL. 0b 1111 1001
 		return HLtoSP{}
-	case op&MoveRelative == LoadRelativePattern && isAddressing(op):
+	case op&MoveRelativeMask == LoadRelativePattern && isAddressing(op):
 		// LD A, (C). 0b1111 0010
 		// LD A, n. 0b1111 0000
 		// LD A, nn. 0b1111 1010
 		return LoadRelative{addressType: addressType(op)}
-	case op&MoveRelative == StoreRelativePattern && isAddressing(op):
+	case op&MoveRelativeMask == StoreRelativePattern && isAddressing(op):
 		// LD (C), A. 0b1110 0010
 		// LD n, A. 0b1110 0000
 		// LD nn, A. 0b1110 1010
@@ -275,6 +294,12 @@ func Decode(op byte) Instruction {
 	case op&PushPopMask == PopPattern:
 		// POP qq. 0b11qq 0001
 		return Pop{dest: demuxPairs(op)}
+	case op == LoadHLSPPattern:
+		// LDHL SP, e. 0b1111 1000
+		return LoadHLSP{}
+	case op == StoreSPPattern:
+		// LD nn, SP. 0b0000 1000
+		return StoreSP{}
 	case op == 0:
 		return EmptyInstruction{}
 	default:

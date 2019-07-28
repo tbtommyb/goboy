@@ -419,6 +419,54 @@ func TestPop(t *testing.T) {
 	}
 }
 
+func TestLoadHLSPPositive(t *testing.T) {
+	cpu := Init()
+
+	initialSP := cpu.GetSP()
+	cpu.LoadProgram(encode([]Instruction{
+		LoadHLSP{immediate: 5},
+	}))
+	cpu.Run()
+
+	if actual := cpu.GetHL(); actual != initialSP+5 {
+		t.Errorf("Expected %#X, got %#X\n", initialSP+5, actual)
+	}
+}
+
+func TestLoadHLSPNegative(t *testing.T) {
+	cpu := Init()
+
+	initialSP := cpu.GetSP()
+	cpu.LoadProgram(encode([]Instruction{
+		LoadHLSP{immediate: -10},
+	}))
+	cpu.Run()
+
+	if actual := cpu.GetHL(); actual != initialSP-10 {
+		t.Errorf("Expected %#X, got %#X\n", initialSP-10, actual)
+	}
+}
+
+func TestStoreSP(t *testing.T) {
+	cpu := Init()
+
+	var initial uint16 = 0xFFCD
+	cpu.SetSP(initial)
+	cpu.LoadProgram(encode([]Instruction{
+		StoreSP{immediate: 0x1234},
+	}))
+	cpu.Run()
+
+	first := cpu.memory.Get(0x1234)
+	second := cpu.memory.Get(0x1235)
+	if first != 0xCD {
+		t.Errorf("Expected %#X, got %#X\n", 0xCD, first)
+	}
+	if second != 0xFF {
+		t.Errorf("Expected %#X, got %#X\n", 0xFF, second)
+	}
+}
+
 func TestInstructionCycles(t *testing.T) {
 	testCases := []struct {
 		instructions []Instruction
@@ -446,6 +494,8 @@ func TestInstructionCycles(t *testing.T) {
 		{instructions: []Instruction{HLtoSP{}}, expected: 2, message: "HL to SP"},
 		{instructions: []Instruction{Push{source: BC}}, expected: 4, message: "Push"},
 		{instructions: []Instruction{Pop{dest: BC}}, expected: 3, message: "Pop"},
+		{instructions: []Instruction{LoadHLSP{immediate: 20}}, expected: 3, message: "Load HL SP"},
+		{instructions: []Instruction{StoreSP{immediate: 0xDEAD}}, expected: 5, message: "Store SP"},
 	}
 
 	for _, test := range testCases {
