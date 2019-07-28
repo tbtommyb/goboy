@@ -5,43 +5,9 @@ import "fmt"
 // TODO: consider what needs to be exported
 
 type Register byte
-
-// TODO: implement this
-// type RegisterPair byte
-
-// const (
-// 	BC RegisterPair = 0x0
-// 	DE = 0x1
-// 	HL = 0x2
-// 	SP = 0x3
-// 	AF = 0x4
-// )
-const (
-	A  Register = 0x7
-	B           = 0x0
-	C           = 0x1
-	D           = 0x2
-	E           = 0x3
-	H           = 0x4
-	L           = 0x5
-	M           = 0x6 // memory reference through H:L
-	BC          = 0x8 // pairs have 0x8 added as an offset to create unique values
-	DE          = 0x9
-	HL          = 0xA
-	SP          = 0xB
-	AF          = 0xC
-)
-
+type RegisterPair byte
 type AddressType byte
-
-const (
-	RelativeN  AddressType = 0x0
-	RelativeC              = 0x2
-	RelativeNN             = 0xA
-)
-
 type Registers map[Register]byte
-
 type CPU struct {
 	r      Registers
 	flags  Register
@@ -50,10 +16,32 @@ type CPU struct {
 	cycles uint
 }
 
+const (
+	A Register = 0x7
+	B          = 0x0
+	C          = 0x1
+	D          = 0x2
+	E          = 0x3
+	H          = 0x4
+	L          = 0x5
+	M          = 0x6 // memory reference through H:L
+)
+
+const (
+	BC RegisterPair = 0x0
+	DE              = 0x1
+	HL              = 0x2
+	SP              = 0x3
+	AF              = 0x4
+)
+
+const (
+	RelativeN  AddressType = 0x0
+	RelativeC              = 0x2
+	RelativeNN             = 0xA
+)
+
 func (cpu *CPU) Get(r Register) byte {
-	if r > A {
-		panic(fmt.Sprintf("Get: invalid register %d", r))
-	}
 	switch r {
 	case M:
 		cpu.IncrementCycles()
@@ -63,7 +51,7 @@ func (cpu *CPU) Get(r Register) byte {
 	}
 }
 
-func (cpu *CPU) GetMem(r Register) byte {
+func (cpu *CPU) GetMem(r RegisterPair) byte {
 	cpu.IncrementCycles()
 	switch r {
 	case BC:
@@ -79,7 +67,7 @@ func (cpu *CPU) GetMem(r Register) byte {
 	}
 }
 
-func (cpu *CPU) GetPair(r Register) (byte, byte) {
+func (cpu *CPU) GetPair(r RegisterPair) (byte, byte) {
 	cpu.IncrementCycles()
 	switch r {
 	case BC:
@@ -96,9 +84,6 @@ func (cpu *CPU) GetPair(r Register) (byte, byte) {
 }
 
 func (cpu *CPU) Set(r Register, val byte) byte {
-	if r > A {
-		panic(fmt.Sprintf("Get: invalid register %d", r))
-	}
 	switch r {
 	case M:
 		cpu.IncrementCycles()
@@ -109,7 +94,7 @@ func (cpu *CPU) Set(r Register, val byte) byte {
 	return val
 }
 
-func (cpu *CPU) SetMem(r Register, val byte) byte {
+func (cpu *CPU) SetMem(r RegisterPair, val byte) byte {
 	cpu.IncrementCycles()
 	switch r {
 	case BC:
@@ -126,7 +111,7 @@ func (cpu *CPU) SetMem(r Register, val byte) byte {
 	return val
 }
 
-func (cpu *CPU) SetPair(r Register, val uint16) uint16 {
+func (cpu *CPU) SetPair(r RegisterPair, val uint16) uint16 {
 	switch r {
 	case BC:
 		cpu.SetBC(val)
@@ -235,6 +220,20 @@ func mergePair(high, low byte) uint16 {
 	return uint16(high)<<8 | uint16(low)
 }
 
+func (cpu *CPU) fetchRelative(i RelativeAddressingInstruction) uint16 {
+	switch addressType := i.AddressType(); addressType {
+	case RelativeC:
+		return cpu.computeOffset(uint16(cpu.Get(C)))
+	case RelativeN:
+		return cpu.computeOffset(uint16(cpu.fetchAndIncrement()))
+	case RelativeNN:
+		cpu.IncrementCycles()
+		return mergePair(cpu.fetchAndIncrement(), cpu.fetchAndIncrement())
+	default:
+		panic(fmt.Sprintf("fetchRelative: invalid address type %d", addressType))
+	}
+}
+
 func (cpu *CPU) Run() {
 	for opcode := cpu.fetchAndIncrement(); opcode != 0; opcode = cpu.fetchAndIncrement() {
 		instr := Decode(opcode)
@@ -250,30 +249,9 @@ func (cpu *CPU) Run() {
 			address := mergePair(cpu.GetPair(i.dest))
 			cpu.memory.Set(address, cpu.Get(i.source))
 		case LoadRelative:
-			var source uint16
-			switch i.addressType {
-			case RelativeC:
-				source = cpu.computeOffset(uint16(cpu.Get(C)))
-			case RelativeN:
-				source = cpu.computeOffset(uint16(cpu.fetchAndIncrement()))
-			case RelativeNN:
-				source = mergePair(cpu.fetchAndIncrement(), cpu.fetchAndIncrement())
-				cpu.IncrementCycles()
-			}
-
-			cpu.Set(A, cpu.memory.Get(source))
+			cpu.Set(A, cpu.memory.Get(cpu.fetchRelative(i)))
 		case StoreRelative:
-			var dest uint16
-			switch i.addressType {
-			case RelativeC:
-				dest = cpu.computeOffset(uint16(cpu.Get(C)))
-			case RelativeN:
-				dest = cpu.computeOffset(uint16(cpu.fetchAndIncrement()))
-			case RelativeNN:
-				dest = mergePair(cpu.fetchAndIncrement(), cpu.fetchAndIncrement())
-				cpu.IncrementCycles()
-			}
-			cpu.memory.Set(dest, cpu.Get(A))
+			cpu.memory.Set(cpu.fetchRelative(i), cpu.Get(A))
 		case LoadIncrement:
 			cpu.Set(A, cpu.GetMem(HL))
 			cpu.SetHL(cpu.GetHL() + 1)

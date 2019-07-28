@@ -20,7 +20,6 @@ const DestRegisterShift = 3
 const SourceRegisterMask = 0x7
 const PairRegisterShift = 4
 const PairRegisterMask = 0x30
-const PairRegisterBaseValue = 0x8 // Used to give pairs unique numbers
 
 const MoveRelative = 0xF0
 const LoadRelativePattern = 0xF0
@@ -38,6 +37,10 @@ const PopPattern = 0xC1
 
 type Instruction interface {
 	Opcode() []byte
+}
+
+type RelativeAddressingInstruction interface {
+	AddressType() AddressType
 }
 
 type InvalidInstruction struct{ opcode byte }
@@ -66,19 +69,21 @@ func (i MoveImmediate) Opcode() []byte {
 }
 
 type LoadIndirect struct {
-	source, dest Register
+	source RegisterPair
+	dest   Register
 }
 
 func (i LoadIndirect) Opcode() []byte {
-	return []byte{byte(LoadIndirectPattern | (i.source-PairRegisterBaseValue)<<PairRegisterShift)}
+	return []byte{byte(LoadIndirectPattern | i.source<<PairRegisterShift)}
 }
 
 type StoreIndirect struct {
-	source, dest Register
+	source Register
+	dest   RegisterPair
 }
 
 func (i StoreIndirect) Opcode() []byte {
-	return []byte{byte(StoreIndirectPattern | (i.dest-PairRegisterBaseValue)<<PairRegisterShift)}
+	return []byte{byte(StoreIndirectPattern | i.dest<<PairRegisterShift)}
 }
 
 type LoadRelative struct {
@@ -99,6 +104,10 @@ func (i LoadRelative) Opcode() []byte {
 	return opcode
 }
 
+func (i LoadRelative) AddressType() AddressType {
+	return i.addressType
+}
+
 type StoreRelative struct {
 	addressType AddressType
 	immediate   uint16
@@ -114,6 +123,10 @@ func (i StoreRelative) Opcode() []byte {
 		opcode = append(opcode, uint8(i.immediate))
 	}
 	return opcode
+}
+
+func (i StoreRelative) AddressType() AddressType {
+	return i.addressType
 }
 
 type LoadIncrement struct{}
@@ -148,16 +161,16 @@ func (i HLtoSP) Opcode() []byte {
 }
 
 type LoadRegisterPairImmediate struct {
-	dest      Register
+	dest      RegisterPair
 	immediate uint16
 }
 
 func (i LoadRegisterPairImmediate) Opcode() []byte {
-	return []byte{byte(LoadRegisterPairImmediatePattern | (i.dest-PairRegisterBaseValue)<<PairRegisterShift), byte(i.immediate), byte(i.immediate >> 8)}
+	return []byte{byte(LoadRegisterPairImmediatePattern | i.dest<<PairRegisterShift), byte(i.immediate), byte(i.immediate >> 8)}
 }
 
 type Push struct {
-	source Register
+	source RegisterPair
 }
 
 func (i Push) Opcode() []byte {
@@ -166,7 +179,7 @@ func (i Push) Opcode() []byte {
 }
 
 type Pop struct {
-	dest Register
+	dest RegisterPair
 }
 
 func (i Pop) Opcode() []byte {
@@ -182,19 +195,19 @@ func dest(opcode byte) Register {
 	return Register(opcode & DestRegisterMask >> DestRegisterShift)
 }
 
-func pair(opcode byte) Register {
-	return Register((opcode & PairRegisterMask >> PairRegisterShift) | PairRegisterBaseValue)
+func pair(opcode byte) RegisterPair {
+	return RegisterPair(opcode & PairRegisterMask >> PairRegisterShift)
 }
 
-// TODO: janky AF
-func muxPairs(r Register) Register {
+// AF and SP use same bit pattern in different instructions
+func muxPairs(r RegisterPair) RegisterPair {
 	if r == AF {
 		r = SP
 	}
 	return r
 }
 
-func demuxPairs(opcode byte) Register {
+func demuxPairs(opcode byte) RegisterPair {
 	reg := pair(opcode)
 	if reg == SP {
 		reg = AF
