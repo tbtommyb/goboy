@@ -145,56 +145,42 @@ func (cpu *CPU) GetFlags() byte {
 }
 
 func (cpu *CPU) GetBC() uint16 {
-	// cpu.IncrementCycles()
-	return uint16(cpu.Get(B))<<8 | uint16(cpu.Get(C))
-}
-
-func (cpu *CPU) GetDE() uint16 {
-	// cpu.IncrementCycles()
-	return uint16(cpu.Get(D))<<8 | uint16(cpu.Get(E))
-}
-
-func (cpu *CPU) GetHL() uint16 {
-	// cpu.IncrementCycles()
-	return uint16(cpu.Get(H))<<8 | uint16(cpu.Get(L))
-}
-
-func (cpu *CPU) SetHL(value uint16) uint16 {
-	// cpu.IncrementCycles()
-	cpu.Set(H, byte(value>>8))
-	cpu.Set(L, byte(value))
-	return value
+	return mergePair(cpu.Get(B), cpu.Get(C))
 }
 
 func (cpu *CPU) SetBC(value uint16) uint16 {
-	// cpu.IncrementCycles()
 	cpu.Set(B, byte(value>>8))
 	cpu.Set(C, byte(value))
 	return value
 }
 
+func (cpu *CPU) GetDE() uint16 {
+	return mergePair(cpu.Get(D), cpu.Get(E))
+}
+
 func (cpu *CPU) SetDE(value uint16) uint16 {
-	// cpu.IncrementCycles()
 	cpu.Set(D, byte(value>>8))
 	cpu.Set(E, byte(value))
 	return value
 }
 
-func (cpu *CPU) SetSP(value uint16) uint16 {
-	cpu.SP = value
+func (cpu *CPU) GetHL() uint16 {
+	return mergePair(cpu.Get(H), cpu.Get(L))
+}
+
+func (cpu *CPU) SetHL(value uint16) uint16 {
+	cpu.Set(H, byte(value>>8))
+	cpu.Set(L, byte(value))
 	return value
-}
-
-func (cpu *CPU) IncrementHL() uint16 {
-	return cpu.SetHL(cpu.GetHL() + 1)
-}
-
-func (cpu *CPU) DecrementHL() uint16 {
-	return cpu.SetHL(cpu.GetHL() - 1)
 }
 
 func (cpu *CPU) GetSP() uint16 {
 	return cpu.SP
+}
+
+func (cpu *CPU) SetSP(value uint16) uint16 {
+	cpu.SP = value
+	return value
 }
 
 func (cpu *CPU) IncrementSP() {
@@ -203,18 +189,6 @@ func (cpu *CPU) IncrementSP() {
 
 func (cpu *CPU) DecrementSP() {
 	cpu.SP -= 1
-}
-
-// TODO: create separate stack structure
-func (cpu *CPU) PushStack(val byte) byte {
-	cpu.DecrementSP()
-	return cpu.SetMem(SP, val)
-}
-
-func (cpu *CPU) PopStack() byte {
-	val := cpu.GetMem(SP)
-	cpu.IncrementSP()
-	return val
 }
 
 func (cpu *CPU) GetPC() uint16 {
@@ -231,6 +205,18 @@ func (cpu *CPU) GetCycles() uint {
 
 func (cpu *CPU) IncrementCycles() {
 	cpu.cycles += 1
+}
+
+// TODO: create separate stack structure
+func (cpu *CPU) PushStack(val byte) byte {
+	cpu.DecrementSP()
+	return cpu.SetMem(SP, val)
+}
+
+func (cpu *CPU) PopStack() byte {
+	val := cpu.GetMem(SP)
+	cpu.IncrementSP()
+	return val
 }
 
 func (cpu *CPU) computeOffset(offset uint16) uint16 {
@@ -271,8 +257,7 @@ func (cpu *CPU) Run() {
 			case RelativeN:
 				source = cpu.computeOffset(uint16(cpu.fetchAndIncrement()))
 			case RelativeNN:
-				source |= uint16(cpu.fetchAndIncrement()) << 8
-				source |= uint16(cpu.fetchAndIncrement())
+				source = mergePair(cpu.fetchAndIncrement(), cpu.fetchAndIncrement())
 				cpu.IncrementCycles()
 			}
 
@@ -285,23 +270,22 @@ func (cpu *CPU) Run() {
 			case RelativeN:
 				dest = cpu.computeOffset(uint16(cpu.fetchAndIncrement()))
 			case RelativeNN:
-				dest |= uint16(cpu.fetchAndIncrement()) << 8
-				dest |= uint16(cpu.fetchAndIncrement())
+				dest = mergePair(cpu.fetchAndIncrement(), cpu.fetchAndIncrement())
 				cpu.IncrementCycles()
 			}
 			cpu.memory.Set(dest, cpu.Get(A))
 		case LoadIncrement:
 			cpu.Set(A, cpu.GetMem(HL))
-			cpu.IncrementHL()
+			cpu.SetHL(cpu.GetHL() + 1)
 		case LoadDecrement:
 			cpu.Set(A, cpu.GetMem(HL))
-			cpu.DecrementHL()
+			cpu.SetHL(cpu.GetHL() - 1)
 		case StoreIncrement:
 			cpu.SetMem(HL, cpu.Get(A))
-			cpu.IncrementHL()
+			cpu.SetHL(cpu.GetHL() + 1)
 		case StoreDecrement:
 			cpu.SetMem(HL, cpu.Get(A))
-			cpu.DecrementHL()
+			cpu.SetHL(cpu.GetHL() - 1)
 		case LoadRegisterPairImmediate:
 			var immediate uint16
 			immediate |= uint16(cpu.fetchAndIncrement())
@@ -317,7 +301,7 @@ func (cpu *CPU) Run() {
 		case Pop:
 			low := cpu.PopStack()
 			high := cpu.PopStack()
-			cpu.SetPair(i.dest, uint16(high)<<8|uint16(low))
+			cpu.SetPair(i.dest, mergePair(high, low))
 		case InvalidInstruction:
 			panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 		}
