@@ -7,22 +7,19 @@ import "fmt"
 type Register byte
 
 const (
-	A      Register = 0x7
-	B               = 0x0
-	C               = 0x1
-	D               = 0x2
-	E               = 0x3
-	H               = 0x4
-	L               = 0x5
-	M               = 0x6 // memory reference through H:L
-	BC              = 0x8 // pairs have 0x8 added as an offset to create unique values
-	DE              = 0x9
-	HL              = 0xA
-	SP              = 0xB
-	PushBC          = 0x10 // pairs have 0x10 added as an offset to create unique values
-	PushDE          = 0x11
-	PushHL          = 0x12
-	PushAF          = 0x13
+	A  Register = 0x7
+	B           = 0x0
+	C           = 0x1
+	D           = 0x2
+	E           = 0x3
+	H           = 0x4
+	L           = 0x5
+	M           = 0x6 // memory reference through H:L
+	BC          = 0x8 // pairs have 0x8 added as an offset to create unique values
+	DE          = 0x9
+	HL          = 0xA
+	SP          = 0xB
+	AF          = 0xC
 )
 
 type AddressType byte
@@ -151,7 +148,15 @@ func (cpu *CPU) DecrementSP() {
 // TODO: create separate stack structure
 func (cpu *CPU) PushStack(val byte) byte {
 	cpu.DecrementSP()
+	cpu.IncrementCycles()
 	return cpu.Set(SP, val)
+}
+
+func (cpu *CPU) PopStack() byte {
+	val := cpu.memory.Get(cpu.GetSP())
+	cpu.IncrementSP()
+	cpu.IncrementCycles()
+	return val
 }
 
 func (cpu *CPU) GetPC() uint16 {
@@ -163,14 +168,15 @@ func (cpu *CPU) IncrementPC() {
 }
 
 func (cpu *CPU) SplitPair(r Register) (byte, byte) {
+	cpu.IncrementCycles()
 	switch r {
-	case PushBC:
+	case BC:
 		return cpu.Get(B), cpu.Get(C)
-	case PushDE:
+	case DE:
 		return cpu.Get(D), cpu.Get(E)
-	case PushHL:
+	case HL:
 		return cpu.Get(H), cpu.Get(L)
-	case PushAF:
+	case AF:
 		return cpu.Get(A), cpu.GetFlags()
 	default:
 		panic(fmt.Sprintf("Invalid register %x", r))
@@ -262,6 +268,10 @@ func (cpu *CPU) Run() {
 			high, low := cpu.SplitPair(i.source)
 			cpu.PushStack(high)
 			cpu.PushStack(low)
+		case Pop:
+			low := cpu.PopStack()
+			high := cpu.PopStack()
+			cpu.SetRegisterPair(i.dest, uint16(high)<<8|uint16(low))
 		case InvalidInstruction:
 			panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 		}

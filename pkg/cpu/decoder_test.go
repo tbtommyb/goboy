@@ -29,10 +29,14 @@ var testCases = map[byte]Instruction{
 	0x21: LoadRegisterPairImmediate{dest: HL},
 	0x31: LoadRegisterPairImmediate{dest: SP},
 	0xF9: HLtoSP{},
-	0xD5: Push{source: PushDE},
-	0xC5: Push{source: PushBC},
-	0xE5: Push{source: PushHL},
-	0xF5: Push{source: PushAF},
+	0xC5: Push{source: BC},
+	0xD5: Push{source: DE},
+	0xE5: Push{source: HL},
+	0xF5: Push{source: AF},
+	0xC1: Pop{dest: BC},
+	0xD1: Pop{dest: DE},
+	0xE1: Pop{dest: HL},
+	0xF1: Pop{dest: AF},
 }
 
 func TestSimpleDecodes(t *testing.T) {

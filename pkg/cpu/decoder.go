@@ -21,7 +21,6 @@ const SourceRegisterMask = 0x7
 const PairRegisterShift = 4
 const PairRegisterMask = 0x30
 const PairRegisterBaseValue = 0x8 // Used to give pairs unique numbers
-const PushRegisterBaseValue = 0x10
 
 const MoveRelative = 0xF0
 const LoadRelativePattern = 0xF0
@@ -33,8 +32,9 @@ const LoadRegisterPairImmediatePattern = 0x1
 
 const HLtoSPPattern = 0xF9
 
-const PushMask = 0xCF
+const PushPopMask = 0xCF
 const PushPattern = 0xC5
+const PopPattern = 0xC1
 
 type Instruction interface {
 	Opcode() []byte
@@ -157,7 +157,17 @@ type Push struct {
 }
 
 func (i Push) Opcode() []byte {
-	return []byte{byte(PushPattern | (i.source-PushRegisterBaseValue)<<PairRegisterShift)}
+	register := muxPairs(i.source)
+	return []byte{byte(PushPattern | register<<PairRegisterShift)}
+}
+
+type Pop struct {
+	dest Register
+}
+
+func (i Pop) Opcode() []byte {
+	register := muxPairs(i.dest)
+	return []byte{byte(PopPattern | register<<PairRegisterShift)}
 }
 
 func source(opcode byte) Register {
@@ -172,8 +182,20 @@ func pair(opcode byte) Register {
 	return Register((opcode & PairRegisterMask >> PairRegisterShift) | PairRegisterBaseValue)
 }
 
-func pushPair(opcode byte) Register {
-	return Register((opcode & PairRegisterMask >> PairRegisterShift) | PushRegisterBaseValue)
+// TODO: janky AF
+func muxPairs(r Register) Register {
+	if r == AF {
+		r = SP
+	}
+	return r
+}
+
+func demuxPairs(opcode byte) Register {
+	reg := pair(opcode)
+	if reg == SP {
+		reg = AF
+	}
+	return reg
 }
 
 func addressType(opcode byte) AddressType {
@@ -183,6 +205,7 @@ func addressType(opcode byte) AddressType {
 // TODO: reliance on this feels like antipattern
 func isAddressing(opcode byte) bool {
 	address := addressType(opcode)
+
 	return address == RelativeN || address == RelativeC || address == RelativeNN
 }
 
@@ -229,9 +252,12 @@ func Decode(op byte) Instruction {
 	case op&LoadRegisterPairImmediateMask == LoadRegisterPairImmediatePattern:
 		// LD dd, nn. 0b00dd 0001
 		return LoadRegisterPairImmediate{dest: pair(op)}
-	case op&PushMask == PushPattern:
+	case op&PushPopMask == PushPattern:
 		// PUSH qq. 0b11qq 0101
-		return Push{source: pushPair(op)}
+		return Push{source: demuxPairs(op)}
+	case op&PushPopMask == PopPattern:
+		// POP qq. 0b11qq 0001
+		return Pop{dest: demuxPairs(op)}
 	case op == 0:
 		return EmptyInstruction{}
 	default:

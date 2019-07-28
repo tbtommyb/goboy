@@ -398,6 +398,27 @@ func TestPush(t *testing.T) {
 	}
 }
 
+func TestPop(t *testing.T) {
+	cpu := Init()
+
+	startingSP := cpu.GetSP()
+	cpu.LoadProgram(encode([]Instruction{
+		LoadRegisterPairImmediate{dest: HL, immediate: 0x1236},
+		Push{source: HL},
+		Pop{dest: BC},
+	}))
+	cpu.Run()
+
+	currentSP := cpu.GetSP()
+	if currentSP != startingSP {
+		t.Errorf("SP incorrect: %#v\n", currentSP)
+	}
+
+	if cpu.GetBC() != cpu.GetHL() {
+		t.Errorf("Expected %#X, got %#X", cpu.GetHL(), cpu.GetBC())
+	}
+}
+
 func TestInstructionCycles(t *testing.T) {
 	testCases := []struct {
 		instructions []Instruction
@@ -422,6 +443,8 @@ func TestInstructionCycles(t *testing.T) {
 		{instructions: []Instruction{StoreDecrement{}}, expected: 2, message: "Store decrement"},
 		{instructions: []Instruction{LoadRegisterPairImmediate{dest: BC, immediate: 0x1234}}, expected: 3, message: "Store decrement"},
 		{instructions: []Instruction{HLtoSP{}}, expected: 2, message: "HL to SP"},
+		{instructions: []Instruction{Push{source: BC}}, expected: 4, message: "Push"},
+		{instructions: []Instruction{Pop{dest: BC}}, expected: 3, message: "Pop"},
 	}
 
 	for _, test := range testCases {
@@ -433,7 +456,7 @@ func TestInstructionCycles(t *testing.T) {
 		// one more than the instruction cycle count because fetching the empty
 		// instruction that ends the Run() loop costs a cycle
 		if cycles := cpu.GetCycles(); cycles-initialCycles-1 != test.expected {
-			t.Errorf("%s: Incorrect cycles value. Expected %d, got %d", test.message, test.expected, cycles-initialCycles)
+			t.Errorf("%s: Incorrect cycles value. Expected %d, got %d", test.message, test.expected, cycles-initialCycles-1)
 		}
 	}
 }
