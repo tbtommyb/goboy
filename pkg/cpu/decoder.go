@@ -40,6 +40,7 @@ const StoreSPPattern = 0x8
 
 const AddMask = 0xF8
 const AddPattern = 0x80
+const AddImmediatePattern = 0xC6
 
 type Instruction interface {
 	Opcode() []byte
@@ -217,6 +218,14 @@ func (i Add) Opcode() []byte {
 	return []byte{byte(AddPattern | i.source)}
 }
 
+type AddImmediate struct {
+	immediate byte
+}
+
+func (i AddImmediate) Opcode() []byte {
+	return []byte{byte(AddImmediatePattern), i.immediate}
+}
+
 func source(opcode byte) Register {
 	return Register(opcode & SourceRegisterMask)
 }
@@ -314,6 +323,9 @@ func Decode(op byte) Instruction {
 	case op&AddMask == AddPattern:
 		// ADD A, r. 0b1000 0rrr
 		return Add{source: source(op)}
+	case op == AddImmediatePattern:
+		// ADD A n. 0b1100 0110
+		return AddImmediate{}
 	case op == 0:
 		return EmptyInstruction{}
 	default:

@@ -299,13 +299,30 @@ func (cpu *CPU) Run() {
 			result := a + b
 			cpu.Set(A, result)
 			cpu.SetFlag(Zero, result == 0)
-			cpu.SetFlag(HalfCarry, (a&0xf)+(b&0xf) > 0xf)
-			cpu.SetFlag(FullCarry, uint16(a)+uint16(b) > 0xff)
+			cpu.SetFlag(HalfCarry, isHalfCarry(a, b))
+			cpu.SetFlag(FullCarry, isFullCarry(a, b))
+			cpu.SetFlag(Negative, false)
+		case AddImmediate:
+			a := cpu.Get(A)
+			b := cpu.fetchAndIncrement()
+			result := a + b
+			cpu.Set(A, result)
+			cpu.SetFlag(Zero, result == 0)
+			cpu.SetFlag(HalfCarry, isHalfCarry(a, b))
+			cpu.SetFlag(FullCarry, isFullCarry(a, b))
 			cpu.SetFlag(Negative, false)
 		case InvalidInstruction:
 			panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 		}
 	}
+}
+
+func isHalfCarry(a, b byte) bool {
+	return (a&0xf)+(b&0xf) > 0xf
+}
+
+func isFullCarry(a, b byte) bool {
+	return uint16(a)+uint16(b) > 0xff
 }
 
 func (cpu *CPU) SetFlag(flag Flag, value bool) {

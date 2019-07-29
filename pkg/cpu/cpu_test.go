@@ -482,6 +482,20 @@ func TestAdd(t *testing.T) {
 	}
 }
 
+func TestAddImmediate(t *testing.T) {
+	cpu := Init()
+
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: A, immediate: 0x1},
+		AddImmediate{immediate: 0x10},
+	}))
+	cpu.Run()
+
+	if actual := cpu.Get(A); actual != 0x11 {
+		t.Errorf("Expected 0x11, got %#X\n", actual)
+	}
+}
+
 func TestAddFlags(t *testing.T) {
 	cpu := Init()
 
@@ -529,6 +543,8 @@ func TestInstructionCycles(t *testing.T) {
 		{instructions: []Instruction{Pop{dest: BC}}, expected: 3, message: "Pop"},
 		{instructions: []Instruction{LoadHLSP{immediate: 20}}, expected: 3, message: "Load HL SP"},
 		{instructions: []Instruction{StoreSP{immediate: 0xDEAD}}, expected: 5, message: "Store SP"},
+		{instructions: []Instruction{Add{source: B}}, expected: 1, message: "Add"},
+		{instructions: []Instruction{AddImmediate{immediate: 0x12}}, expected: 2, message: "Add Immediate"},
 	}
 
 	for _, test := range testCases {
