@@ -1,3 +1,4 @@
+//go:generate stringer -type=Flag
 package cpu
 
 import "fmt"
@@ -15,6 +16,9 @@ type CPU struct {
 	SP, PC uint16
 	memory Memory
 	cycles uint
+}
+type FlagSet struct {
+	Zero, Negative, HalfCarry, FullCarry bool
 }
 
 const (
@@ -296,33 +300,57 @@ func (cpu *CPU) Run() {
 		case Add:
 			a := cpu.Get(A)
 			b := cpu.Get(i.source)
-			result := a + b
+			result, flagSet := addOp(a, b, i.withCarry)
 			cpu.Set(A, result)
-			cpu.SetFlag(Zero, result == 0)
-			cpu.SetFlag(HalfCarry, isHalfCarry(a, b))
-			cpu.SetFlag(FullCarry, isFullCarry(a, b))
-			cpu.SetFlag(Negative, false)
+			cpu.SetFlags(flagSet)
 		case AddImmediate:
 			a := cpu.Get(A)
 			b := cpu.fetchAndIncrement()
-			result := a + b
+			result, flagSet := addOp(a, b, i.withCarry)
 			cpu.Set(A, result)
-			cpu.SetFlag(Zero, result == 0)
-			cpu.SetFlag(HalfCarry, isHalfCarry(a, b))
-			cpu.SetFlag(FullCarry, isFullCarry(a, b))
-			cpu.SetFlag(Negative, false)
+			cpu.SetFlags(flagSet)
 		case InvalidInstruction:
 			panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 		}
 	}
 }
 
-func isHalfCarry(a, b byte) bool {
-	return (a&0xf)+(b&0xf) > 0xf
+func addOp(a, b byte, withCarry bool) (byte, FlagSet) {
+	var carry byte
+	if withCarry {
+		carry = 1
+	}
+	result := a + b + carry
+	flagSet := FlagSet{
+		Zero:      result == 0,
+		Negative:  false,
+		HalfCarry: isHalfCarry(a, b, carry),
+		FullCarry: isFullCarry(a, b, carry),
+	}
+	return result, flagSet
 }
 
-func isFullCarry(a, b byte) bool {
-	return uint16(a)+uint16(b) > 0xff
+func isHalfCarry(args ...byte) bool {
+	var sum byte
+	for _, arg := range args {
+		sum = sum + (arg & 0xf)
+	}
+	return sum > 0xf
+}
+
+func isFullCarry(args ...byte) bool {
+	var sum uint16
+	for _, arg := range args {
+		sum = uint16(sum) + uint16(arg)
+	}
+	return sum > 0xff
+}
+
+func (cpu *CPU) SetFlags(fs FlagSet) {
+	cpu.SetFlag(Zero, fs.Zero)
+	cpu.SetFlag(Negative, fs.Negative)
+	cpu.SetFlag(HalfCarry, fs.HalfCarry)
+	cpu.SetFlag(FullCarry, fs.FullCarry)
 }
 
 func (cpu *CPU) SetFlag(flag Flag, value bool) {
@@ -331,6 +359,10 @@ func (cpu *CPU) SetFlag(flag Flag, value bool) {
 		bitValue = 1
 	}
 	cpu.flags ^= byte((-bitValue ^ int8(cpu.flags)) & int8(flag))
+}
+
+func (cpu *CPU) isSet(flag Flag) bool {
+	return (cpu.flags & byte(flag)) > 0
 }
 
 // TODO: RunProgram convenience method?

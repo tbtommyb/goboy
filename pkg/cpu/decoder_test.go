@@ -40,7 +40,10 @@ var testCases = map[byte]Instruction{
 	0xF8: LoadHLSP{},
 	0x8:  StoreSP{},
 	0x81: Add{source: C},
+	0x8F: Add{source: A, withCarry: true},
+	0x8E: Add{source: M, withCarry: true},
 	0xC6: AddImmediate{},
+	0xCE: AddImmediate{withCarry: true},
 }
 
 func TestSimpleDecodes(t *testing.T) {

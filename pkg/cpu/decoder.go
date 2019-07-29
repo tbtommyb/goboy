@@ -38,9 +38,12 @@ const PopPattern = 0xC1
 const LoadHLSPPattern = 0xF8
 const StoreSPPattern = 0x8
 
-const AddMask = 0xF8
+const AddMask = 0xF0
 const AddPattern = 0x80
+const AddImmediateMask = 0xC7
 const AddImmediatePattern = 0xC6
+const CarryMask = 0x8
+const CarryShift = 3
 
 type Instruction interface {
 	Opcode() []byte
@@ -211,19 +214,29 @@ func (i StoreSP) Opcode() []byte {
 }
 
 type Add struct {
-	source Register
+	source    Register
+	withCarry bool
 }
 
 func (i Add) Opcode() []byte {
-	return []byte{byte(AddPattern | i.source)}
+	var carry byte
+	if i.withCarry {
+		carry = 1
+	}
+	return []byte{byte(AddPattern|i.source) | carry<<CarryShift}
 }
 
 type AddImmediate struct {
 	immediate byte
+	withCarry bool
 }
 
 func (i AddImmediate) Opcode() []byte {
-	return []byte{byte(AddImmediatePattern), i.immediate}
+	var carry byte
+	if i.withCarry {
+		carry = 1
+	}
+	return []byte{byte(AddImmediatePattern | carry<<CarryShift), i.immediate}
 }
 
 func source(opcode byte) Register {
@@ -322,10 +335,13 @@ func Decode(op byte) Instruction {
 		return StoreSP{}
 	case op&AddMask == AddPattern:
 		// ADD A, r. 0b1000 0rrr
-		return Add{source: source(op)}
-	case op == AddImmediatePattern:
+		// ADC A, r. 0b1000 1rrr
+		withCarry := (op & CarryMask) > 0
+		return Add{source: source(op), withCarry: withCarry}
+	case op&AddImmediateMask == AddImmediatePattern:
 		// ADD A n. 0b1100 0110
-		return AddImmediate{}
+		withCarry := (op & CarryMask) > 0
+		return AddImmediate{withCarry: withCarry}
 	case op == 0:
 		return EmptyInstruction{}
 	default:

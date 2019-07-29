@@ -1,6 +1,7 @@
 package cpu
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -471,55 +472,8 @@ func TestAdd(t *testing.T) {
 	cpu := Init()
 
 	cpu.LoadProgram(encode([]Instruction{
-		MoveImmediate{dest: B, immediate: 0x10},
-		MoveImmediate{dest: A, immediate: 0x1},
-		Add{source: B},
-	}))
-	cpu.Run()
-
-	if actual := cpu.Get(A); actual != 0x11 {
-		t.Errorf("Expected 0x11, got %#X\n", actual)
-	}
-}
-
-func TestAddImmediate(t *testing.T) {
-	cpu := Init()
-
-	cpu.LoadProgram(encode([]Instruction{
-		MoveImmediate{dest: A, immediate: 0x1},
-		AddImmediate{immediate: 0x10},
-	}))
-	cpu.Run()
-
-	if actual := cpu.Get(A); actual != 0x11 {
-		t.Errorf("Expected 0x11, got %#X\n", actual)
-	}
-}
-
-func TestAddMemory(t *testing.T) {
-	cpu := Init()
-	var expected byte = 0x2
-	cpu.memory.Load(0x1234, []byte{expected})
-
-	cpu.LoadProgram(encode([]Instruction{
-		MoveImmediate{dest: A, immediate: 0x10},
-		MoveImmediate{dest: H, immediate: 0x12},
-		MoveImmediate{dest: L, immediate: 0x34},
-		Add{source: M},
-	}))
-	cpu.Run()
-
-	if actual := cpu.Get(A); actual != 0x12 {
-		t.Errorf("Expected %#X, got %#X", 0x12, actual)
-	}
-}
-
-func TestAddFlags(t *testing.T) {
-	cpu := Init()
-
-	cpu.LoadProgram(encode([]Instruction{
-		MoveImmediate{dest: B, immediate: 0xFF},
-		MoveImmediate{dest: A, immediate: 0x1},
+		MoveImmediate{dest: B, immediate: 0xC6},
+		MoveImmediate{dest: A, immediate: 0x3A},
 		Add{source: B},
 	}))
 	cpu.Run()
@@ -527,8 +481,132 @@ func TestAddFlags(t *testing.T) {
 	if actual := cpu.Get(A); actual != 0x0 {
 		t.Errorf("Expected 0x0, got %#X\n", actual)
 	}
-	if flags := cpu.flags; flags != 0xB0 {
-		t.Errorf("Expected 0xB0, got %#X\n", flags)
+	if ok, errs := expectFlagSet(cpu, FlagSet{Zero: true, FullCarry: true, HalfCarry: true}); !ok {
+		for _, err := range errs {
+			t.Errorf(err)
+		}
+	}
+}
+
+func TestAddWithCarry(t *testing.T) {
+	cpu := Init()
+
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: E, immediate: 0x0F},
+		MoveImmediate{dest: A, immediate: 0xE1},
+		Add{source: E, withCarry: true},
+	}))
+	cpu.Run()
+
+	if actual := cpu.Get(A); actual != 0xF1 {
+		t.Errorf("Expected 0xF1, got %#X\n", actual)
+	}
+	if ok, errs := expectFlagSet(cpu, FlagSet{HalfCarry: true}); !ok {
+		for _, err := range errs {
+			t.Errorf(err)
+		}
+	}
+}
+
+func TestAddImmediate(t *testing.T) {
+	cpu := Init()
+
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: A, immediate: 0x3C},
+		AddImmediate{immediate: 0xFF},
+	}))
+	cpu.Run()
+
+	if actual := cpu.Get(A); actual != 0x3B {
+		t.Errorf("Expected 0x3B, got %#X\n", actual)
+	}
+	if ok, errs := expectFlagSet(cpu, FlagSet{FullCarry: true, HalfCarry: true}); !ok {
+		for _, err := range errs {
+			t.Errorf(err)
+		}
+	}
+}
+
+func TestAddImmediateWithCarry(t *testing.T) {
+	cpu := Init()
+
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: A, immediate: 0xE1},
+		AddImmediate{immediate: 0x3B, withCarry: true},
+	}))
+	cpu.Run()
+
+	if actual := cpu.Get(A); actual != 0x1D {
+		t.Errorf("Expected 0x1D, got %#X\n", actual)
+	}
+	if ok, errs := expectFlagSet(cpu, FlagSet{FullCarry: true}); !ok {
+		for _, err := range errs {
+			t.Errorf(err)
+		}
+	}
+}
+
+func TestAddMemory(t *testing.T) {
+	cpu := Init()
+	var expected byte = 0x12
+	cpu.memory.Load(0x1234, []byte{expected})
+
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: A, immediate: 0x3C},
+		MoveImmediate{dest: H, immediate: 0x12},
+		MoveImmediate{dest: L, immediate: 0x34},
+		Add{source: M},
+	}))
+	cpu.Run()
+
+	if actual := cpu.Get(A); actual != 0x4E {
+		t.Errorf("Expected %#X, got %#X", 0x4E, actual)
+	}
+	if ok, errs := expectFlagSet(cpu, FlagSet{}); !ok {
+		for _, err := range errs {
+			t.Errorf(err)
+		}
+	}
+}
+
+func TestAddMemoryWithCarry(t *testing.T) {
+	cpu := Init()
+	var expected byte = 0x1E
+	cpu.memory.Load(0x1234, []byte{expected})
+
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: A, immediate: 0xE1},
+		MoveImmediate{dest: H, immediate: 0x12},
+		MoveImmediate{dest: L, immediate: 0x34},
+		Add{source: M, withCarry: true},
+	}))
+	cpu.Run()
+
+	if actual := cpu.Get(A); actual != 0x0 {
+		t.Errorf("Expected %#X, got %#X", 0x0, actual)
+	}
+	if ok, errs := expectFlagSet(cpu, FlagSet{Zero: true, FullCarry: true, HalfCarry: true}); !ok {
+		for _, err := range errs {
+			t.Errorf(err)
+		}
+	}
+}
+
+func TestIsSet(t *testing.T) {
+	cpu := Init()
+	cpu.flags = 0xF0
+
+	if !cpu.isSet(Zero) {
+		t.Errorf("Expected Zero flag to be set")
+	}
+	if !cpu.isSet(FullCarry) {
+		t.Errorf("Expected FullCarry flag to be set")
+	}
+	if !cpu.isSet(HalfCarry) {
+		t.Errorf("Expected HalfCarry flag to be set")
+	}
+	if !cpu.isSet(Negative) {
+		t.Errorf("Expected Negative flag to be set")
 	}
 }
 
@@ -578,4 +656,26 @@ func TestInstructionCycles(t *testing.T) {
 			t.Errorf("%s: Incorrect cycles value. Expected %d, got %d", test.message, test.expected, cycles-initialCycles-1)
 		}
 	}
+}
+
+func expectFlagSet(cpu CPU, fs FlagSet) (bool, []string) {
+	ok := true
+	var errs []string
+	if actual := cpu.isSet(Zero); actual != fs.Zero {
+		ok = false
+		errs = append(errs, fmt.Sprintf("Expected Zero to be %t, got %t", fs.Zero, actual))
+	}
+	if actual := cpu.isSet(Negative); actual != fs.Negative {
+		ok = false
+		errs = append(errs, fmt.Sprintf("Expected Negative to be %t, got %t", fs.Negative, actual))
+	}
+	if actual := cpu.isSet(HalfCarry); actual != fs.HalfCarry {
+		ok = false
+		errs = append(errs, fmt.Sprintf("Expected HalfCarry to be %t, got %t", fs.HalfCarry, actual))
+	}
+	if actual := cpu.isSet(FullCarry); actual != fs.FullCarry {
+		ok = false
+		errs = append(errs, fmt.Sprintf("Expected FullCarry to be %t, got %t", fs.FullCarry, actual))
+	}
+	return ok, errs
 }
