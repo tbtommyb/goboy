@@ -7,10 +7,11 @@ import "fmt"
 type Register byte
 type RegisterPair byte
 type AddressType byte
+type Flag byte
 type Registers map[Register]byte
 type CPU struct {
 	r      Registers
-	flags  Register
+	flags  byte
 	SP, PC uint16
 	memory Memory
 	cycles uint
@@ -39,6 +40,13 @@ const (
 	RelativeN  AddressType = 0x0
 	RelativeC              = 0x2
 	RelativeNN             = 0xA
+)
+
+const (
+	Zero      Flag = 0x80
+	Negative       = 0x40
+	HalfCarry      = 0x20
+	FullCarry      = 0x10
 )
 
 func (cpu *CPU) Get(r Register) byte {
@@ -285,10 +293,27 @@ func (cpu *CPU) Run() {
 			immediate |= uint16(cpu.fetchAndIncrement()) << 8
 			cpu.writeMem(immediate, byte(cpu.GetSP()))
 			cpu.writeMem(immediate+1, byte(cpu.GetSP()>>8))
+		case Add:
+			a := cpu.Get(A)
+			b := cpu.Get(i.source)
+			result := a + b
+			cpu.Set(A, result)
+			cpu.SetFlag(Zero, result == 0)
+			cpu.SetFlag(HalfCarry, (a&0xf)+(b&0xf) > 0xf)
+			cpu.SetFlag(FullCarry, uint16(a)+uint16(b) > 0xff)
+			cpu.SetFlag(Negative, false)
 		case InvalidInstruction:
 			panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 		}
 	}
+}
+
+func (cpu *CPU) SetFlag(flag Flag, value bool) {
+	var bitValue int8
+	if value {
+		bitValue = 1
+	}
+	cpu.flags ^= byte((-bitValue ^ int8(cpu.flags)) & int8(flag))
 }
 
 // TODO: RunProgram convenience method?

@@ -467,6 +467,39 @@ func TestStoreSP(t *testing.T) {
 	}
 }
 
+func TestAdd(t *testing.T) {
+	cpu := Init()
+
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: B, immediate: 0x10},
+		MoveImmediate{dest: A, immediate: 0x1},
+		Add{source: B},
+	}))
+	cpu.Run()
+
+	if actual := cpu.Get(A); actual != 0x11 {
+		t.Errorf("Expected 0x11, got %#X\n", actual)
+	}
+}
+
+func TestAddFlags(t *testing.T) {
+	cpu := Init()
+
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: B, immediate: 0xFF},
+		MoveImmediate{dest: A, immediate: 0x1},
+		Add{source: B},
+	}))
+	cpu.Run()
+
+	if actual := cpu.Get(A); actual != 0x0 {
+		t.Errorf("Expected 0x0, got %#X\n", actual)
+	}
+	if flags := cpu.flags; flags != 0xB0 {
+		t.Errorf("Expected 0xB0, got %#X\n", flags)
+	}
+}
+
 func TestInstructionCycles(t *testing.T) {
 	testCases := []struct {
 		instructions []Instruction

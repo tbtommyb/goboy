@@ -39,6 +39,7 @@ var testCases = map[byte]Instruction{
 	0xF1: Pop{dest: AF},
 	0xF8: LoadHLSP{},
 	0x8:  StoreSP{},
+	0x81: Add{source: C},
 }
 
 func TestSimpleDecodes(t *testing.T) {
