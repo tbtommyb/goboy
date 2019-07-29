@@ -496,6 +496,24 @@ func TestAddImmediate(t *testing.T) {
 	}
 }
 
+func TestAddMemory(t *testing.T) {
+	cpu := Init()
+	var expected byte = 0x2
+	cpu.memory.Load(0x1234, []byte{expected})
+
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: A, immediate: 0x10},
+		MoveImmediate{dest: H, immediate: 0x12},
+		MoveImmediate{dest: L, immediate: 0x34},
+		Add{source: M},
+	}))
+	cpu.Run()
+
+	if actual := cpu.Get(A); actual != 0x12 {
+		t.Errorf("Expected %#X, got %#X", 0x12, actual)
+	}
+}
+
 func TestAddFlags(t *testing.T) {
 	cpu := Init()
 
@@ -544,6 +562,7 @@ func TestInstructionCycles(t *testing.T) {
 		{instructions: []Instruction{LoadHLSP{immediate: 20}}, expected: 3, message: "Load HL SP"},
 		{instructions: []Instruction{StoreSP{immediate: 0xDEAD}}, expected: 5, message: "Store SP"},
 		{instructions: []Instruction{Add{source: B}}, expected: 1, message: "Add"},
+		{instructions: []Instruction{Add{source: M}}, expected: 2, message: "Add from memory"},
 		{instructions: []Instruction{AddImmediate{immediate: 0x12}}, expected: 2, message: "Add Immediate"},
 	}
 
