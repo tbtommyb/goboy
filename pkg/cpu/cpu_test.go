@@ -482,11 +482,7 @@ func TestAdd(t *testing.T) {
 	if actual := cpu.Get(A); actual != 0x0 {
 		t.Errorf("Expected 0x0, got %#X\n", actual)
 	}
-	if ok, errs := expectFlagSet(cpu, FlagSet{Zero: true, FullCarry: true, HalfCarry: true}); !ok {
-		for _, err := range errs {
-			t.Errorf(err)
-		}
-	}
+	expectFlagSet(t, cpu, FlagSet{Zero: true, FullCarry: true, HalfCarry: true})
 }
 
 func TestAddWithCarry(t *testing.T) {
@@ -503,11 +499,7 @@ func TestAddWithCarry(t *testing.T) {
 	if actual := cpu.Get(A); actual != 0xF1 {
 		t.Errorf("Expected 0xF1, got %#X\n", actual)
 	}
-	if ok, errs := expectFlagSet(cpu, FlagSet{HalfCarry: true}); !ok {
-		for _, err := range errs {
-			t.Errorf(err)
-		}
-	}
+	expectFlagSet(t, cpu, FlagSet{HalfCarry: true})
 }
 
 func TestAddImmediate(t *testing.T) {
@@ -522,11 +514,7 @@ func TestAddImmediate(t *testing.T) {
 	if actual := cpu.Get(A); actual != 0x3B {
 		t.Errorf("Expected 0x3B, got %#X\n", actual)
 	}
-	if ok, errs := expectFlagSet(cpu, FlagSet{FullCarry: true, HalfCarry: true}); !ok {
-		for _, err := range errs {
-			t.Errorf(err)
-		}
-	}
+	expectFlagSet(t, cpu, FlagSet{FullCarry: true, HalfCarry: true})
 }
 
 func TestAddImmediateWithCarry(t *testing.T) {
@@ -542,11 +530,7 @@ func TestAddImmediateWithCarry(t *testing.T) {
 	if actual := cpu.Get(A); actual != 0x1D {
 		t.Errorf("Expected 0x1D, got %#X\n", actual)
 	}
-	if ok, errs := expectFlagSet(cpu, FlagSet{FullCarry: true}); !ok {
-		for _, err := range errs {
-			t.Errorf(err)
-		}
-	}
+	expectFlagSet(t, cpu, FlagSet{FullCarry: true})
 }
 
 func TestAddMemory(t *testing.T) {
@@ -565,11 +549,7 @@ func TestAddMemory(t *testing.T) {
 	if actual := cpu.Get(A); actual != 0x4E {
 		t.Errorf("Expected %#X, got %#X", 0x4E, actual)
 	}
-	if ok, errs := expectFlagSet(cpu, FlagSet{}); !ok {
-		for _, err := range errs {
-			t.Errorf(err)
-		}
-	}
+	expectFlagSet(t, cpu, FlagSet{})
 }
 
 func TestAddMemoryWithCarry(t *testing.T) {
@@ -589,11 +569,7 @@ func TestAddMemoryWithCarry(t *testing.T) {
 	if actual := cpu.Get(A); actual != 0x0 {
 		t.Errorf("Expected %#X, got %#X", 0x0, actual)
 	}
-	if ok, errs := expectFlagSet(cpu, FlagSet{Zero: true, FullCarry: true, HalfCarry: true}); !ok {
-		for _, err := range errs {
-			t.Errorf(err)
-		}
-	}
+	expectFlagSet(t, cpu, FlagSet{Zero: true, FullCarry: true, HalfCarry: true})
 }
 
 func TestSubtract(t *testing.T) {
@@ -609,11 +585,7 @@ func TestSubtract(t *testing.T) {
 	if actual := cpu.Get(A); actual != 0x0 {
 		t.Errorf("Expected 0x3B, got %#X\n", actual)
 	}
-	if ok, errs := expectFlagSet(cpu, FlagSet{Negative: true, Zero: true}); !ok {
-		for _, err := range errs {
-			t.Errorf(err)
-		}
-	}
+	expectFlagSet(t, cpu, FlagSet{Negative: true, Zero: true})
 }
 
 func TestSubtractWithCarry(t *testing.T) {
@@ -630,11 +602,7 @@ func TestSubtractWithCarry(t *testing.T) {
 	if actual := cpu.Get(A); actual != 0x10 {
 		t.Errorf("Expected 0x10, got %#X\n", actual)
 	}
-	if ok, errs := expectFlagSet(cpu, FlagSet{Negative: true}); !ok {
-		for _, err := range errs {
-			t.Errorf(err)
-		}
-	}
+	expectFlagSet(t, cpu, FlagSet{Negative: true})
 }
 
 func TestSubtractMemory(t *testing.T) {
@@ -654,11 +622,7 @@ func TestSubtractMemory(t *testing.T) {
 	if actual := cpu.Get(A); actual != 0xFE {
 		t.Errorf("Expected 0x3B, got %#X\n", actual)
 	}
-	if ok, errs := expectFlagSet(cpu, FlagSet{Negative: true, FullCarry: true}); !ok {
-		for _, err := range errs {
-			t.Errorf(err)
-		}
-	}
+	expectFlagSet(t, cpu, FlagSet{Negative: true, FullCarry: true})
 }
 
 func TestSubtractMemoryWithCarry(t *testing.T) {
@@ -678,11 +642,7 @@ func TestSubtractMemoryWithCarry(t *testing.T) {
 	if actual := cpu.Get(A); actual != 0xEB {
 		t.Errorf("Expected 0xEB, got %#X\n", actual)
 	}
-	if ok, errs := expectFlagSet(cpu, FlagSet{Negative: true, HalfCarry: true, FullCarry: true}); !ok {
-		for _, err := range errs {
-			t.Errorf(err)
-		}
-	}
+	expectFlagSet(t, cpu, FlagSet{Negative: true, HalfCarry: true, FullCarry: true})
 }
 
 func TestSubtractImmediate(t *testing.T) {
@@ -697,11 +657,7 @@ func TestSubtractImmediate(t *testing.T) {
 	if actual := cpu.Get(A); actual != 0x2F {
 		t.Errorf("Expected 0x3B, got %#X\n", actual)
 	}
-	if ok, errs := expectFlagSet(cpu, FlagSet{Negative: true, HalfCarry: true}); !ok {
-		for _, err := range errs {
-			t.Errorf(err)
-		}
-	}
+	expectFlagSet(t, cpu, FlagSet{Negative: true, HalfCarry: true})
 }
 
 func TestSubtractImmediateWithCarry(t *testing.T) {
@@ -717,11 +673,7 @@ func TestSubtractImmediateWithCarry(t *testing.T) {
 	if actual := cpu.Get(A); actual != 0x0 {
 		t.Errorf("Expected 0x0, got %#X\n", actual)
 	}
-	if ok, errs := expectFlagSet(cpu, FlagSet{Negative: true, Zero: true}); !ok {
-		for _, err := range errs {
-			t.Errorf(err)
-		}
-	}
+	expectFlagSet(t, cpu, FlagSet{Negative: true, Zero: true})
 }
 
 func TestInstructionCycles(t *testing.T) {
@@ -775,24 +727,21 @@ func TestInstructionCycles(t *testing.T) {
 	}
 }
 
-func expectFlagSet(cpu CPU, fs FlagSet) (bool, []string) {
-	ok := true
+func expectFlagSet(t *testing.T, cpu CPU, fs FlagSet) {
 	var errs []string
 	if actual := cpu.isSet(Zero); actual != fs.Zero {
-		ok = false
 		errs = append(errs, fmt.Sprintf("Expected Zero to be %t, got %t", fs.Zero, actual))
 	}
 	if actual := cpu.isSet(Negative); actual != fs.Negative {
-		ok = false
 		errs = append(errs, fmt.Sprintf("Expected Negative to be %t, got %t", fs.Negative, actual))
 	}
 	if actual := cpu.isSet(HalfCarry); actual != fs.HalfCarry {
-		ok = false
 		errs = append(errs, fmt.Sprintf("Expected HalfCarry to be %t, got %t", fs.HalfCarry, actual))
 	}
 	if actual := cpu.isSet(FullCarry); actual != fs.FullCarry {
-		ok = false
 		errs = append(errs, fmt.Sprintf("Expected FullCarry to be %t, got %t", fs.FullCarry, actual))
 	}
-	return ok, errs
+	for _, err := range errs {
+		t.Errorf(err)
+	}
 }

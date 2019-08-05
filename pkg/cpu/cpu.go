@@ -46,7 +46,8 @@ func (cpu *CPU) fetchRelative(i RelativeAddressingInstruction) uint16 {
 	}
 }
 
-func addOp(a, b, carry byte) (byte, FlagSet) {
+func addOp(args ...byte) (byte, FlagSet) {
+	a, b, carry := args[0], args[1], args[2]
 	result := a + b + carry
 	flagSet := FlagSet{
 		Zero:      result == 0,
@@ -57,7 +58,8 @@ func addOp(a, b, carry byte) (byte, FlagSet) {
 	return result, flagSet
 }
 
-func subtractOp(a, b, carry byte) (byte, FlagSet) {
+func subOp(args ...byte) (byte, FlagSet) {
+	a, b, carry := args[0], args[1], args[2]
 	result := a - b - carry
 	flagSet := FlagSet{
 		Zero:      result == 0,
@@ -127,49 +129,35 @@ func (cpu *CPU) Run() {
 			cpu.WriteMem(immediate, byte(cpu.GetSP()))
 			cpu.WriteMem(immediate+1, byte(cpu.GetSP()>>8))
 		case Add:
-			a := cpu.Get(A)
-			b := cpu.Get(i.source)
-			var carry byte
-			if i.withCarry && cpu.isSet(FullCarry) {
-				carry = 1
-			}
-			result, flagSet := addOp(a, b, carry)
-			cpu.Set(A, result)
-			cpu.setFlags(flagSet)
+			carry := cpu.carryBit(i.withCarry, FullCarry)
+			cpu.performArithmetic(addOp, cpu.Get(A), cpu.Get(i.source), carry)
 		case AddImmediate:
-			a := cpu.Get(A)
-			b := cpu.fetchAndIncrement()
-			var carry byte
-			if i.withCarry && cpu.isSet(FullCarry) {
-				carry = 1
-			}
-			result, flagSet := addOp(a, b, carry)
-			cpu.Set(A, result)
-			cpu.setFlags(flagSet)
+			carry := cpu.carryBit(i.withCarry, FullCarry)
+			cpu.performArithmetic(addOp, cpu.Get(A), cpu.fetchAndIncrement(), carry)
 		case Subtract:
-			a := cpu.Get(A)
-			b := cpu.Get(i.source)
-			var carry byte
-			if i.withCarry && cpu.isSet(FullCarry) {
-				carry = 1
-			}
-			result, flagSet := subtractOp(a, b, carry)
-			cpu.Set(A, result)
-			cpu.setFlags(flagSet)
+			carry := cpu.carryBit(i.withCarry, FullCarry)
+			cpu.performArithmetic(subOp, cpu.Get(A), cpu.Get(i.source), carry)
 		case SubtractImmediate:
-			a := cpu.Get(A)
-			b := cpu.fetchAndIncrement()
-			var carry byte
-			if i.withCarry && cpu.isSet(FullCarry) {
-				carry = 1
-			}
-			result, flagSet := subtractOp(a, b, carry)
-			cpu.Set(A, result)
-			cpu.setFlags(flagSet)
+			carry := cpu.carryBit(i.withCarry, FullCarry)
+			cpu.performArithmetic(subOp, cpu.Get(A), cpu.fetchAndIncrement(), carry)
 		case InvalidInstruction:
 			panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 		}
 	}
+}
+
+func (cpu *CPU) performArithmetic(f func(...byte) (byte, FlagSet), args ...byte) {
+	result, flagSet := f(args...)
+	cpu.Set(A, result)
+	cpu.setFlags(flagSet)
+}
+
+func (cpu *CPU) carryBit(withCarry bool, flag Flag) byte {
+	var carry byte
+	if withCarry && cpu.isSet(flag) {
+		carry = 1
+	}
+	return carry
 }
 
 func Init() CPU {
