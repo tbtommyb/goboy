@@ -82,6 +82,18 @@ func andOp(args ...byte) (byte, FlagSet) {
 	return result, flagSet
 }
 
+func orOp(args ...byte) (byte, FlagSet) {
+	a, b := args[0], args[1]
+	result := a | b
+	flagSet := FlagSet{
+		Zero:      result == 0,
+		Negative:  false,
+		HalfCarry: false,
+		FullCarry: false,
+	}
+	return result, flagSet
+}
+
 func (cpu *CPU) Run() {
 	for opcode := cpu.fetchAndIncrement(); opcode != 0; opcode = cpu.fetchAndIncrement() {
 		instr := Decode(opcode)
@@ -156,6 +168,10 @@ func (cpu *CPU) Run() {
 			cpu.perform(andOp, cpu.Get(A), cpu.Get(i.source))
 		case AndImmediate:
 			cpu.perform(andOp, cpu.Get(A), cpu.fetchAndIncrement())
+		case Or:
+			cpu.perform(orOp, cpu.Get(A), cpu.Get(i.source))
+		case OrImmediate:
+			cpu.perform(orOp, cpu.Get(A), cpu.fetchAndIncrement())
 		case InvalidInstruction:
 			panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 		}

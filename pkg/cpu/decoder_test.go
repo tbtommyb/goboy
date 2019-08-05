@@ -53,6 +53,9 @@ var testCases = map[byte]Instruction{
 	0xA1: And{source: C},
 	0xA6: And{source: M},
 	0xE6: AndImmediate{},
+	0xB1: Or{source: C},
+	0xB6: Or{source: M},
+	0xF6: OrImmediate{},
 }
 
 func TestSimpleDecodes(t *testing.T) {

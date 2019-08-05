@@ -54,6 +54,10 @@ const AndMask = 0xF8
 const AndPattern = 0xA0
 const AndImmediatePattern = 0xE6
 
+const OrMask = 0xF8
+const OrPattern = 0xB0
+const OrImmediatePattern = 0xF6
+
 func Decode(op byte) Instruction {
 	switch {
 	case op&MoveMask == MovePattern:
@@ -134,6 +138,12 @@ func Decode(op byte) Instruction {
 	case op == AndImmediatePattern:
 		// AND A n. 0b1110 0110
 		return AndImmediate{}
+	case op&OrMask == OrPattern:
+		// OR A r. 0b1011 0rrr
+		return Or{source: source(op)}
+	case op == OrImmediatePattern:
+		// OR A n. 0b1111 0110
+		return OrImmediate{}
 	case op == 0:
 		return EmptyInstruction{}
 	default:

@@ -1,5 +1,44 @@
 package cpu
 
+func source(opcode byte) Register {
+	return Register(opcode & SourceRegisterMask)
+}
+
+func dest(opcode byte) Register {
+	return Register(opcode & DestRegisterMask >> DestRegisterShift)
+}
+
+func pair(opcode byte) RegisterPair {
+	return RegisterPair(opcode & PairRegisterMask >> PairRegisterShift)
+}
+
+// AF and SP use same bit pattern in different instructions
+func muxPairs(r RegisterPair) RegisterPair {
+	if r == AF {
+		r = SP
+	}
+	return r
+}
+
+func demuxPairs(opcode byte) RegisterPair {
+	reg := pair(opcode)
+	if reg == SP {
+		reg = AF
+	}
+	return reg
+}
+
+func addressType(opcode byte) AddressType {
+	return AddressType(opcode & MoveRelativeAddressing)
+}
+
+// TODO: reliance on this feels like antipattern
+func isAddressing(opcode byte) bool {
+	address := addressType(opcode)
+
+	return address == RelativeN || address == RelativeC || address == RelativeNN
+}
+
 type Instruction interface {
 	Opcode() []byte
 }
@@ -236,41 +275,18 @@ func (i AndImmediate) Opcode() []byte {
 	return []byte{AndImmediatePattern, i.immediate}
 }
 
-func source(opcode byte) Register {
-	return Register(opcode & SourceRegisterMask)
+type Or struct {
+	source Register
 }
 
-func dest(opcode byte) Register {
-	return Register(opcode & DestRegisterMask >> DestRegisterShift)
+func (i Or) Opcode() []byte {
+	return []byte{byte(OrPattern | i.source)}
 }
 
-func pair(opcode byte) RegisterPair {
-	return RegisterPair(opcode & PairRegisterMask >> PairRegisterShift)
+type OrImmediate struct {
+	immediate byte
 }
 
-// AF and SP use same bit pattern in different instructions
-func muxPairs(r RegisterPair) RegisterPair {
-	if r == AF {
-		r = SP
-	}
-	return r
-}
-
-func demuxPairs(opcode byte) RegisterPair {
-	reg := pair(opcode)
-	if reg == SP {
-		reg = AF
-	}
-	return reg
-}
-
-func addressType(opcode byte) AddressType {
-	return AddressType(opcode & MoveRelativeAddressing)
-}
-
-// TODO: reliance on this feels like antipattern
-func isAddressing(opcode byte) bool {
-	address := addressType(opcode)
-
-	return address == RelativeN || address == RelativeC || address == RelativeNN
+func (i OrImmediate) Opcode() []byte {
+	return []byte{OrImmediatePattern, i.immediate}
 }

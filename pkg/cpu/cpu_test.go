@@ -575,6 +575,24 @@ func TestArithmetic(t *testing.T) {
 				AndImmediate{immediate: 0x38},
 			},
 		},
+		{
+			name:     "or",
+			expected: 0x5A,
+			flags:    FlagSet{},
+			instructions: []Instruction{
+				MoveImmediate{dest: A, immediate: 0x5A},
+				Or{source: A},
+			},
+		},
+		{
+			name:     "or immediate",
+			expected: 0x5B,
+			flags:    FlagSet{},
+			instructions: []Instruction{
+				MoveImmediate{dest: A, immediate: 0x5A},
+				OrImmediate{immediate: 0x3},
+			},
+		},
 	}
 	for _, test := range testCases {
 		cpu := Init()
@@ -652,6 +670,16 @@ func TestArithmeticMemory(t *testing.T) {
 				And{source: M},
 			},
 		},
+		{
+			name:     "or memory",
+			memory:   0xF,
+			expected: 0x5F,
+			flags:    FlagSet{},
+			instructions: []Instruction{
+				MoveImmediate{dest: A, immediate: 0x5A},
+				Or{source: M},
+			},
+		},
 	}
 
 	for _, test := range testCases {
@@ -711,6 +739,9 @@ func TestInstructionCycles(t *testing.T) {
 		{instructions: []Instruction{And{source: B}}, expected: 1, message: "And"},
 		{instructions: []Instruction{And{source: M}}, expected: 2, message: "And from memory"},
 		{instructions: []Instruction{AndImmediate{immediate: 0x12}}, expected: 2, message: "And Immediate"},
+		{instructions: []Instruction{Or{source: B}}, expected: 1, message: "Or"},
+		{instructions: []Instruction{Or{source: M}}, expected: 2, message: "Or from memory"},
+		{instructions: []Instruction{OrImmediate{immediate: 0x12}}, expected: 2, message: "Or Immediate"},
 	}
 
 	for _, test := range testCases {
