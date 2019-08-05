@@ -62,6 +62,10 @@ var testCases = map[byte]Instruction{
 	0xB9: Cmp{source: C},
 	0xBE: Cmp{source: M},
 	0xFE: CmpImmediate{},
+	0xC:  Increment{dest: C},
+	0x34: Increment{dest: M},
+	0xD:  Decrement{dest: C},
+	0x35: Decrement{dest: M},
 }
 
 func TestSimpleDecodes(t *testing.T) {

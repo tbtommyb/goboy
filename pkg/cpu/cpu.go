@@ -205,6 +205,26 @@ func (cpu *CPU) Run() {
 		case CmpImmediate:
 			flagSet := cmpOp(cpu.Get(A), cpu.fetchAndIncrement())
 			cpu.setFlags(flagSet)
+		case Increment:
+			a := cpu.Get(i.dest)
+			result := a + 1
+			cpu.Set(i.dest, result)
+			cpu.setFlags(FlagSet{
+				Zero:      result == 0,
+				HalfCarry: isAddHalfCarry(a, 1, 0),
+				FullCarry: false, // TODO: possible needs to stay the same
+				Negative:  false,
+			})
+		case Decrement:
+			a := cpu.Get(i.dest)
+			result := a - 1
+			cpu.Set(i.dest, result)
+			cpu.setFlags(FlagSet{
+				Zero:      result == 0,
+				HalfCarry: isSubHalfCarry(a, 1, 0),
+				FullCarry: false,
+				Negative:  true,
+			})
 		case InvalidInstruction:
 			panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 		}

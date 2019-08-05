@@ -322,3 +322,19 @@ type CmpImmediate struct {
 func (i CmpImmediate) Opcode() []byte {
 	return []byte{CmpImmediatePattern, i.immediate}
 }
+
+type Increment struct {
+	dest Register
+}
+
+func (i Increment) Opcode() []byte {
+	return []byte{byte(IncrementPattern | i.dest<<DestRegisterShift)}
+}
+
+type Decrement struct {
+	dest Register
+}
+
+func (i Decrement) Opcode() []byte {
+	return []byte{byte(DecrementPattern | i.dest<<DestRegisterShift)}
+}

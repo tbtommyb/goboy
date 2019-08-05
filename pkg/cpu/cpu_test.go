@@ -611,6 +611,24 @@ func TestArithmetic(t *testing.T) {
 				XorImmediate{immediate: 0x0F},
 			},
 		},
+		{
+			name:     "inc",
+			expected: 0x0,
+			flags:    FlagSet{Zero: true, HalfCarry: true},
+			instructions: []Instruction{
+				MoveImmediate{dest: A, immediate: 0xFF},
+				Increment{dest: A},
+			},
+		},
+		{
+			name:     "dec",
+			expected: 0x0,
+			flags:    FlagSet{Zero: true, Negative: true},
+			instructions: []Instruction{
+				MoveImmediate{dest: A, immediate: 0x01},
+				Decrement{dest: A},
+			},
+		},
 	}
 	for _, test := range testCases {
 		cpu := Init()
@@ -727,6 +745,38 @@ func TestArithmeticMemory(t *testing.T) {
 		}
 		expectFlagSet(t, cpu, test.name, test.flags)
 	}
+}
+
+func TestIncrementMemory(t *testing.T) {
+	cpu := Init()
+
+	cpu.memory.load(0x1234, []byte{0x50})
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: H, immediate: 0x12},
+		MoveImmediate{dest: L, immediate: 0x34},
+		Increment{M},
+	}))
+	cpu.Run()
+	if actual := cpu.GetMem(HL); actual != 0x51 {
+		t.Errorf("expected %#X, got %#X\n", 0x51, actual)
+	}
+	expectFlagSet(t, cpu, "inc memory", FlagSet{})
+}
+
+func TestDecrementMemory(t *testing.T) {
+	cpu := Init()
+
+	cpu.memory.load(0x1234, []byte{0x0})
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: H, immediate: 0x12},
+		MoveImmediate{dest: L, immediate: 0x34},
+		Decrement{M},
+	}))
+	cpu.Run()
+	if actual := cpu.GetMem(HL); actual != 0xFF {
+		t.Errorf("expected %#X, got %#X\n", 0xFF, actual)
+	}
+	expectFlagSet(t, cpu, "inc memory", FlagSet{HalfCarry: true, Negative: true})
 }
 
 func TestCompare(t *testing.T) {

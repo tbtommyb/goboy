@@ -66,6 +66,11 @@ const CmpMask = 0xF8
 const CmpPattern = 0xB8
 const CmpImmediatePattern = 0xFE
 
+const IncrementMask = 0xC7
+const IncrementPattern = 0x4
+const DecrementMask = 0xC7
+const DecrementPattern = 0x5
+
 func Decode(op byte) Instruction {
 	switch {
 	case op&MoveMask == MovePattern:
@@ -164,6 +169,12 @@ func Decode(op byte) Instruction {
 	case op == CmpImmediatePattern:
 		// OR A n. 0b1111 1110
 		return CmpImmediate{}
+	case op&IncrementMask == IncrementPattern:
+		// INC r. 0b 00rr r100
+		return Increment{dest: dest(op)}
+	case op&DecrementMask == DecrementPattern:
+		// DEC r. 0b 00rr r101
+		return Decrement{dest: dest(op)}
 	case op == 0:
 		return EmptyInstruction{}
 	default:
