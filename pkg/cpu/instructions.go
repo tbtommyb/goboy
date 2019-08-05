@@ -338,3 +338,11 @@ type Decrement struct {
 func (i Decrement) Opcode() []byte {
 	return []byte{byte(DecrementPattern | i.dest<<DestRegisterShift)}
 }
+
+type AddPair struct {
+	source RegisterPair
+}
+
+func (i AddPair) Opcode() []byte {
+	return []byte{byte(AddPairPattern | i.source<<PairRegisterShift)}
+}

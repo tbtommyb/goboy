@@ -212,7 +212,7 @@ func (cpu *CPU) Run() {
 			cpu.setFlags(FlagSet{
 				Zero:      result == 0,
 				HalfCarry: isAddHalfCarry(a, 1, 0),
-				FullCarry: false, // TODO: possible needs to stay the same
+				FullCarry: cpu.isSet(FullCarry),
 				Negative:  false,
 			})
 		case Decrement:
@@ -222,9 +222,21 @@ func (cpu *CPU) Run() {
 			cpu.setFlags(FlagSet{
 				Zero:      result == 0,
 				HalfCarry: isSubHalfCarry(a, 1, 0),
-				FullCarry: false,
+				FullCarry: cpu.isSet(FullCarry),
 				Negative:  true,
 			})
+		case AddPair:
+			a := cpu.GetHL()
+			b := mergePair(cpu.GetPair(i.source))
+			result := a + b
+			cpu.SetHL(result)
+			cpu.setFlags(FlagSet{
+				Zero:      cpu.isSet(Zero),
+				Negative:  false,
+				HalfCarry: isAddHalfCarry16(a, b),
+				FullCarry: isAddFullCarry16(a, b),
+			})
+			cpu.incrementCycles()
 		case InvalidInstruction:
 			panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 		}

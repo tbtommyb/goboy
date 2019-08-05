@@ -816,6 +816,43 @@ func TestCompareMemory(t *testing.T) {
 	expectFlagSet(t, cpu, "cmp memory", FlagSet{Negative: true, FullCarry: true})
 }
 
+func TestAddPair(t *testing.T) {
+	cpu := Init()
+
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: H, immediate: 0x8A},
+		MoveImmediate{dest: L, immediate: 0x23},
+		MoveImmediate{dest: B, immediate: 0x06},
+		MoveImmediate{dest: C, immediate: 0x05},
+		AddPair{source: BC},
+	}))
+	cpu.Run()
+
+	if actual := cpu.GetHL(); actual != 0x9028 {
+		t.Errorf("expected %#X, got %#X\n", 0x9028, actual)
+	}
+	expectFlagSet(t, cpu, "cmp memory", FlagSet{HalfCarry: true})
+}
+
+// TODO: refactor into test cases
+func TestAddPairSecond(t *testing.T) {
+	cpu := Init()
+
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: H, immediate: 0x8A},
+		MoveImmediate{dest: L, immediate: 0x23},
+		MoveImmediate{dest: B, immediate: 0x06},
+		MoveImmediate{dest: C, immediate: 0x05},
+		AddPair{source: HL},
+	}))
+	cpu.Run()
+
+	if actual := cpu.GetHL(); actual != 0x1446 {
+		t.Errorf("expected %#X, got %#X\n", 0x1446, actual)
+	}
+	expectFlagSet(t, cpu, "cmp memory", FlagSet{HalfCarry: true, FullCarry: true})
+}
+
 func TestInstructionCycles(t *testing.T) {
 	testCases := []struct {
 		instructions []Instruction
@@ -863,6 +900,11 @@ func TestInstructionCycles(t *testing.T) {
 		{instructions: []Instruction{Cmp{source: B}}, expected: 1, message: "Cmp"},
 		{instructions: []Instruction{Cmp{source: M}}, expected: 2, message: "Cmp from memory"},
 		{instructions: []Instruction{CmpImmediate{immediate: 0x12}}, expected: 2, message: "Cmp Immediate"},
+		{instructions: []Instruction{Increment{dest: A}}, expected: 1, message: "Inc"},
+		{instructions: []Instruction{Increment{dest: M}}, expected: 3, message: "Inc memory"},
+		{instructions: []Instruction{Decrement{dest: A}}, expected: 1, message: "Dec"},
+		{instructions: []Instruction{Decrement{dest: M}}, expected: 3, message: "Dec memory"},
+		{instructions: []Instruction{AddPair{source: HL}}, expected: 2, message: "Add pair"},
 	}
 
 	for _, test := range testCases {
