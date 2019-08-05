@@ -59,6 +59,9 @@ var testCases = map[byte]Instruction{
 	0xA9: Xor{source: C},
 	0xAE: Xor{source: M},
 	0xEE: XorImmediate{},
+	0xB9: Cmp{source: C},
+	0xBE: Cmp{source: M},
+	0xFE: CmpImmediate{},
 }
 
 func TestSimpleDecodes(t *testing.T) {

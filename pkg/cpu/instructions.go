@@ -306,3 +306,19 @@ type XorImmediate struct {
 func (i XorImmediate) Opcode() []byte {
 	return []byte{XorImmediatePattern, i.immediate}
 }
+
+type Cmp struct {
+	source Register
+}
+
+func (i Cmp) Opcode() []byte {
+	return []byte{byte(CmpPattern | i.source)}
+}
+
+type CmpImmediate struct {
+	immediate byte
+}
+
+func (i CmpImmediate) Opcode() []byte {
+	return []byte{CmpImmediatePattern, i.immediate}
+}

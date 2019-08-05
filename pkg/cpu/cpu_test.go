@@ -729,6 +729,43 @@ func TestArithmeticMemory(t *testing.T) {
 	}
 }
 
+func TestCompare(t *testing.T) {
+	cpu := Init()
+
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: A, immediate: 0x3C},
+		MoveImmediate{dest: B, immediate: 0x2F},
+		Cmp{source: B},
+	}))
+	cpu.Run()
+	expectFlagSet(t, cpu, "cmp", FlagSet{Negative: true, HalfCarry: true})
+}
+
+func TestCompareImmediate(t *testing.T) {
+	cpu := Init()
+
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: A, immediate: 0x3C},
+		CmpImmediate{immediate: 0x3C},
+	}))
+	cpu.Run()
+	expectFlagSet(t, cpu, "cmp immediate", FlagSet{Negative: true, Zero: true})
+}
+
+func TestCompareMemory(t *testing.T) {
+	cpu := Init()
+
+	cpu.memory.load(0x1234, []byte{0x40})
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: H, immediate: 0x12},
+		MoveImmediate{dest: L, immediate: 0x34},
+		MoveImmediate{dest: A, immediate: 0x3C},
+		Cmp{source: M},
+	}))
+	cpu.Run()
+	expectFlagSet(t, cpu, "cmp memory", FlagSet{Negative: true, FullCarry: true})
+}
+
 func TestInstructionCycles(t *testing.T) {
 	testCases := []struct {
 		instructions []Instruction
@@ -773,6 +810,9 @@ func TestInstructionCycles(t *testing.T) {
 		{instructions: []Instruction{Xor{source: B}}, expected: 1, message: "Xor"},
 		{instructions: []Instruction{Xor{source: M}}, expected: 2, message: "Xor from memory"},
 		{instructions: []Instruction{XorImmediate{immediate: 0x12}}, expected: 2, message: "Xor Immediate"},
+		{instructions: []Instruction{Cmp{source: B}}, expected: 1, message: "Cmp"},
+		{instructions: []Instruction{Cmp{source: M}}, expected: 2, message: "Cmp from memory"},
+		{instructions: []Instruction{CmpImmediate{immediate: 0x12}}, expected: 2, message: "Cmp Immediate"},
 	}
 
 	for _, test := range testCases {

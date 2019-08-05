@@ -106,6 +106,17 @@ func xorOp(args ...byte) (byte, FlagSet) {
 	return result, flagSet
 }
 
+func cmpOp(args ...byte) FlagSet {
+	a, b := args[0], args[1]
+	result := a ^ b
+	return FlagSet{
+		Zero:      result == 0,
+		Negative:  true,
+		HalfCarry: isSubHalfCarry(a, b, 0),
+		FullCarry: isSubFullCarry(a, b, 0),
+	}
+}
+
 func (cpu *CPU) Run() {
 	for opcode := cpu.fetchAndIncrement(); opcode != 0; opcode = cpu.fetchAndIncrement() {
 		instr := Decode(opcode)
@@ -188,6 +199,12 @@ func (cpu *CPU) Run() {
 			cpu.perform(xorOp, cpu.Get(A), cpu.Get(i.source))
 		case XorImmediate:
 			cpu.perform(xorOp, cpu.Get(A), cpu.fetchAndIncrement())
+		case Cmp:
+			flagSet := cmpOp(cpu.Get(A), cpu.Get(i.source))
+			cpu.setFlags(flagSet)
+		case CmpImmediate:
+			flagSet := cmpOp(cpu.Get(A), cpu.fetchAndIncrement())
+			cpu.setFlags(flagSet)
 		case InvalidInstruction:
 			panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 		}
