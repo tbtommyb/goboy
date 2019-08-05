@@ -756,6 +756,9 @@ func TestInstructionCycles(t *testing.T) {
 		{instructions: []Instruction{Add{source: B}}, expected: 1, message: "Add"},
 		{instructions: []Instruction{Add{source: M}}, expected: 2, message: "Add from memory"},
 		{instructions: []Instruction{AddImmediate{immediate: 0x12}}, expected: 2, message: "Add Immediate"},
+		{instructions: []Instruction{Subtract{source: B}}, expected: 1, message: "Subtract"},
+		{instructions: []Instruction{Subtract{source: M}}, expected: 2, message: "Subtract from memory"},
+		{instructions: []Instruction{SubtractImmediate{immediate: 0x12}}, expected: 2, message: "Subtract Immediate"},
 	}
 
 	for _, test := range testCases {
