@@ -97,7 +97,7 @@ func TestSetAndGetRegister(t *testing.T) {
 func TestLoadMemory(t *testing.T) {
 	cpu := Init()
 	var expected byte = 0xFF
-	cpu.memory.Load(0x1234, []byte{expected})
+	cpu.memory.load(0x1234, []byte{expected})
 
 	cpu.LoadProgram(encode([]Instruction{
 		MoveImmediate{dest: H, immediate: 0x12},
@@ -131,7 +131,7 @@ func TestStoreMemory(t *testing.T) {
 func TestLoadIndirect(t *testing.T) {
 	cpu := Init()
 	var expected byte = 0xFF
-	cpu.memory.Load(0x1234, []byte{expected})
+	cpu.memory.load(0x1234, []byte{expected})
 
 	cpu.LoadProgram(encode([]Instruction{
 		MoveImmediate{dest: B, immediate: 0x12},
@@ -166,7 +166,7 @@ func TestLoadRelativeC(t *testing.T) {
 	cpu := Init()
 
 	var expected byte = 0xFF
-	cpu.memory.Set(0xFF03, expected)
+	cpu.memory.set(0xFF03, expected)
 
 	cpu.LoadProgram(encode([]Instruction{
 		MoveImmediate{dest: C, immediate: 3},
@@ -191,7 +191,7 @@ func TestStoreRelativeC(t *testing.T) {
 	}))
 	cpu.Run()
 
-	if actual := cpu.memory.Get(0xFF03); actual != expected {
+	if actual := cpu.memory.get(0xFF03); actual != expected {
 		t.Errorf("Expected %#X, got %#X", expected, actual)
 	}
 }
@@ -201,7 +201,7 @@ func TestLoadRelativeN(t *testing.T) {
 	cpu := Init()
 
 	var expected byte = 0xFF
-	cpu.memory.Set(0xFF03, expected)
+	cpu.memory.set(0xFF03, expected)
 
 	cpu.LoadProgram(encode([]Instruction{
 		LoadRelative{addressType: RelativeN, immediate: 3},
@@ -224,7 +224,7 @@ func TestStoreRelativeN(t *testing.T) {
 	}))
 	cpu.Run()
 
-	if actual := cpu.memory.Get(0xFF03); actual != expected {
+	if actual := cpu.memory.get(0xFF03); actual != expected {
 		t.Errorf("Expected %#X, got %#X", expected, actual)
 	}
 }
@@ -233,7 +233,7 @@ func TestLoadNN(t *testing.T) {
 	cpu := Init()
 
 	var expected byte = 0xFF
-	cpu.memory.Set(0xFF03, expected)
+	cpu.memory.set(0xFF03, expected)
 
 	cpu.LoadProgram(encode([]Instruction{
 		LoadRelative{addressType: RelativeNN, immediate: 0xFF03},
@@ -256,7 +256,7 @@ func TestStoreNN(t *testing.T) {
 	}))
 	cpu.Run()
 
-	if actual := cpu.memory.Get(0xFF03); actual != expected {
+	if actual := cpu.memory.get(0xFF03); actual != expected {
 		t.Errorf("Expected %#X, got %#X", expected, actual)
 	}
 }
@@ -264,7 +264,7 @@ func TestStoreNN(t *testing.T) {
 func TestLoadIncrement(t *testing.T) {
 	cpu := Init()
 	var expected byte = 0xFF
-	cpu.memory.Load(0x1234, []byte{expected})
+	cpu.memory.load(0x1234, []byte{expected})
 
 	cpu.LoadProgram(encode([]Instruction{
 		MoveImmediate{dest: H, immediate: 0x12},
@@ -284,7 +284,7 @@ func TestLoadIncrement(t *testing.T) {
 func TestLoadDecrement(t *testing.T) {
 	cpu := Init()
 	var expected byte = 0xFF
-	cpu.memory.Load(0x1234, []byte{expected})
+	cpu.memory.load(0x1234, []byte{expected})
 
 	cpu.LoadProgram(encode([]Instruction{
 		MoveImmediate{dest: H, immediate: 0x12},
@@ -453,14 +453,14 @@ func TestStoreSP(t *testing.T) {
 	cpu := Init()
 
 	var initial uint16 = 0xFFCD
-	cpu.SetSP(initial)
+	cpu.setSP(initial)
 	cpu.LoadProgram(encode([]Instruction{
 		StoreSP{immediate: 0x1234},
 	}))
 	cpu.Run()
 
-	first := cpu.memory.Get(0x1234)
-	second := cpu.memory.Get(0x1235)
+	first := cpu.memory.get(0x1234)
+	second := cpu.memory.get(0x1235)
 	if first != 0xCD {
 		t.Errorf("Expected %#X, got %#X\n", 0xCD, first)
 	}
@@ -491,7 +491,7 @@ func TestAdd(t *testing.T) {
 
 func TestAddWithCarry(t *testing.T) {
 	cpu := Init()
-	cpu.SetFlag(FullCarry, true)
+	cpu.setFlag(FullCarry, true)
 
 	cpu.LoadProgram(encode([]Instruction{
 		MoveImmediate{dest: E, immediate: 0x0F},
@@ -531,7 +531,7 @@ func TestAddImmediate(t *testing.T) {
 
 func TestAddImmediateWithCarry(t *testing.T) {
 	cpu := Init()
-	cpu.SetFlag(FullCarry, true)
+	cpu.setFlag(FullCarry, true)
 
 	cpu.LoadProgram(encode([]Instruction{
 		MoveImmediate{dest: A, immediate: 0xE1},
@@ -552,7 +552,7 @@ func TestAddImmediateWithCarry(t *testing.T) {
 func TestAddMemory(t *testing.T) {
 	cpu := Init()
 	var expected byte = 0x12
-	cpu.memory.Load(0x1234, []byte{expected})
+	cpu.memory.load(0x1234, []byte{expected})
 
 	cpu.LoadProgram(encode([]Instruction{
 		MoveImmediate{dest: A, immediate: 0x3C},
@@ -574,9 +574,9 @@ func TestAddMemory(t *testing.T) {
 
 func TestAddMemoryWithCarry(t *testing.T) {
 	cpu := Init()
-	cpu.SetFlag(FullCarry, true)
+	cpu.setFlag(FullCarry, true)
 	var expected byte = 0x1E
-	cpu.memory.Load(0x1234, []byte{expected})
+	cpu.memory.load(0x1234, []byte{expected})
 
 	cpu.LoadProgram(encode([]Instruction{
 		MoveImmediate{dest: A, immediate: 0xE1},
@@ -618,7 +618,7 @@ func TestSubtract(t *testing.T) {
 
 func TestSubtractWithCarry(t *testing.T) {
 	cpu := Init()
-	cpu.SetFlag(FullCarry, true)
+	cpu.setFlag(FullCarry, true)
 
 	cpu.LoadProgram(encode([]Instruction{
 		MoveImmediate{dest: A, immediate: 0x3B},
@@ -641,7 +641,7 @@ func TestSubtractMemory(t *testing.T) {
 	cpu := Init()
 
 	var expected byte = 0x40
-	cpu.memory.Load(0x1234, []byte{expected})
+	cpu.memory.load(0x1234, []byte{expected})
 
 	cpu.LoadProgram(encode([]Instruction{
 		MoveImmediate{dest: A, immediate: 0x3E},
@@ -663,9 +663,9 @@ func TestSubtractMemory(t *testing.T) {
 
 func TestSubtractMemoryWithCarry(t *testing.T) {
 	cpu := Init()
-	cpu.SetFlag(FullCarry, true)
+	cpu.setFlag(FullCarry, true)
 
-	cpu.memory.Load(0x1234, []byte{byte(0x4F)})
+	cpu.memory.load(0x1234, []byte{byte(0x4F)})
 
 	cpu.LoadProgram(encode([]Instruction{
 		MoveImmediate{dest: A, immediate: 0x3B},
@@ -706,7 +706,7 @@ func TestSubtractImmediate(t *testing.T) {
 
 func TestSubtractImmediateWithCarry(t *testing.T) {
 	cpu := Init()
-	cpu.SetFlag(FullCarry, true)
+	cpu.setFlag(FullCarry, true)
 
 	cpu.LoadProgram(encode([]Instruction{
 		MoveImmediate{dest: A, immediate: 0x3B},
@@ -724,24 +724,6 @@ func TestSubtractImmediateWithCarry(t *testing.T) {
 	}
 }
 
-func TestIsSet(t *testing.T) {
-	cpu := Init()
-	cpu.flags = 0xF0
-
-	if !cpu.isSet(Zero) {
-		t.Errorf("Expected Zero flag to be set")
-	}
-	if !cpu.isSet(FullCarry) {
-		t.Errorf("Expected FullCarry flag to be set")
-	}
-	if !cpu.isSet(HalfCarry) {
-		t.Errorf("Expected HalfCarry flag to be set")
-	}
-	if !cpu.isSet(Negative) {
-		t.Errorf("Expected Negative flag to be set")
-	}
-}
-
 func TestInstructionCycles(t *testing.T) {
 	testCases := []struct {
 		instructions []Instruction
@@ -753,23 +735,23 @@ func TestInstructionCycles(t *testing.T) {
 		{instructions: []Instruction{Move{dest: M, source: A}}, expected: 2, message: "Move memory"},
 		{instructions: []Instruction{MoveImmediate{dest: H, immediate: 0x12}, Move{source: A, dest: M}}, expected: 4, message: "Move immediate and move"},
 		{instructions: []Instruction{MoveImmediate{immediate: 0x12, dest: M}}, expected: 3, message: "Move immediate memory"},
-		{instructions: []Instruction{LoadIndirect{dest: A, source: BC}}, expected: 2, message: "Load Pair BC"},
+		{instructions: []Instruction{LoadIndirect{dest: A, source: BC}}, expected: 2, message: "load Pair BC"},
 		{instructions: []Instruction{StoreIndirect{dest: BC, source: A}}, expected: 2, message: "Store Pair BC"},
-		{instructions: []Instruction{LoadRelative{addressType: RelativeC}}, expected: 2, message: "Load Relative C"},
+		{instructions: []Instruction{LoadRelative{addressType: RelativeC}}, expected: 2, message: "load Relative C"},
 		{instructions: []Instruction{StoreRelative{addressType: RelativeC}}, expected: 2, message: "Store Relative C"},
-		{instructions: []Instruction{LoadRelative{addressType: RelativeN}}, expected: 3, message: "Load Relative N"},
+		{instructions: []Instruction{LoadRelative{addressType: RelativeN}}, expected: 3, message: "load Relative N"},
 		{instructions: []Instruction{StoreRelative{addressType: RelativeN}}, expected: 3, message: "Store Relative N"},
-		{instructions: []Instruction{LoadRelative{addressType: RelativeNN}}, expected: 4, message: "Load NN"},
+		{instructions: []Instruction{LoadRelative{addressType: RelativeNN}}, expected: 4, message: "load NN"},
 		{instructions: []Instruction{StoreRelative{addressType: RelativeNN}}, expected: 4, message: "Store NN"},
-		{instructions: []Instruction{LoadIncrement{}}, expected: 2, message: "Load increment"},
-		{instructions: []Instruction{LoadDecrement{}}, expected: 2, message: "Load decrement"},
+		{instructions: []Instruction{LoadIncrement{}}, expected: 2, message: "load increment"},
+		{instructions: []Instruction{LoadDecrement{}}, expected: 2, message: "load decrement"},
 		{instructions: []Instruction{StoreIncrement{}}, expected: 2, message: "Store increment"},
 		{instructions: []Instruction{StoreDecrement{}}, expected: 2, message: "Store decrement"},
-		{instructions: []Instruction{LoadRegisterPairImmediate{dest: BC, immediate: 0x1234}}, expected: 3, message: "Load register pair immediate"},
+		{instructions: []Instruction{LoadRegisterPairImmediate{dest: BC, immediate: 0x1234}}, expected: 3, message: "load register pair immediate"},
 		{instructions: []Instruction{HLtoSP{}}, expected: 2, message: "HL to SP"},
 		{instructions: []Instruction{Push{source: BC}}, expected: 4, message: "Push"},
 		{instructions: []Instruction{Pop{dest: BC}}, expected: 3, message: "Pop"},
-		{instructions: []Instruction{LoadHLSP{immediate: 20}}, expected: 3, message: "Load HL SP"},
+		{instructions: []Instruction{LoadHLSP{immediate: 20}}, expected: 3, message: "load HL SP"},
 		{instructions: []Instruction{StoreSP{immediate: 0xDEAD}}, expected: 5, message: "Store SP"},
 		{instructions: []Instruction{Add{source: B}}, expected: 1, message: "Add"},
 		{instructions: []Instruction{Add{source: M}}, expected: 2, message: "Add from memory"},
