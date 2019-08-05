@@ -50,6 +50,10 @@ const SubtractPattern = 0x90
 const SubtractImmediateMask = 0xF7
 const SubtractImmediatePattern = 0xD6
 
+const AndMask = 0xF8
+const AndPattern = 0xA0
+const AndImmediatePattern = 0xE6
+
 type Instruction interface {
 	Opcode() []byte
 }
@@ -270,6 +274,22 @@ func (i SubtractImmediate) Opcode() []byte {
 	return []byte{byte(SubtractImmediatePattern | carry<<CarryShift), i.immediate}
 }
 
+type And struct {
+	source Register
+}
+
+func (i And) Opcode() []byte {
+	return []byte{byte(AndPattern | i.source)}
+}
+
+type AndImmediate struct {
+	immediate byte
+}
+
+func (i AndImmediate) Opcode() []byte {
+	return []byte{AndImmediatePattern, i.immediate}
+}
+
 func source(opcode byte) Register {
 	return Register(opcode & SourceRegisterMask)
 }
@@ -383,6 +403,12 @@ func Decode(op byte) Instruction {
 		// SBC A n. 0b1101 1110
 		withCarry := (op & CarryMask) > 0
 		return SubtractImmediate{withCarry: withCarry}
+	case op&AndMask == AndPattern:
+		// AND A r. 0b1010 0rrr
+		return And{source: source(op)}
+	case op == AndImmediatePattern:
+		// AND A n. 0b1110 0110
+		return AndImmediate{}
 	case op == 0:
 		return EmptyInstruction{}
 	default:

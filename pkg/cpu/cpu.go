@@ -70,6 +70,18 @@ func subOp(args ...byte) (byte, FlagSet) {
 	return result, flagSet
 }
 
+func andOp(args ...byte) (byte, FlagSet) {
+	a, b := args[0], args[1]
+	result := a & b
+	flagSet := FlagSet{
+		Zero:      result == 0,
+		Negative:  false,
+		HalfCarry: true,
+		FullCarry: false,
+	}
+	return result, flagSet
+}
+
 func (cpu *CPU) Run() {
 	for opcode := cpu.fetchAndIncrement(); opcode != 0; opcode = cpu.fetchAndIncrement() {
 		instr := Decode(opcode)
@@ -130,23 +142,27 @@ func (cpu *CPU) Run() {
 			cpu.WriteMem(immediate+1, byte(cpu.GetSP()>>8))
 		case Add:
 			carry := cpu.carryBit(i.withCarry, FullCarry)
-			cpu.performArithmetic(addOp, cpu.Get(A), cpu.Get(i.source), carry)
+			cpu.perform(addOp, cpu.Get(A), cpu.Get(i.source), carry)
 		case AddImmediate:
 			carry := cpu.carryBit(i.withCarry, FullCarry)
-			cpu.performArithmetic(addOp, cpu.Get(A), cpu.fetchAndIncrement(), carry)
+			cpu.perform(addOp, cpu.Get(A), cpu.fetchAndIncrement(), carry)
 		case Subtract:
 			carry := cpu.carryBit(i.withCarry, FullCarry)
-			cpu.performArithmetic(subOp, cpu.Get(A), cpu.Get(i.source), carry)
+			cpu.perform(subOp, cpu.Get(A), cpu.Get(i.source), carry)
 		case SubtractImmediate:
 			carry := cpu.carryBit(i.withCarry, FullCarry)
-			cpu.performArithmetic(subOp, cpu.Get(A), cpu.fetchAndIncrement(), carry)
+			cpu.perform(subOp, cpu.Get(A), cpu.fetchAndIncrement(), carry)
+		case And:
+			cpu.perform(andOp, cpu.Get(A), cpu.Get(i.source))
+		case AndImmediate:
+			cpu.perform(andOp, cpu.Get(A), cpu.fetchAndIncrement())
 		case InvalidInstruction:
 			panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 		}
 	}
 }
 
-func (cpu *CPU) performArithmetic(f func(...byte) (byte, FlagSet), args ...byte) {
+func (cpu *CPU) perform(f func(...byte) (byte, FlagSet), args ...byte) {
 	result, flagSet := f(args...)
 	cpu.Set(A, result)
 	cpu.setFlags(flagSet)

@@ -676,6 +676,54 @@ func TestSubtractImmediateWithCarry(t *testing.T) {
 	expectFlagSet(t, cpu, FlagSet{Negative: true, Zero: true})
 }
 
+func TestAnd(t *testing.T) {
+	cpu := Init()
+
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: A, immediate: 0x5A},
+		MoveImmediate{dest: L, immediate: 0x3F},
+		And{source: L},
+	}))
+	cpu.Run()
+	if actual := cpu.Get(A); actual != 0x1A {
+		t.Errorf("Expected 0x1A, got %#X\n", actual)
+	}
+	expectFlagSet(t, cpu, FlagSet{HalfCarry: true})
+}
+
+func TestAndMem(t *testing.T) {
+	cpu := Init()
+
+	cpu.memory.load(0x1234, []byte{byte(0x0)})
+
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: A, immediate: 0x5A},
+		MoveImmediate{dest: H, immediate: 0x12},
+		MoveImmediate{dest: L, immediate: 0x34},
+		And{source: M},
+	}))
+	cpu.Run()
+
+	if actual := cpu.Get(A); actual != 0x0 {
+		t.Errorf("Expected 0x0, got %#X\n", actual)
+	}
+	expectFlagSet(t, cpu, FlagSet{HalfCarry: true, Zero: true})
+}
+
+func TestAndImmediate(t *testing.T) {
+	cpu := Init()
+
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: A, immediate: 0x5A},
+		AndImmediate{immediate: 0x38},
+	}))
+	cpu.Run()
+	if actual := cpu.Get(A); actual != 0x18 {
+		t.Errorf("Expected 0x18, got %#X\n", actual)
+	}
+	expectFlagSet(t, cpu, FlagSet{HalfCarry: true})
+}
+
 func TestInstructionCycles(t *testing.T) {
 	testCases := []struct {
 		instructions []Instruction
@@ -711,6 +759,9 @@ func TestInstructionCycles(t *testing.T) {
 		{instructions: []Instruction{Subtract{source: B}}, expected: 1, message: "Subtract"},
 		{instructions: []Instruction{Subtract{source: M}}, expected: 2, message: "Subtract from memory"},
 		{instructions: []Instruction{SubtractImmediate{immediate: 0x12}}, expected: 2, message: "Subtract Immediate"},
+		{instructions: []Instruction{And{source: B}}, expected: 1, message: "And"},
+		{instructions: []Instruction{And{source: M}}, expected: 2, message: "And from memory"},
+		{instructions: []Instruction{AndImmediate{immediate: 0x12}}, expected: 2, message: "And Immediate"},
 	}
 
 	for _, test := range testCases {
