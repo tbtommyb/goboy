@@ -44,6 +44,12 @@ var testCases = map[byte]Instruction{
 	0x8E: Add{source: M, withCarry: true},
 	0xC6: AddImmediate{},
 	0xCE: AddImmediate{withCarry: true},
+	0x91: Subtract{source: C},
+	0x96: Subtract{source: M},
+	0xD6: SubtractImmediate{},
+	0x99: Subtract{source: C, withCarry: true},
+	0x9E: Subtract{source: M, withCarry: true},
+	0xDE: SubtractImmediate{withCarry: true},
 }
 
 func TestSimpleDecodes(t *testing.T) {

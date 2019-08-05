@@ -79,8 +79,9 @@ func TestLoadImmediate(t *testing.T) {
 func TestSetAndGetRegister(t *testing.T) {
 	cpu := Init()
 
+	var expected byte = 3
 	cpu.LoadProgram(encode([]Instruction{
-		MoveImmediate{dest: A, immediate: 3},
+		MoveImmediate{dest: A, immediate: expected},
 		Move{source: A, dest: B},
 		Move{source: B, dest: C},
 		Move{source: C, dest: D},
@@ -89,7 +90,7 @@ func TestSetAndGetRegister(t *testing.T) {
 	cpu.Run()
 
 	if regValue := cpu.Get(E); regValue != 3 {
-		t.Errorf("Expected 3, got %d", regValue)
+		t.Errorf("Expected %X, got %X", expected, regValue)
 	}
 }
 
@@ -490,6 +491,7 @@ func TestAdd(t *testing.T) {
 
 func TestAddWithCarry(t *testing.T) {
 	cpu := Init()
+	cpu.SetFlag(FullCarry, true)
 
 	cpu.LoadProgram(encode([]Instruction{
 		MoveImmediate{dest: E, immediate: 0x0F},
@@ -529,6 +531,7 @@ func TestAddImmediate(t *testing.T) {
 
 func TestAddImmediateWithCarry(t *testing.T) {
 	cpu := Init()
+	cpu.SetFlag(FullCarry, true)
 
 	cpu.LoadProgram(encode([]Instruction{
 		MoveImmediate{dest: A, immediate: 0xE1},
@@ -571,6 +574,7 @@ func TestAddMemory(t *testing.T) {
 
 func TestAddMemoryWithCarry(t *testing.T) {
 	cpu := Init()
+	cpu.SetFlag(FullCarry, true)
 	var expected byte = 0x1E
 	cpu.memory.Load(0x1234, []byte{expected})
 
@@ -586,6 +590,134 @@ func TestAddMemoryWithCarry(t *testing.T) {
 		t.Errorf("Expected %#X, got %#X", 0x0, actual)
 	}
 	if ok, errs := expectFlagSet(cpu, FlagSet{Zero: true, FullCarry: true, HalfCarry: true}); !ok {
+		for _, err := range errs {
+			t.Errorf(err)
+		}
+	}
+}
+
+func TestSubtract(t *testing.T) {
+	cpu := Init()
+
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: A, immediate: 0x3E},
+		MoveImmediate{dest: E, immediate: 0x3E},
+		Subtract{source: E},
+	}))
+	cpu.Run()
+
+	if actual := cpu.Get(A); actual != 0x0 {
+		t.Errorf("Expected 0x3B, got %#X\n", actual)
+	}
+	if ok, errs := expectFlagSet(cpu, FlagSet{Negative: true, Zero: true}); !ok {
+		for _, err := range errs {
+			t.Errorf(err)
+		}
+	}
+}
+
+func TestSubtractWithCarry(t *testing.T) {
+	cpu := Init()
+	cpu.SetFlag(FullCarry, true)
+
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: A, immediate: 0x3B},
+		MoveImmediate{dest: H, immediate: 0x2A},
+		Subtract{source: H, withCarry: true},
+	}))
+	cpu.Run()
+
+	if actual := cpu.Get(A); actual != 0x10 {
+		t.Errorf("Expected 0x10, got %#X\n", actual)
+	}
+	if ok, errs := expectFlagSet(cpu, FlagSet{Negative: true}); !ok {
+		for _, err := range errs {
+			t.Errorf(err)
+		}
+	}
+}
+
+func TestSubtractMemory(t *testing.T) {
+	cpu := Init()
+
+	var expected byte = 0x40
+	cpu.memory.Load(0x1234, []byte{expected})
+
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: A, immediate: 0x3E},
+		MoveImmediate{dest: H, immediate: 0x12},
+		MoveImmediate{dest: L, immediate: 0x34},
+		Subtract{source: M},
+	}))
+	cpu.Run()
+
+	if actual := cpu.Get(A); actual != 0xFE {
+		t.Errorf("Expected 0x3B, got %#X\n", actual)
+	}
+	if ok, errs := expectFlagSet(cpu, FlagSet{Negative: true, FullCarry: true}); !ok {
+		for _, err := range errs {
+			t.Errorf(err)
+		}
+	}
+}
+
+func TestSubtractMemoryWithCarry(t *testing.T) {
+	cpu := Init()
+	cpu.SetFlag(FullCarry, true)
+
+	cpu.memory.Load(0x1234, []byte{byte(0x4F)})
+
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: A, immediate: 0x3B},
+		MoveImmediate{dest: H, immediate: 0x12},
+		MoveImmediate{dest: L, immediate: 0x34},
+		Subtract{source: M, withCarry: true},
+	}))
+	cpu.Run()
+
+	if actual := cpu.Get(A); actual != 0xEB {
+		t.Errorf("Expected 0xEB, got %#X\n", actual)
+	}
+	if ok, errs := expectFlagSet(cpu, FlagSet{Negative: true, HalfCarry: true, FullCarry: true}); !ok {
+		for _, err := range errs {
+			t.Errorf(err)
+		}
+	}
+}
+
+func TestSubtractImmediate(t *testing.T) {
+	cpu := Init()
+
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: A, immediate: 0x3E},
+		SubtractImmediate{immediate: 0x0F},
+	}))
+	cpu.Run()
+
+	if actual := cpu.Get(A); actual != 0x2F {
+		t.Errorf("Expected 0x3B, got %#X\n", actual)
+	}
+	if ok, errs := expectFlagSet(cpu, FlagSet{Negative: true, HalfCarry: true}); !ok {
+		for _, err := range errs {
+			t.Errorf(err)
+		}
+	}
+}
+
+func TestSubtractImmediateWithCarry(t *testing.T) {
+	cpu := Init()
+	cpu.SetFlag(FullCarry, true)
+
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: A, immediate: 0x3B},
+		SubtractImmediate{immediate: 0x3A, withCarry: true},
+	}))
+	cpu.Run()
+
+	if actual := cpu.Get(A); actual != 0x0 {
+		t.Errorf("Expected 0x0, got %#X\n", actual)
+	}
+	if ok, errs := expectFlagSet(cpu, FlagSet{Negative: true, Zero: true}); !ok {
 		for _, err := range errs {
 			t.Errorf(err)
 		}

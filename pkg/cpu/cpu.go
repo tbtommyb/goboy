@@ -300,13 +300,41 @@ func (cpu *CPU) Run() {
 		case Add:
 			a := cpu.Get(A)
 			b := cpu.Get(i.source)
-			result, flagSet := addOp(a, b, i.withCarry)
+			var carry byte
+			if i.withCarry && cpu.isSet(FullCarry) {
+				carry = 1
+			}
+			result, flagSet := addOp(a, b, carry)
 			cpu.Set(A, result)
 			cpu.SetFlags(flagSet)
 		case AddImmediate:
 			a := cpu.Get(A)
 			b := cpu.fetchAndIncrement()
-			result, flagSet := addOp(a, b, i.withCarry)
+			var carry byte
+			if i.withCarry && cpu.isSet(FullCarry) {
+				carry = 1
+			}
+			result, flagSet := addOp(a, b, carry)
+			cpu.Set(A, result)
+			cpu.SetFlags(flagSet)
+		case Subtract:
+			a := cpu.Get(A)
+			b := cpu.Get(i.source)
+			var carry byte
+			if i.withCarry && cpu.isSet(FullCarry) {
+				carry = 1
+			}
+			result, flagSet := subtractOp(a, b, carry)
+			cpu.Set(A, result)
+			cpu.SetFlags(flagSet)
+		case SubtractImmediate:
+			a := cpu.Get(A)
+			b := cpu.fetchAndIncrement()
+			var carry byte
+			if i.withCarry && cpu.isSet(FullCarry) {
+				carry = 1
+			}
+			result, flagSet := subtractOp(a, b, carry)
 			cpu.Set(A, result)
 			cpu.SetFlags(flagSet)
 		case InvalidInstruction:
@@ -315,35 +343,42 @@ func (cpu *CPU) Run() {
 	}
 }
 
-func addOp(a, b byte, withCarry bool) (byte, FlagSet) {
-	var carry byte
-	if withCarry {
-		carry = 1
-	}
+func addOp(a, b, carry byte) (byte, FlagSet) {
 	result := a + b + carry
 	flagSet := FlagSet{
 		Zero:      result == 0,
 		Negative:  false,
-		HalfCarry: isHalfCarry(a, b, carry),
-		FullCarry: isFullCarry(a, b, carry),
+		HalfCarry: isAddHalfCarry(a, b, carry),
+		FullCarry: isAddFullCarry(a, b, carry),
 	}
 	return result, flagSet
 }
 
-func isHalfCarry(args ...byte) bool {
-	var sum byte
-	for _, arg := range args {
-		sum = sum + (arg & 0xf)
+func subtractOp(a, b, carry byte) (byte, FlagSet) {
+	result := a - b - carry
+	flagSet := FlagSet{
+		Zero:      result == 0,
+		Negative:  true,
+		HalfCarry: isSubHalfCarry(a, b, carry),
+		FullCarry: isSubFullCarry(a, b, carry),
 	}
-	return sum > 0xf
+	return result, flagSet
 }
 
-func isFullCarry(args ...byte) bool {
-	var sum uint16
-	for _, arg := range args {
-		sum = uint16(sum) + uint16(arg)
-	}
-	return sum > 0xff
+func isAddHalfCarry(a, b, carry byte) bool {
+	return (a&0xf)+(b&0xf)+(carry&0xf) > 0xf
+}
+
+func isAddFullCarry(a, b, carry byte) bool {
+	return uint16(a)+uint16(b)+uint16(carry) > 0xff
+}
+
+func isSubHalfCarry(a, b, carry byte) bool {
+	return int8(a&0xf)-int8(b&0xf)-int8(carry&0xf) < 0
+}
+
+func isSubFullCarry(a, b, carry byte) bool {
+	return int16(a)-int16(b)-int16(carry) < 0
 }
 
 func (cpu *CPU) SetFlags(fs FlagSet) {

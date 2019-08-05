@@ -40,10 +40,15 @@ const StoreSPPattern = 0x8
 
 const AddMask = 0xF0
 const AddPattern = 0x80
-const AddImmediateMask = 0xC7
+const AddImmediateMask = 0xF7
 const AddImmediatePattern = 0xC6
 const CarryMask = 0x8
 const CarryShift = 3
+
+const SubtractMask = 0xF0
+const SubtractPattern = 0x90
+const SubtractImmediateMask = 0xF7
+const SubtractImmediatePattern = 0xD6
 
 type Instruction interface {
 	Opcode() []byte
@@ -239,6 +244,32 @@ func (i AddImmediate) Opcode() []byte {
 	return []byte{byte(AddImmediatePattern | carry<<CarryShift), i.immediate}
 }
 
+type Subtract struct {
+	source    Register
+	withCarry bool
+}
+
+func (i Subtract) Opcode() []byte {
+	var carry byte
+	if i.withCarry {
+		carry = 1
+	}
+	return []byte{byte(SubtractPattern|i.source) | carry<<CarryShift}
+}
+
+type SubtractImmediate struct {
+	immediate byte
+	withCarry bool
+}
+
+func (i SubtractImmediate) Opcode() []byte {
+	var carry byte
+	if i.withCarry {
+		carry = 1
+	}
+	return []byte{byte(SubtractImmediatePattern | carry<<CarryShift), i.immediate}
+}
+
 func source(opcode byte) Register {
 	return Register(opcode & SourceRegisterMask)
 }
@@ -342,6 +373,16 @@ func Decode(op byte) Instruction {
 		// ADD A n. 0b1100 0110
 		withCarry := (op & CarryMask) > 0
 		return AddImmediate{withCarry: withCarry}
+	case op&SubtractMask == SubtractPattern:
+		// SUB A, r. 0b1001 0rrr
+		// SBC A, r. 0b1001 1rrr
+		withCarry := (op & CarryMask) > 0
+		return Subtract{source: source(op), withCarry: withCarry}
+	case op&SubtractImmediateMask == SubtractImmediatePattern:
+		// SUB A n. 0b1101 0110
+		// SBC A n. 0b1101 1110
+		withCarry := (op & CarryMask) > 0
+		return SubtractImmediate{withCarry: withCarry}
 	case op == 0:
 		return EmptyInstruction{}
 	default:
