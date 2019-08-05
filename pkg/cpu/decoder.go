@@ -58,6 +58,10 @@ const OrMask = 0xF8
 const OrPattern = 0xB0
 const OrImmediatePattern = 0xF6
 
+const XorMask = 0xF8
+const XorPattern = 0xA8
+const XorImmediatePattern = 0xEE
+
 func Decode(op byte) Instruction {
 	switch {
 	case op&MoveMask == MovePattern:
@@ -144,6 +148,12 @@ func Decode(op byte) Instruction {
 	case op == OrImmediatePattern:
 		// OR A n. 0b1111 0110
 		return OrImmediate{}
+	case op&XorMask == XorPattern:
+		// XOR A r. 0b1010 1rrr
+		return Xor{source: source(op)}
+	case op == XorImmediatePattern:
+		// OR A n. 0b1110 1110
+		return XorImmediate{}
 	case op == 0:
 		return EmptyInstruction{}
 	default:

@@ -290,3 +290,19 @@ type OrImmediate struct {
 func (i OrImmediate) Opcode() []byte {
 	return []byte{OrImmediatePattern, i.immediate}
 }
+
+type Xor struct {
+	source Register
+}
+
+func (i Xor) Opcode() []byte {
+	return []byte{byte(XorPattern | i.source)}
+}
+
+type XorImmediate struct {
+	immediate byte
+}
+
+func (i XorImmediate) Opcode() []byte {
+	return []byte{XorImmediatePattern, i.immediate}
+}

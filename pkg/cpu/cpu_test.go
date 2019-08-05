@@ -593,6 +593,24 @@ func TestArithmetic(t *testing.T) {
 				OrImmediate{immediate: 0x3},
 			},
 		},
+		{
+			name:     "xor",
+			expected: 0x0,
+			flags:    FlagSet{Zero: true},
+			instructions: []Instruction{
+				MoveImmediate{dest: A, immediate: 0xFF},
+				Xor{source: A},
+			},
+		},
+		{
+			name:     "xor immediate",
+			expected: 0xF0,
+			flags:    FlagSet{},
+			instructions: []Instruction{
+				MoveImmediate{dest: A, immediate: 0xFF},
+				XorImmediate{immediate: 0x0F},
+			},
+		},
 	}
 	for _, test := range testCases {
 		cpu := Init()
@@ -680,6 +698,16 @@ func TestArithmeticMemory(t *testing.T) {
 				Or{source: M},
 			},
 		},
+		{
+			name:     "xor memory",
+			memory:   0x8A,
+			expected: 0x75,
+			flags:    FlagSet{},
+			instructions: []Instruction{
+				MoveImmediate{dest: A, immediate: 0xFF},
+				Xor{source: M},
+			},
+		},
 	}
 
 	for _, test := range testCases {
@@ -742,6 +770,9 @@ func TestInstructionCycles(t *testing.T) {
 		{instructions: []Instruction{Or{source: B}}, expected: 1, message: "Or"},
 		{instructions: []Instruction{Or{source: M}}, expected: 2, message: "Or from memory"},
 		{instructions: []Instruction{OrImmediate{immediate: 0x12}}, expected: 2, message: "Or Immediate"},
+		{instructions: []Instruction{Xor{source: B}}, expected: 1, message: "Xor"},
+		{instructions: []Instruction{Xor{source: M}}, expected: 2, message: "Xor from memory"},
+		{instructions: []Instruction{XorImmediate{immediate: 0x12}}, expected: 2, message: "Xor Immediate"},
 	}
 
 	for _, test := range testCases {
