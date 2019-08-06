@@ -164,10 +164,14 @@ func (cpu *CPU) Run() {
 			high := cpu.popStack()
 			cpu.SetPair(i.dest, mergePair(high, low))
 		case LoadHLSP:
-			// TODO flags
-			immediate := int8(cpu.fetchAndIncrement())
-			cpu.SetHL(cpu.GetSP() + uint16(immediate))
+			a := int8(cpu.fetchAndIncrement())
+			b := cpu.GetSP()
+			cpu.SetHL(uint16(a) + b)
 			cpu.incrementCycles() // TODO: remove need for this
+			cpu.setFlags(FlagSet{
+				HalfCarry: isAddHalfCarry16(uint16(a), b),
+				FullCarry: isAddFullCarry16(uint16(a), b),
+			})
 		case StoreSP:
 			var immediate uint16
 			immediate |= uint16(cpu.fetchAndIncrement())
@@ -212,7 +216,6 @@ func (cpu *CPU) Run() {
 				Zero:      result == 0,
 				HalfCarry: isAddHalfCarry(a, 1, 0),
 				FullCarry: cpu.isSet(FullCarry),
-				Negative:  false,
 			})
 		case Decrement:
 			a := cpu.Get(i.dest)
@@ -231,7 +234,6 @@ func (cpu *CPU) Run() {
 			cpu.SetHL(result)
 			cpu.setFlags(FlagSet{
 				Zero:      cpu.isSet(Zero),
-				Negative:  false,
 				HalfCarry: isAddHalfCarry16(a, b),
 				FullCarry: isAddFullCarry16(a, b),
 			})
@@ -242,8 +244,6 @@ func (cpu *CPU) Run() {
 			result := a + uint16(b)
 			cpu.setSP(result)
 			cpu.setFlags(FlagSet{
-				Zero:      false,
-				Negative:  false,
 				HalfCarry: isAddHalfCarry16(a, uint16(b)),
 				FullCarry: isAddFullCarry16(a, uint16(b)),
 			})

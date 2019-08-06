@@ -424,15 +424,18 @@ func TestPop(t *testing.T) {
 func TestLoadHLSPPositive(t *testing.T) {
 	cpu := Init()
 
-	initialSP := cpu.GetSP()
 	cpu.LoadProgram(encode([]Instruction{
-		LoadHLSP{immediate: 5},
+		MoveImmediate{dest: H, immediate: 0xFF},
+		MoveImmediate{dest: L, immediate: 0xF8},
+		HLtoSP{},
+		LoadHLSP{immediate: 2},
 	}))
 	cpu.Run()
 
-	if actual := cpu.GetHL(); actual != initialSP+5 {
-		t.Errorf("Expected %#X, got %#X\n", initialSP+5, actual)
+	if actual := cpu.GetHL(); actual != 0xFFFA {
+		t.Errorf("Expected %#X, got %#X\n", 0xFFFA, actual)
 	}
+	expectFlagSet(t, cpu, "load HL SP positive", FlagSet{})
 }
 func TestLoadHLSPNegative(t *testing.T) {
 	cpu := Init()
