@@ -88,6 +88,8 @@ const RotateDirectionShift = 3
 const RotateCopyMask = 0x10
 const RotateCopyShift = 4
 const RotateOperandPrefix = 0xCB
+const RotateActionMask = 0x20
+const RotateActionShift = 5
 
 func Decode(op byte) Instruction {
 	switch {

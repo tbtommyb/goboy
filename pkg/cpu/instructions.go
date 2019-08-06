@@ -1,10 +1,16 @@
 package cpu
 
 type RotationDirection byte
+type RotationAction byte
 
 const (
 	RotateLeft RotationDirection = iota
 	RotateRight
+)
+
+const (
+	RotateAction RotationAction = iota
+	ShiftAction
 )
 
 func source(opcode byte) Register {
@@ -55,6 +61,13 @@ func rotationDirection(opcode byte) RotationDirection {
 
 func rotationCopy(opcode byte) bool {
 	return opcode&RotateCopyMask == 0
+}
+
+func rotationAction(opcode byte) RotationAction {
+	if opcode&RotateActionMask > 0 {
+		return ShiftAction
+	}
+	return RotateAction
 }
 
 type Instruction interface {
@@ -416,6 +429,7 @@ func (i RotateA) WithCopy() bool {
 }
 
 type RotateOperand struct {
+	action    RotationAction
 	direction RotationDirection
 	withCopy  bool
 	source    Register
@@ -426,7 +440,7 @@ func (i RotateOperand) Opcode() []byte {
 	if i.withCopy {
 		copyBit = 0
 	}
-	return []byte{RotateOperandPrefix, byte(i.direction<<RotateDirectionShift) | byte(copyBit<<RotateCopyShift) | byte(i.source)}
+	return []byte{RotateOperandPrefix, byte(i.direction<<RotateDirectionShift) | byte(copyBit<<RotateCopyShift) | byte(i.source) | byte(i.action<<RotateActionShift)}
 }
 
 func (i RotateOperand) Direction() RotationDirection {

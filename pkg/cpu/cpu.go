@@ -146,6 +146,12 @@ func rotateOp(i RotateInstruction, value, flag byte) (byte, FlagSet) {
 	return result, flags
 }
 
+func shiftOp(i RotateInstruction, value, flag byte) (byte, FlagSet) {
+	var result byte
+	var flags FlagSet
+	return result, flags
+}
+
 func (cpu *CPU) perform(f func(...byte) (byte, FlagSet), args ...byte) {
 	result, flagSet := f(args...)
 	cpu.Set(A, result)
@@ -296,12 +302,19 @@ func (cpu *CPU) Run() {
 			cpu.Set(A, result)
 			cpu.setFlags(flagSet)
 		case RotateOperand:
+			var result byte
+			var flagSet FlagSet
 			operand := cpu.fetchAndIncrement()
 			i.direction = rotationDirection(operand)
 			i.withCopy = rotationCopy(operand)
 			i.source = source(operand)
 
-			result, flagSet := rotateOp(i, cpu.Get(i.source), cpu.getFlag(FullCarry))
+			switch i.action {
+			case RotateAction:
+				result, flagSet = rotateOp(i, cpu.Get(i.source), cpu.getFlag(FullCarry))
+			case ShiftAction:
+				result, flagSet = shiftOp(i, cpu.Get(i.source), cpu.getFlag(FullCarry))
+			}
 			cpu.Set(i.source, result)
 			cpu.setFlags(flagSet)
 		case InvalidInstruction:
