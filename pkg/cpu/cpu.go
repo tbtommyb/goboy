@@ -120,6 +120,38 @@ func cmpOp(args ...byte) FlagSet {
 	}
 }
 
+func rotateOp(i RotateInstruction, value, flag byte) (byte, FlagSet) {
+	var result byte
+	var flags FlagSet
+	switch i.Direction() {
+	case RotateLeft:
+		result = bits.RotateLeft8(value, 1)
+		if !i.WithCopy() {
+			result = setBit(0, result, flag)
+		}
+		flags = FlagSet{
+			FullCarry: bits.LeadingZeros8(value) == 0,
+			Zero:      result == 0,
+		}
+	case RotateRight:
+		result = bits.RotateLeft8(value, -1)
+		if !i.WithCopy() {
+			result = setBit(7, result, flag)
+		}
+		flags = FlagSet{
+			FullCarry: bits.TrailingZeros8(value) == 0,
+			Zero:      result == 0,
+		}
+	}
+	return result, flags
+}
+
+func (cpu *CPU) perform(f func(...byte) (byte, FlagSet), args ...byte) {
+	result, flagSet := f(args...)
+	cpu.Set(A, result)
+	cpu.setFlags(flagSet)
+}
+
 func (cpu *CPU) Run() {
 	for opcode := cpu.fetchAndIncrement(); opcode != 0; opcode = cpu.fetchAndIncrement() {
 		instr := Decode(opcode)
@@ -259,51 +291,23 @@ func (cpu *CPU) Run() {
 			a := mergePair(cpu.GetPair(i.dest))
 			cpu.SetPair(i.dest, a-1)
 			cpu.incrementCycles()
-		case Rotate:
-			a := cpu.Get(A)
-			switch i.direction {
-			case RotateLeft:
-				result := bits.RotateLeft8(a, 1)
-				if !i.withCopy {
-					result = setBit(0, result, cpu.getFlag(FullCarry))
-				}
-				cpu.Set(A, result)
-				cpu.setFlags(FlagSet{
-					FullCarry: bits.LeadingZeros8(a) == 0,
-				})
-			case RotateRight:
-				result := bits.RotateLeft8(a, -1)
-				if !i.withCopy {
-					result = setBit(7, result, cpu.getFlag(FullCarry))
-				}
-				cpu.Set(A, result)
-				cpu.setFlags(FlagSet{
-					FullCarry: bits.TrailingZeros8(a) == 0,
-				})
-			}
+		case RotateA:
+			result, flagSet := rotateOp(i, cpu.Get(A), cpu.getFlag(FullCarry))
+			cpu.Set(A, result)
+			cpu.setFlags(flagSet)
+		case RotateOperand:
+			operand := cpu.fetchAndIncrement()
+			i.direction = rotationDirection(operand)
+			i.withCopy = rotationCopy(operand)
+			i.source = source(operand)
+
+			result, flagSet := rotateOp(i, cpu.Get(i.source), cpu.getFlag(FullCarry))
+			cpu.Set(i.source, result)
+			cpu.setFlags(flagSet)
 		case InvalidInstruction:
 			panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 		}
 	}
-}
-
-func setBit(pos, value, flag byte) byte {
-	value ^= (-flag ^ value) & (1 << pos)
-	return value
-}
-
-func (cpu *CPU) perform(f func(...byte) (byte, FlagSet), args ...byte) {
-	result, flagSet := f(args...)
-	cpu.Set(A, result)
-	cpu.setFlags(flagSet)
-}
-
-func (cpu *CPU) carryBit(withCarry bool, flag Flag) byte {
-	var carry byte
-	if withCarry && cpu.isSet(flag) {
-		carry = 1
-	}
-	return carry
 }
 
 func Init() CPU {

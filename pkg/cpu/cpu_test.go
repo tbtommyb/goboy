@@ -903,7 +903,7 @@ func TestDecrementPair(t *testing.T) {
 	}
 }
 
-func TestRotate(t *testing.T) {
+func TestRotateA(t *testing.T) {
 	testCases := []struct {
 		name          string
 		instructions  []Instruction
@@ -919,7 +919,7 @@ func TestRotate(t *testing.T) {
 			expectedFlags: FlagSet{FullCarry: true},
 			instructions: []Instruction{
 				MoveImmediate{dest: A, immediate: 0x85},
-				Rotate{withCopy: true, direction: RotateLeft},
+				RotateA{withCopy: true, direction: RotateLeft},
 			},
 		},
 		{
@@ -929,7 +929,7 @@ func TestRotate(t *testing.T) {
 			expectedFlags: FlagSet{FullCarry: true},
 			instructions: []Instruction{
 				MoveImmediate{dest: A, immediate: 0x95},
-				Rotate{direction: RotateLeft},
+				RotateA{direction: RotateLeft},
 			},
 		},
 		{
@@ -939,7 +939,7 @@ func TestRotate(t *testing.T) {
 			expectedFlags: FlagSet{FullCarry: true},
 			instructions: []Instruction{
 				MoveImmediate{dest: A, immediate: 0x3B},
-				Rotate{withCopy: true, direction: RotateRight},
+				RotateA{withCopy: true, direction: RotateRight},
 			},
 		},
 		{
@@ -949,7 +949,7 @@ func TestRotate(t *testing.T) {
 			expectedFlags: FlagSet{FullCarry: true},
 			instructions: []Instruction{
 				MoveImmediate{dest: A, immediate: 0x81},
-				Rotate{direction: RotateRight},
+				RotateA{direction: RotateRight},
 			},
 		},
 	}
@@ -961,6 +961,139 @@ func TestRotate(t *testing.T) {
 		cpu.Run()
 
 		if actual := cpu.Get(A); actual != test.expected {
+			t.Errorf("%s: expected %#X, got %#X\n", test.name, test.expected, actual)
+		}
+		expectFlagSet(t, cpu, test.name, test.expectedFlags)
+	}
+}
+
+func TestRotateOperand(t *testing.T) {
+	testCases := []struct {
+		name          string
+		instructions  []Instruction
+		inputFlags    FlagSet
+		expected      byte
+		expectedFlags FlagSet
+		withCarry     bool
+	}{
+		{
+			name:          "RLC",
+			expected:      0x0B,
+			inputFlags:    FlagSet{},
+			expectedFlags: FlagSet{FullCarry: true},
+			instructions: []Instruction{
+				MoveImmediate{dest: A, immediate: 0x85},
+				RotateOperand{source: A, withCopy: true, direction: RotateLeft},
+			},
+		},
+		{
+			name:          "RL",
+			expected:      0x00,
+			inputFlags:    FlagSet{},
+			expectedFlags: FlagSet{FullCarry: true, Zero: true},
+			instructions: []Instruction{
+				MoveImmediate{dest: A, immediate: 0x80},
+				RotateOperand{source: A, direction: RotateLeft},
+			},
+		},
+		{
+			name:          "RRC",
+			expected:      0x80,
+			inputFlags:    FlagSet{},
+			expectedFlags: FlagSet{FullCarry: true},
+			instructions: []Instruction{
+				MoveImmediate{dest: A, immediate: 0x1},
+				RotateOperand{source: A, direction: RotateRight, withCopy: true},
+			},
+		},
+		{
+			name:          "RR",
+			expected:      0x0,
+			inputFlags:    FlagSet{},
+			expectedFlags: FlagSet{FullCarry: true, Zero: true},
+			instructions: []Instruction{
+				MoveImmediate{dest: A, immediate: 0x1},
+				RotateOperand{source: A, direction: RotateRight},
+			},
+		},
+	}
+
+	for _, test := range testCases {
+		cpu := Init()
+		cpu.LoadProgram(encode(test.instructions))
+		cpu.setFlags(test.inputFlags)
+		cpu.Run()
+
+		if actual := cpu.Get(A); actual != test.expected {
+			t.Errorf("%s: expected %#X, got %#X\n", test.name, test.expected, actual)
+		}
+		expectFlagSet(t, cpu, test.name, test.expectedFlags)
+	}
+}
+
+func TestRotateOperandWithMemory(t *testing.T) {
+	testCases := []struct {
+		name          string
+		instructions  []Instruction
+		inputFlags    FlagSet
+		expected      byte
+		expectedFlags FlagSet
+		withCarry     bool
+		memory        byte
+	}{
+		{
+			name:          "RLC",
+			memory:        0x0,
+			expected:      0x0,
+			inputFlags:    FlagSet{},
+			expectedFlags: FlagSet{Zero: true},
+			instructions: []Instruction{
+				RotateOperand{source: M, withCopy: true, direction: RotateLeft},
+			},
+		},
+		{
+			name:          "RL",
+			memory:        0x11,
+			expected:      0x22,
+			inputFlags:    FlagSet{},
+			expectedFlags: FlagSet{},
+			instructions: []Instruction{
+				RotateOperand{source: M, direction: RotateLeft},
+			},
+		},
+		{
+			name:          "RRC",
+			memory:        0x0,
+			expected:      0x0,
+			inputFlags:    FlagSet{},
+			expectedFlags: FlagSet{Zero: true},
+			instructions: []Instruction{
+				RotateOperand{source: M, direction: RotateRight, withCopy: true},
+			},
+		},
+		{
+			name:          "RR",
+			memory:        0x8A,
+			expected:      0x45,
+			inputFlags:    FlagSet{},
+			expectedFlags: FlagSet{},
+			instructions: []Instruction{
+				RotateOperand{source: M, direction: RotateRight},
+			},
+		},
+	}
+
+	for _, test := range testCases {
+		cpu := Init()
+		cpu.LoadProgram(encode(append([]Instruction{
+			MoveImmediate{dest: H, immediate: 0x12},
+			MoveImmediate{dest: L, immediate: 0x34},
+		}, test.instructions...)))
+		cpu.memory.load(0x1234, []byte{test.memory})
+		cpu.setFlags(test.inputFlags)
+		cpu.Run()
+
+		if actual := cpu.GetMem(HL); actual != test.expected {
 			t.Errorf("%s: expected %#X, got %#X\n", test.name, test.expected, actual)
 		}
 		expectFlagSet(t, cpu, test.name, test.expectedFlags)
@@ -1022,8 +1155,10 @@ func TestInstructionCycles(t *testing.T) {
 		{instructions: []Instruction{AddSP{immediate: 3}}, expected: 4, message: "Add SP"},
 		{instructions: []Instruction{IncrementPair{dest: DE}}, expected: 2, message: "Increment pair"},
 		{instructions: []Instruction{DecrementPair{dest: DE}}, expected: 2, message: "Decrement pair"},
-		{instructions: []Instruction{Rotate{withCopy: true, direction: RotateLeft}}, expected: 1, message: "RLCA"},
-		{instructions: []Instruction{Rotate{direction: RotateRight}}, expected: 1, message: "RRA"},
+		{instructions: []Instruction{RotateA{withCopy: true, direction: RotateLeft}}, expected: 1, message: "RLCA"},
+		{instructions: []Instruction{RotateA{direction: RotateRight}}, expected: 1, message: "RRA"},
+		{instructions: []Instruction{RotateOperand{direction: RotateLeft, withCopy: true, source: A}}, expected: 2, message: "RLC"},
+		{instructions: []Instruction{RotateOperand{direction: RotateLeft, withCopy: true, source: M}}, expected: 4, message: "RLC"},
 	}
 
 	for _, test := range testCases {

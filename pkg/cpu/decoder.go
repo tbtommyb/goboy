@@ -82,11 +82,12 @@ const DecrementPairMask = 0xCF
 const DecrementPairPattern = 0xB
 
 const RotateMask = 0xE7
-const RotatePattern = 0x7
+const RotateAPattern = 0x7
 const RotateDirectionMask = 0x8
 const RotateDirectionShift = 3
 const RotateCopyMask = 0x10
 const RotateCopyShift = 4
+const RotateOperandPrefix = 0xCB
 
 func Decode(op byte) Instruction {
 	switch {
@@ -204,12 +205,18 @@ func Decode(op byte) Instruction {
 	case op&DecrementPairMask == DecrementPairPattern:
 		// INC ss. 0b00ss 1011
 		return DecrementPair{dest: pair(op)}
-	case op&RotateMask == RotatePattern:
+	case op&RotateMask == RotateAPattern:
 		// RLCA. 0b0000 0111
 		// RLA. 0b00001 0111
 		// RRCA. 0b0000 1111
 		// RRA. 0b0001 1111
-		return Rotate{direction: rotationDirection(op), withCopy: rotationCopy(op)}
+		return RotateA{direction: rotationDirection(op), withCopy: rotationCopy(op)}
+	case op == RotateOperandPrefix:
+		// RLC r. 0b11000 1011, 0001 0rrr
+		// RL r. 0b11000 1011, 0001 0rrr
+		// RRC r. 0b11000 1011, 0000 1rrr
+		// RR r. 0b11000 1011, 0001 1rrr
+		return RotateOperand{}
 	case op == 0:
 		return EmptyInstruction{}
 	default:

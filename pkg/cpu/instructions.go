@@ -389,15 +389,50 @@ func (i DecrementPair) Opcode() []byte {
 	return []byte{byte(DecrementPairPattern | i.dest<<PairRegisterShift)}
 }
 
-type Rotate struct {
+type RotateInstruction interface {
+	Direction() RotationDirection
+	WithCopy() bool
+}
+
+type RotateA struct {
 	direction RotationDirection
 	withCopy  bool
 }
 
-func (i Rotate) Opcode() []byte {
+func (i RotateA) Opcode() []byte {
 	var copyBit byte = 1
 	if i.withCopy {
 		copyBit = 0
 	}
-	return []byte{byte(RotatePattern | byte(i.direction<<RotateDirectionShift) | copyBit<<RotateCopyShift)}
+	return []byte{byte(RotateAPattern | byte(i.direction<<RotateDirectionShift) | copyBit<<RotateCopyShift)}
+}
+
+func (i RotateA) Direction() RotationDirection {
+	return i.direction
+}
+
+func (i RotateA) WithCopy() bool {
+	return i.withCopy
+}
+
+type RotateOperand struct {
+	direction RotationDirection
+	withCopy  bool
+	source    Register
+}
+
+func (i RotateOperand) Opcode() []byte {
+	var copyBit byte = 1
+	if i.withCopy {
+		copyBit = 0
+	}
+	return []byte{RotateOperandPrefix, byte(i.direction<<RotateDirectionShift) | byte(copyBit<<RotateCopyShift) | byte(i.source)}
+}
+
+func (i RotateOperand) Direction() RotationDirection {
+	return i.direction
+}
+
+func (i RotateOperand) WithCopy() bool {
+	return i.withCopy
 }

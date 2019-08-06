@@ -70,10 +70,11 @@ var testCases = map[byte]Instruction{
 	0xE8: AddSP{},
 	0x33: IncrementPair{dest: SP},
 	0x3B: DecrementPair{dest: SP},
-	0x7:  Rotate{withCopy: true, direction: RotateLeft},
-	0x17: Rotate{direction: RotateLeft},
-	0xF:  Rotate{withCopy: true, direction: RotateRight},
-	0x1F: Rotate{direction: RotateRight},
+	0x7:  RotateA{withCopy: true, direction: RotateLeft},
+	0x17: RotateA{direction: RotateLeft},
+	0xF:  RotateA{withCopy: true, direction: RotateRight},
+	0x1F: RotateA{direction: RotateRight},
+	0xCB: RotateOperand{},
 }
 
 func TestSimpleDecodes(t *testing.T) {
