@@ -918,6 +918,22 @@ func TestRotateLeftCopyA(t *testing.T) {
 	expectFlagSet(t, cpu, "RLCA", FlagSet{FullCarry: true})
 }
 
+func TestRotateLeftA(t *testing.T) {
+	cpu := Init()
+
+	cpu.setFlag(FullCarry, true)
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: A, immediate: 0x95},
+		RotateLeftA{},
+	}))
+	cpu.Run()
+
+	if actual := cpu.Get(A); actual != 0x2B {
+		t.Errorf("expected %#X, got %#X\n", 0x0B, actual)
+	}
+	expectFlagSet(t, cpu, "RLCA", FlagSet{FullCarry: true})
+}
+
 func TestInstructionCycles(t *testing.T) {
 	testCases := []struct {
 		instructions []Instruction
@@ -973,7 +989,8 @@ func TestInstructionCycles(t *testing.T) {
 		{instructions: []Instruction{AddSP{immediate: 3}}, expected: 4, message: "Add SP"},
 		{instructions: []Instruction{IncrementPair{dest: DE}}, expected: 2, message: "Increment pair"},
 		{instructions: []Instruction{DecrementPair{dest: DE}}, expected: 2, message: "Decrement pair"},
-		{instructions: []Instruction{RotateLeftCopyA{}}, expected: 1, message: "RCLA"},
+		{instructions: []Instruction{RotateLeftCopyA{}}, expected: 1, message: "RLCA"},
+		{instructions: []Instruction{RotateLeftA{}}, expected: 1, message: "RLA"},
 	}
 
 	for _, test := range testCases {

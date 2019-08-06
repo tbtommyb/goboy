@@ -376,3 +376,9 @@ type RotateLeftCopyA struct{}
 func (i RotateLeftCopyA) Opcode() []byte {
 	return []byte{RotateLeftCopyAPattern}
 }
+
+type RotateLeftA struct{}
+
+func (i RotateLeftA) Opcode() []byte {
+	return []byte{RotateLeftAPattern}
+}

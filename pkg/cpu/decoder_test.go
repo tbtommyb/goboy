@@ -71,6 +71,7 @@ var testCases = map[byte]Instruction{
 	0x33: IncrementPair{dest: SP},
 	0x3B: DecrementPair{dest: SP},
 	0x7:  RotateLeftCopyA{},
+	0x17: RotateLeftA{},
 }
 
 func TestSimpleDecodes(t *testing.T) {

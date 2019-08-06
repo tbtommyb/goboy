@@ -265,6 +265,16 @@ func (cpu *CPU) Run() {
 			cpu.setFlags(FlagSet{
 				FullCarry: bits.LeadingZeros8(a) == 0,
 			})
+		case RotateLeftA:
+			a := cpu.Get(A)
+			result := bits.RotateLeft8(a, 1)
+			if cpu.isSet(FullCarry) {
+				result |= 0x1
+			}
+			cpu.Set(A, result)
+			cpu.setFlags(FlagSet{
+				FullCarry: bits.LeadingZeros8(a) == 0,
+			})
 		case InvalidInstruction:
 			panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 		}
