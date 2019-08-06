@@ -853,6 +853,23 @@ func TestAddPairSecond(t *testing.T) {
 	expectFlagSet(t, cpu, "cmp memory", FlagSet{HalfCarry: true, FullCarry: true})
 }
 
+func TestAddSP(t *testing.T) {
+	cpu := Init()
+
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: H, immediate: 0xFF},
+		MoveImmediate{dest: L, immediate: 0xF8},
+		HLtoSP{},
+		AddSP{immediate: 2},
+	}))
+	cpu.Run()
+
+	if actual := cpu.GetSP(); actual != 0xFFFA {
+		t.Errorf("expected %#X, got %#X\n", 0xFFFA, actual)
+	}
+	expectFlagSet(t, cpu, "cmp memory", FlagSet{})
+}
+
 func TestInstructionCycles(t *testing.T) {
 	testCases := []struct {
 		instructions []Instruction
@@ -905,6 +922,7 @@ func TestInstructionCycles(t *testing.T) {
 		{instructions: []Instruction{Decrement{dest: A}}, expected: 1, message: "Dec"},
 		{instructions: []Instruction{Decrement{dest: M}}, expected: 3, message: "Dec memory"},
 		{instructions: []Instruction{AddPair{source: HL}}, expected: 2, message: "Add pair"},
+		{instructions: []Instruction{AddSP{immediate: 3}}, expected: 4, message: "Add SP"},
 	}
 
 	for _, test := range testCases {

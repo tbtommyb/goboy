@@ -6,6 +6,7 @@ func (cpu *CPU) GetSP() uint16 {
 }
 
 func (cpu *CPU) setSP(value uint16) uint16 {
+	cpu.incrementCycles()
 	cpu.SP = value
 	return value
 }

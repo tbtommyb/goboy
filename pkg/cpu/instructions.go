@@ -346,3 +346,11 @@ type AddPair struct {
 func (i AddPair) Opcode() []byte {
 	return []byte{byte(AddPairPattern | i.source<<PairRegisterShift)}
 }
+
+type AddSP struct {
+	immediate byte
+}
+
+func (i AddSP) Opcode() []byte {
+	return []byte{AddSPPattern, i.immediate}
+}

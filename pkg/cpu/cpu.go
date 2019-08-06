@@ -153,8 +153,7 @@ func (cpu *CPU) Run() {
 			immediate |= uint16(cpu.fetchAndIncrement()) << 8
 			cpu.SetPair(i.dest, immediate)
 		case HLtoSP:
-			cpu.SetPair(SP, cpu.GetHL())
-			cpu.incrementCycles() // TODO: remove need for this
+			cpu.setSP(cpu.GetHL())
 		case Push:
 			high, low := cpu.GetPair(i.source)
 			cpu.pushStack(high)
@@ -165,9 +164,9 @@ func (cpu *CPU) Run() {
 			high := cpu.popStack()
 			cpu.SetPair(i.dest, mergePair(high, low))
 		case LoadHLSP:
-			// TODO: flags
+			// TODO flags
 			immediate := int8(cpu.fetchAndIncrement())
-			cpu.SetPair(HL, cpu.GetSP()+uint16(immediate))
+			cpu.SetHL(cpu.GetSP() + uint16(immediate))
 			cpu.incrementCycles() // TODO: remove need for this
 		case StoreSP:
 			var immediate uint16
@@ -237,6 +236,18 @@ func (cpu *CPU) Run() {
 				FullCarry: isAddFullCarry16(a, b),
 			})
 			cpu.incrementCycles()
+		case AddSP:
+			a := cpu.GetSP()
+			b := cpu.fetchAndIncrement()
+			result := a + uint16(b)
+			cpu.setSP(result)
+			cpu.setFlags(FlagSet{
+				Zero:      false,
+				Negative:  false,
+				HalfCarry: isAddHalfCarry16(a, uint16(b)),
+				FullCarry: isAddFullCarry16(a, uint16(b)),
+			})
+			cpu.fetchAndIncrement()
 		case InvalidInstruction:
 			panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 		}
