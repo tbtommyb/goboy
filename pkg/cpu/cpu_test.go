@@ -873,6 +873,36 @@ func TestAddSP(t *testing.T) {
 	expectFlagSet(t, cpu, "cmp memory", FlagSet{})
 }
 
+func TestIncrementPair(t *testing.T) {
+	cpu := Init()
+
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: D, immediate: 0x23},
+		MoveImmediate{dest: E, immediate: 0x5F},
+		IncrementPair{dest: DE},
+	}))
+	cpu.Run()
+
+	if actual := cpu.GetDE(); actual != 0x2360 {
+		t.Errorf("expected %#X, got %#X\n", 0x2360, actual)
+	}
+}
+
+func TestDecrementPair(t *testing.T) {
+	cpu := Init()
+
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: D, immediate: 0x23},
+		MoveImmediate{dest: E, immediate: 0x5F},
+		DecrementPair{dest: DE},
+	}))
+	cpu.Run()
+
+	if actual := cpu.GetDE(); actual != 0x235E {
+		t.Errorf("expected %#X, got %#X\n", 0x235E, actual)
+	}
+}
+
 func TestInstructionCycles(t *testing.T) {
 	testCases := []struct {
 		instructions []Instruction
@@ -926,6 +956,8 @@ func TestInstructionCycles(t *testing.T) {
 		{instructions: []Instruction{Decrement{dest: M}}, expected: 3, message: "Dec memory"},
 		{instructions: []Instruction{AddPair{source: HL}}, expected: 2, message: "Add pair"},
 		{instructions: []Instruction{AddSP{immediate: 3}}, expected: 4, message: "Add SP"},
+		{instructions: []Instruction{IncrementPair{dest: DE}}, expected: 2, message: "Increment pair"},
+		{instructions: []Instruction{DecrementPair{dest: DE}}, expected: 2, message: "Decrement pair"},
 	}
 
 	for _, test := range testCases {

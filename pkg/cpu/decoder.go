@@ -76,6 +76,11 @@ const AddPairPattern = 0x9
 
 const AddSPPattern = 0xE8
 
+const IncrementPairMask = 0xCF
+const IncrementPairPattern = 0x3
+const DecrementPairMask = 0xCF
+const DecrementPairPattern = 0xB
+
 func Decode(op byte) Instruction {
 	switch {
 	case op&MoveMask == MovePattern:
@@ -186,6 +191,12 @@ func Decode(op byte) Instruction {
 	case op == AddSPPattern:
 		// ADD SP, n. 0b1110 1000
 		return AddSP{}
+	case op&IncrementPairMask == IncrementPairPattern:
+		// INC ss. 0b00ss 0011
+		return IncrementPair{dest: pair(op)}
+	case op&DecrementPairMask == DecrementPairPattern:
+		// INC ss. 0b00ss 1011
+		return DecrementPair{dest: pair(op)}
 	case op == 0:
 		return EmptyInstruction{}
 	default:

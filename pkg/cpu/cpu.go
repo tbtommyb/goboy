@@ -247,7 +247,15 @@ func (cpu *CPU) Run() {
 				HalfCarry: isAddHalfCarry16(a, uint16(b)),
 				FullCarry: isAddFullCarry16(a, uint16(b)),
 			})
-			cpu.fetchAndIncrement()
+			cpu.incrementCycles()
+		case IncrementPair:
+			a := mergePair(cpu.GetPair(i.dest))
+			cpu.SetPair(i.dest, a+1)
+			cpu.incrementCycles()
+		case DecrementPair:
+			a := mergePair(cpu.GetPair(i.dest))
+			cpu.SetPair(i.dest, a-1)
+			cpu.incrementCycles()
 		case InvalidInstruction:
 			panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 		}

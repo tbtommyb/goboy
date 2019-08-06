@@ -68,6 +68,8 @@ var testCases = map[byte]Instruction{
 	0x35: Decrement{dest: M},
 	0x29: AddPair{source: HL},
 	0xE8: AddSP{},
+	0x33: IncrementPair{dest: SP},
+	0x3B: DecrementPair{dest: SP},
 }
 
 func TestSimpleDecodes(t *testing.T) {

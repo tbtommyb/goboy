@@ -354,3 +354,19 @@ type AddSP struct {
 func (i AddSP) Opcode() []byte {
 	return []byte{AddSPPattern, i.immediate}
 }
+
+type IncrementPair struct {
+	dest RegisterPair
+}
+
+func (i IncrementPair) Opcode() []byte {
+	return []byte{byte(IncrementPairPattern | i.dest<<PairRegisterShift)}
+}
+
+type DecrementPair struct {
+	dest RegisterPair
+}
+
+func (i DecrementPair) Opcode() []byte {
+	return []byte{byte(DecrementPairPattern | i.dest<<PairRegisterShift)}
+}
