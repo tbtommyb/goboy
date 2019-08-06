@@ -1,6 +1,9 @@
 package cpu
 
-import "fmt"
+import (
+	"fmt"
+	"math/bits"
+)
 
 type CPU struct {
 	r      Registers
@@ -256,6 +259,12 @@ func (cpu *CPU) Run() {
 			a := mergePair(cpu.GetPair(i.dest))
 			cpu.SetPair(i.dest, a-1)
 			cpu.incrementCycles()
+		case RotateLeftCopyA:
+			a := cpu.Get(A)
+			cpu.Set(A, bits.RotateLeft8(a, 1))
+			cpu.setFlags(FlagSet{
+				FullCarry: bits.LeadingZeros8(a) == 0,
+			})
 		case InvalidInstruction:
 			panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 		}

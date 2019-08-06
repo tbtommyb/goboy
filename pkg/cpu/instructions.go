@@ -370,3 +370,9 @@ type DecrementPair struct {
 func (i DecrementPair) Opcode() []byte {
 	return []byte{byte(DecrementPairPattern | i.dest<<PairRegisterShift)}
 }
+
+type RotateLeftCopyA struct{}
+
+func (i RotateLeftCopyA) Opcode() []byte {
+	return []byte{RotateLeftCopyAPattern}
+}
