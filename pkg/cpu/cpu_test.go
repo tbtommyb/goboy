@@ -903,35 +903,68 @@ func TestDecrementPair(t *testing.T) {
 	}
 }
 
-func TestRotateLeftCopyA(t *testing.T) {
-	cpu := Init()
-
-	cpu.LoadProgram(encode([]Instruction{
-		MoveImmediate{dest: A, immediate: 0x85},
-		RotateLeftCopyA{},
-	}))
-	cpu.Run()
-
-	if actual := cpu.Get(A); actual != 0x0B {
-		t.Errorf("expected %#X, got %#X\n", 0x0B, actual)
+func TestRotate(t *testing.T) {
+	testCases := []struct {
+		name          string
+		instructions  []Instruction
+		inputFlags    FlagSet
+		expected      byte
+		expectedFlags FlagSet
+		withCarry     bool
+	}{
+		{
+			name:          "RLCA",
+			expected:      0x0B,
+			inputFlags:    FlagSet{},
+			expectedFlags: FlagSet{FullCarry: true},
+			instructions: []Instruction{
+				MoveImmediate{dest: A, immediate: 0x85},
+				Rotate{withCopy: true, direction: RotateLeft},
+			},
+		},
+		{
+			name:          "RLA",
+			expected:      0x2B,
+			inputFlags:    FlagSet{FullCarry: true},
+			expectedFlags: FlagSet{FullCarry: true},
+			instructions: []Instruction{
+				MoveImmediate{dest: A, immediate: 0x95},
+				Rotate{direction: RotateLeft},
+			},
+		},
+		{
+			name:          "RRCA",
+			expected:      0x9D,
+			inputFlags:    FlagSet{},
+			expectedFlags: FlagSet{FullCarry: true},
+			instructions: []Instruction{
+				MoveImmediate{dest: A, immediate: 0x3B},
+				Rotate{withCopy: true, direction: RotateRight},
+			},
+		},
+		{
+			name:          "RRA",
+			expected:      0x40,
+			inputFlags:    FlagSet{},
+			expectedFlags: FlagSet{FullCarry: true},
+			instructions: []Instruction{
+				MoveImmediate{dest: A, immediate: 0x81},
+				Rotate{direction: RotateRight},
+			},
+		},
 	}
-	expectFlagSet(t, cpu, "RLCA", FlagSet{FullCarry: true})
-}
 
-func TestRotateLeftA(t *testing.T) {
-	cpu := Init()
+	for _, test := range testCases {
+		cpu := Init()
+		cpu.LoadProgram(encode(test.instructions))
+		cpu.setFlags(test.inputFlags)
+		cpu.Run()
 
-	cpu.setFlag(FullCarry, true)
-	cpu.LoadProgram(encode([]Instruction{
-		MoveImmediate{dest: A, immediate: 0x95},
-		RotateLeftA{},
-	}))
-	cpu.Run()
-
-	if actual := cpu.Get(A); actual != 0x2B {
-		t.Errorf("expected %#X, got %#X\n", 0x0B, actual)
+		if actual := cpu.Get(A); actual != test.expected {
+			t.Errorf("%s: expected %#X, got %#X\n", test.name, test.expected, actual)
+		}
+		expectFlagSet(t, cpu, test.name, test.expectedFlags)
 	}
-	expectFlagSet(t, cpu, "RLCA", FlagSet{FullCarry: true})
 }
 
 func TestInstructionCycles(t *testing.T) {
@@ -989,8 +1022,8 @@ func TestInstructionCycles(t *testing.T) {
 		{instructions: []Instruction{AddSP{immediate: 3}}, expected: 4, message: "Add SP"},
 		{instructions: []Instruction{IncrementPair{dest: DE}}, expected: 2, message: "Increment pair"},
 		{instructions: []Instruction{DecrementPair{dest: DE}}, expected: 2, message: "Decrement pair"},
-		{instructions: []Instruction{RotateLeftCopyA{}}, expected: 1, message: "RLCA"},
-		{instructions: []Instruction{RotateLeftA{}}, expected: 1, message: "RLA"},
+		{instructions: []Instruction{Rotate{withCopy: true, direction: RotateLeft}}, expected: 1, message: "RLCA"},
+		{instructions: []Instruction{Rotate{direction: RotateRight}}, expected: 1, message: "RRA"},
 	}
 
 	for _, test := range testCases {

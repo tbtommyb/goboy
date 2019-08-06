@@ -1,5 +1,12 @@
 package cpu
 
+type RotationDirection byte
+
+const (
+	RotateLeft RotationDirection = iota
+	RotateRight
+)
+
 func source(opcode byte) Register {
 	return Register(opcode & SourceRegisterMask)
 }
@@ -37,6 +44,17 @@ func isAddressing(opcode byte) bool {
 	address := addressType(opcode)
 
 	return address == RelativeN || address == RelativeC || address == RelativeNN
+}
+
+func rotationDirection(opcode byte) RotationDirection {
+	if opcode&RotateDirectionMask > 0 {
+		return RotateRight
+	}
+	return RotateLeft
+}
+
+func rotationCopy(opcode byte) bool {
+	return opcode&RotateCopyMask == 0
 }
 
 type Instruction interface {
@@ -371,14 +389,15 @@ func (i DecrementPair) Opcode() []byte {
 	return []byte{byte(DecrementPairPattern | i.dest<<PairRegisterShift)}
 }
 
-type RotateLeftCopyA struct{}
-
-func (i RotateLeftCopyA) Opcode() []byte {
-	return []byte{RotateLeftCopyAPattern}
+type Rotate struct {
+	direction RotationDirection
+	withCopy  bool
 }
 
-type RotateLeftA struct{}
-
-func (i RotateLeftA) Opcode() []byte {
-	return []byte{RotateLeftAPattern}
+func (i Rotate) Opcode() []byte {
+	var copyBit byte = 1
+	if i.withCopy {
+		copyBit = 0
+	}
+	return []byte{byte(RotatePattern | byte(i.direction<<RotateDirectionShift) | copyBit<<RotateCopyShift)}
 }

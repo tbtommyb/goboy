@@ -59,3 +59,18 @@ func (cpu *CPU) setFlag(flag Flag, value bool) {
 func (cpu *CPU) isSet(flag Flag) bool {
 	return (cpu.flags & byte(flag)) > 0
 }
+
+func (cpu *CPU) getFlag(flag Flag) byte {
+	var value byte
+	switch flag {
+	case Zero:
+		value = (cpu.flags & byte(Zero)) >> 7
+	case Negative:
+		value = (cpu.flags & byte(Negative)) >> 6
+	case HalfCarry:
+		value = (cpu.flags & byte(HalfCarry)) >> 5
+	case FullCarry:
+		value = (cpu.flags & byte(FullCarry)) >> 4
+	}
+	return value
+}

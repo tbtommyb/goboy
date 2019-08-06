@@ -259,26 +259,37 @@ func (cpu *CPU) Run() {
 			a := mergePair(cpu.GetPair(i.dest))
 			cpu.SetPair(i.dest, a-1)
 			cpu.incrementCycles()
-		case RotateLeftCopyA:
+		case Rotate:
 			a := cpu.Get(A)
-			cpu.Set(A, bits.RotateLeft8(a, 1))
-			cpu.setFlags(FlagSet{
-				FullCarry: bits.LeadingZeros8(a) == 0,
-			})
-		case RotateLeftA:
-			a := cpu.Get(A)
-			result := bits.RotateLeft8(a, 1)
-			if cpu.isSet(FullCarry) {
-				result |= 0x1
+			switch i.direction {
+			case RotateLeft:
+				result := bits.RotateLeft8(a, 1)
+				if !i.withCopy {
+					result = setBit(0, result, cpu.getFlag(FullCarry))
+				}
+				cpu.Set(A, result)
+				cpu.setFlags(FlagSet{
+					FullCarry: bits.LeadingZeros8(a) == 0,
+				})
+			case RotateRight:
+				result := bits.RotateLeft8(a, -1)
+				if !i.withCopy {
+					result = setBit(7, result, cpu.getFlag(FullCarry))
+				}
+				cpu.Set(A, result)
+				cpu.setFlags(FlagSet{
+					FullCarry: bits.TrailingZeros8(a) == 0,
+				})
 			}
-			cpu.Set(A, result)
-			cpu.setFlags(FlagSet{
-				FullCarry: bits.LeadingZeros8(a) == 0,
-			})
 		case InvalidInstruction:
 			panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 		}
 	}
+}
+
+func setBit(pos, value, flag byte) byte {
+	value ^= (-flag ^ value) & (1 << pos)
+	return value
 }
 
 func (cpu *CPU) perform(f func(...byte) (byte, FlagSet), args ...byte) {
