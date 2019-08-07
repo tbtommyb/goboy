@@ -1,81 +1,7 @@
 package cpu
 
-type RotationDirection byte
-type RotationAction byte
-
-const (
-	RotateLeft RotationDirection = iota
-	RotateRight
-)
-
-const (
-	RotateAction RotationAction = iota
-	ShiftAction
-)
-
-func source(opcode byte) Register {
-	return Register(opcode & SourceRegisterMask)
-}
-
-func dest(opcode byte) Register {
-	return Register(opcode & DestRegisterMask >> DestRegisterShift)
-}
-
-func pair(opcode byte) RegisterPair {
-	return RegisterPair(opcode & PairRegisterMask >> PairRegisterShift)
-}
-
-// AF and SP use same bit pattern in different instructions
-func muxPairs(r RegisterPair) RegisterPair {
-	if r == AF {
-		r = SP
-	}
-	return r
-}
-
-func demuxPairs(opcode byte) RegisterPair {
-	reg := pair(opcode)
-	if reg == SP {
-		reg = AF
-	}
-	return reg
-}
-
-func addressType(opcode byte) AddressType {
-	return AddressType(opcode & MoveRelativeAddressing)
-}
-
-// TODO: reliance on this feels like antipattern
-func isAddressing(opcode byte) bool {
-	address := addressType(opcode)
-
-	return address == RelativeN || address == RelativeC || address == RelativeNN
-}
-
-func rotationDirection(opcode byte) RotationDirection {
-	if opcode&RotateDirectionMask > 0 {
-		return RotateRight
-	}
-	return RotateLeft
-}
-
-func rotationCopy(opcode byte) bool {
-	return opcode&RotateCopyMask == 0
-}
-
-func rotationAction(opcode byte) RotationAction {
-	if opcode&RotateActionMask > 0 {
-		return ShiftAction
-	}
-	return RotateAction
-}
-
 type Instruction interface {
 	Opcode() []byte
-}
-
-type RelativeAddressingInstruction interface {
-	AddressType() AddressType
 }
 
 type InvalidInstruction struct{ opcode byte }
@@ -122,46 +48,49 @@ func (i StoreIndirect) Opcode() []byte {
 }
 
 type LoadRelative struct {
-	addressType AddressType
-	immediate   uint16
 }
 
-// TODO: check immediate ordering
 func (i LoadRelative) Opcode() []byte {
-	opcode := []byte{byte(LoadRelativePattern | i.addressType)}
-	switch i.addressType {
-	case RelativeN:
-		opcode = append(opcode, uint8(i.immediate))
-	case RelativeNN:
-		opcode = append(opcode, uint8(i.immediate>>8))
-		opcode = append(opcode, uint8(i.immediate))
-	}
-	return opcode
+	return []byte{LoadRelativePattern}
 }
 
-func (i LoadRelative) AddressType() AddressType {
-	return i.addressType
+type LoadRelativeImmediateN struct {
+	immediate byte
+}
+
+func (i LoadRelativeImmediateN) Opcode() []byte {
+	return []byte{LoadRelativeImmediateNPattern, i.immediate}
+}
+
+type LoadRelativeImmediateNN struct {
+	immediate uint16
+}
+
+func (i LoadRelativeImmediateNN) Opcode() []byte {
+	return []byte{LoadRelativeImmediateNNPattern, byte(i.immediate >> 8), byte(i.immediate)}
 }
 
 type StoreRelative struct {
-	addressType AddressType
-	immediate   uint16
 }
 
 func (i StoreRelative) Opcode() []byte {
-	opcode := []byte{byte(StoreRelativePattern | i.addressType)}
-	switch i.addressType {
-	case RelativeN:
-		opcode = append(opcode, uint8(i.immediate))
-	case RelativeNN:
-		opcode = append(opcode, uint8(i.immediate>>8))
-		opcode = append(opcode, uint8(i.immediate))
-	}
-	return opcode
+	return []byte{StoreRelativePattern}
 }
 
-func (i StoreRelative) AddressType() AddressType {
-	return i.addressType
+type StoreRelativeImmediateN struct {
+	immediate byte
+}
+
+func (i StoreRelativeImmediateN) Opcode() []byte {
+	return []byte{StoreRelativeImmediateNPattern, i.immediate}
+}
+
+type StoreRelativeImmediateNN struct {
+	immediate uint16
+}
+
+func (i StoreRelativeImmediateNN) Opcode() []byte {
+	return []byte{StoreRelativeImmediateNNPattern, byte(i.immediate >> 8), byte(i.immediate)}
 }
 
 type LoadIncrement struct{}
