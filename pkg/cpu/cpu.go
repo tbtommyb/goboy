@@ -149,6 +149,25 @@ func rotateOp(i RotateInstruction, value, flag byte) (byte, FlagSet) {
 func shiftOp(i RotateInstruction, value, flag byte) (byte, FlagSet) {
 	var result byte
 	var flags FlagSet
+	switch i.Direction() {
+	case RotateLeft:
+		result = value << 1
+		flags = FlagSet{
+			FullCarry: bits.LeadingZeros8(value) == 0,
+			Zero:      result == 0,
+		}
+	case RotateRight:
+		if i.WithCopy() {
+			result = byte(int8(value) >> 1) // Sign-extend right shift
+		} else {
+			result = value >> 1
+		}
+
+		flags = FlagSet{
+			FullCarry: bits.TrailingZeros8(value) == 0,
+			Zero:      result == 0,
+		}
+	}
 	return result, flags
 }
 
@@ -308,6 +327,7 @@ func (cpu *CPU) Run() {
 			i.direction = rotationDirection(operand)
 			i.withCopy = rotationCopy(operand)
 			i.source = source(operand)
+			i.action = rotationAction(operand)
 
 			switch i.action {
 			case RotateAction:

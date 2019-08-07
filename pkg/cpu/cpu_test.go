@@ -1033,6 +1033,16 @@ func TestRotateOperand(t *testing.T) {
 			expectedFlags: FlagSet{},
 			instructions: []Instruction{
 				MoveImmediate{dest: A, immediate: 0x8A},
+				RotateOperand{action: ShiftAction, source: A, direction: RotateRight, withCopy: true},
+			},
+		},
+		{
+			name:          "SRL",
+			expected:      0x0,
+			inputFlags:    FlagSet{},
+			expectedFlags: FlagSet{FullCarry: true, Zero: true},
+			instructions: []Instruction{
+				MoveImmediate{dest: A, immediate: 0x1},
 				RotateOperand{action: ShiftAction, source: A, direction: RotateRight},
 			},
 		},
@@ -1117,6 +1127,16 @@ func TestRotateOperandWithMemory(t *testing.T) {
 			expected:      0x00,
 			inputFlags:    FlagSet{},
 			expectedFlags: FlagSet{Zero: true, FullCarry: true},
+			instructions: []Instruction{
+				RotateOperand{action: ShiftAction, source: M, direction: RotateRight, withCopy: true},
+			},
+		},
+		{
+			name:          "SRL",
+			memory:        0xFF,
+			expected:      0x7F,
+			inputFlags:    FlagSet{},
+			expectedFlags: FlagSet{FullCarry: true},
 			instructions: []Instruction{
 				RotateOperand{action: ShiftAction, source: M, direction: RotateRight},
 			},
