@@ -29,19 +29,6 @@ func (cpu *CPU) incrementCycles() {
 	cpu.cycles += 1
 }
 
-func (cpu *CPU) fetchRelative(i RelativeAddressingInstruction) uint16 {
-	switch addressType := i.AddressType(); addressType {
-	case RelativeC:
-		return cpu.computeOffset(uint16(cpu.Get(C)))
-	case RelativeN:
-		return cpu.computeOffset(uint16(cpu.fetchAndIncrement()))
-	case RelativeNN:
-		return mergePair(cpu.fetchAndIncrement(), cpu.fetchAndIncrement())
-	default:
-		panic(fmt.Sprintf("fetchRelative: invalid address type %d", addressType))
-	}
-}
-
 func addOp(args ...byte) (byte, FlagSet) {
 	a, b, carry := args[0], args[1], args[2]
 	result := a + b + carry
@@ -182,9 +169,21 @@ func (cpu *CPU) Run(instr Instruction) {
 		address := mergePair(cpu.GetPair(i.dest))
 		cpu.WriteMem(address, cpu.Get(i.source))
 	case LoadRelative:
-		cpu.Set(A, cpu.readMem(cpu.fetchRelative(i)))
+		source := cpu.computeOffset(uint16(cpu.Get(C)))
+		cpu.Set(A, cpu.readMem(source))
+	case LoadRelativeImmediateN:
+		source := cpu.computeOffset(uint16(i.immediate))
+		cpu.Set(A, cpu.readMem(source))
+	case LoadRelativeImmediateNN:
+		cpu.Set(A, cpu.readMem(i.immediate))
 	case StoreRelative:
-		cpu.WriteMem(cpu.fetchRelative(i), cpu.Get(A))
+		source := cpu.computeOffset(uint16(cpu.Get(C)))
+		cpu.WriteMem(source, cpu.Get(A))
+	case StoreRelativeImmediateN:
+		dest := cpu.computeOffset(uint16(i.immediate))
+		cpu.WriteMem(dest, cpu.Get(A))
+	case StoreRelativeImmediateNN:
+		cpu.WriteMem(i.immediate, cpu.Get(A))
 	case LoadIncrement:
 		cpu.Set(A, cpu.GetMem(HL))
 		cpu.SetHL(cpu.GetHL() + 1)
@@ -198,10 +197,7 @@ func (cpu *CPU) Run(instr Instruction) {
 		cpu.SetMem(HL, cpu.Get(A))
 		cpu.SetHL(cpu.GetHL() - 1)
 	case LoadRegisterPairImmediate:
-		var immediate uint16
-		immediate |= uint16(cpu.fetchAndIncrement())
-		immediate |= uint16(cpu.fetchAndIncrement()) << 8
-		cpu.SetPair(i.dest, immediate)
+		cpu.SetPair(i.dest, i.immediate)
 	case HLtoSP:
 		cpu.setSP(cpu.GetHL())
 	case Push:

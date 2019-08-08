@@ -37,15 +37,15 @@ func TestIncrementPC(t *testing.T) {
 	}
 }
 
-// func TestSetGetHL(t *testing.T) {
-// 	var expected uint16 = 0x1000
-// 	cpu := Init()
-// 	cpu.SetHL(expected)
+func TestSetGetHL(t *testing.T) {
+	var expected uint16 = 0x1000
+	cpu := Init()
+	cpu.SetHL(expected)
 
-// 	if actual := cpu.GetHL(); actual != expected {
-// 		t.Errorf("Expected %x, got %x", expected, actual)
-// 	}
-// }
+	if actual := cpu.GetHL(); actual != expected {
+		t.Errorf("Expected %x, got %x", expected, actual)
+	}
+}
 
 func TestLoadProgram(t *testing.T) {
 	cpu := Init()
@@ -75,190 +75,189 @@ func TestLoadImmediate(t *testing.T) {
 	}
 }
 
-// func TestSetAndGetRegister(t *testing.T) {
-// 	cpu := Init()
+func TestSetAndGetRegister(t *testing.T) {
+	cpu := Init()
 
-// 	var expected byte = 3
-// 	cpu.LoadProgram(encode([]Instruction{
-// 		MoveImmediate{dest: A, immediate: expected},
-// 		Move{source: A, dest: B},
-// 		Move{source: B, dest: C},
-// 		Move{source: C, dest: D},
-// 		Move{source: D, dest: E},
-// 	}))
-// 	cpu.Run()
+	var expected byte = 3
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: A, immediate: expected},
+		Move{source: A, dest: B},
+		Move{source: B, dest: C},
+		Move{source: C, dest: D},
+		Move{source: D, dest: E},
+	}))
+	cpu.LoadAndRun()
 
-// 	if regValue := cpu.Get(E); regValue != 3 {
-// 		t.Errorf("Expected %X, got %X", expected, regValue)
-// 	}
-// }
+	if regValue := cpu.Get(E); regValue != 3 {
+		t.Errorf("Expected %X, got %X", expected, regValue)
+	}
+}
 
-// func TestLoadMemory(t *testing.T) {
-// 	cpu := Init()
-// 	var expected byte = 0xFF
-// 	cpu.memory.load(0x1234, []byte{expected})
+func TestLoadMemory(t *testing.T) {
+	cpu := Init()
+	var expected byte = 0xFF
+	cpu.memory.load(0x1234, []byte{expected})
 
-// 	cpu.LoadProgram(encode([]Instruction{
-// 		MoveImmediate{dest: H, immediate: 0x12},
-// 		MoveImmediate{dest: L, immediate: 0x34},
-// 		Move{dest: A, source: M},
-// 	}))
-// 	cpu.Run()
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: H, immediate: 0x12},
+		MoveImmediate{dest: L, immediate: 0x34},
+		Move{dest: A, source: M},
+	}))
+	cpu.LoadAndRun()
 
-// 	if actual := cpu.Get(A); actual != expected {
-// 		t.Errorf("Expected %#X, got %#X", expected, actual)
-// 	}
-// }
+	if actual := cpu.Get(A); actual != expected {
+		t.Errorf("Expected %#X, got %#X", expected, actual)
+	}
+}
 
-// func TestStoreMemory(t *testing.T) {
-// 	cpu := Init()
-// 	var expected byte = 0xFF
+func TestStoreMemory(t *testing.T) {
+	cpu := Init()
+	var expected byte = 0xFF
 
-// 	cpu.LoadProgram(encode([]Instruction{
-// 		MoveImmediate{dest: A, immediate: expected},
-// 		MoveImmediate{dest: H, immediate: 0x12},
-// 		MoveImmediate{dest: L, immediate: 0x34},
-// 		Move{source: A, dest: M},
-// 	}))
-// 	cpu.Run()
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: A, immediate: expected},
+		MoveImmediate{dest: H, immediate: 0x12},
+		MoveImmediate{dest: L, immediate: 0x34},
+		Move{source: A, dest: M},
+	}))
+	cpu.LoadAndRun()
 
-// 	if actual := cpu.memory[0x1234]; actual != expected {
-// 		t.Errorf("Expected %#X, got %#X", expected, actual)
-// 	}
-// }
+	if actual := cpu.memory[0x1234]; actual != expected {
+		t.Errorf("Expected %#X, got %#X", expected, actual)
+	}
+}
 
-// func TestLoadIndirect(t *testing.T) {
-// 	cpu := Init()
-// 	var expected byte = 0xFF
-// 	cpu.memory.load(0x1234, []byte{expected})
+func TestLoadIndirect(t *testing.T) {
+	cpu := Init()
+	var expected byte = 0xFF
+	cpu.memory.load(0x1234, []byte{expected})
 
-// 	cpu.LoadProgram(encode([]Instruction{
-// 		MoveImmediate{dest: B, immediate: 0x12},
-// 		MoveImmediate{dest: C, immediate: 0x34},
-// 		LoadIndirect{dest: A, source: BC},
-// 	}))
-// 	cpu.Run()
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: B, immediate: 0x12},
+		MoveImmediate{dest: C, immediate: 0x34},
+		LoadIndirect{dest: A, source: BC},
+	}))
+	cpu.LoadAndRun()
 
-// 	if actual := cpu.Get(A); actual != expected {
-// 		t.Errorf("Expected %#X, got %#X", expected, actual)
-// 	}
-// }
+	if actual := cpu.Get(A); actual != expected {
+		t.Errorf("Expected %#X, got %#X", expected, actual)
+	}
+}
 
-// func TestStoreIndirect(t *testing.T) {
-// 	cpu := Init()
-// 	var expected byte = 0xFF
+func TestStoreIndirect(t *testing.T) {
+	cpu := Init()
+	var expected byte = 0xFF
 
-// 	cpu.LoadProgram(encode([]Instruction{
-// 		MoveImmediate{dest: A, immediate: expected},
-// 		MoveImmediate{dest: B, immediate: 0x12},
-// 		MoveImmediate{dest: C, immediate: 0x34},
-// 		StoreIndirect{source: A, dest: BC},
-// 	}))
-// 	cpu.Run()
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: A, immediate: expected},
+		MoveImmediate{dest: B, immediate: 0x12},
+		MoveImmediate{dest: C, immediate: 0x34},
+		StoreIndirect{source: A, dest: BC},
+	}))
+	cpu.LoadAndRun()
 
-// 	if actual := cpu.memory[0x1234]; actual != expected {
-// 		t.Errorf("Expected %#X, got %#X", expected, actual)
-// 	}
-// }
+	if actual := cpu.memory[0x1234]; actual != expected {
+		t.Errorf("Expected %#X, got %#X", expected, actual)
+	}
+}
 
-// func TestLoadRelativeC(t *testing.T) {
-// 	cpu := Init()
+func TestLoadRelative(t *testing.T) {
+	cpu := Init()
 
-// 	var expected byte = 0xFF
-// 	cpu.memory.set(0xFF03, expected)
+	var expected byte = 0xFF
+	cpu.memory.set(0xFF03, expected)
 
-// 	cpu.LoadProgram(encode([]Instruction{
-// 		MoveImmediate{dest: C, immediate: 3},
-// 		LoadRelative{addressType: RelativeC},
-// 	}))
-// 	cpu.Run()
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: C, immediate: 3},
+		LoadRelative{},
+	}))
+	cpu.LoadAndRun()
 
-// 	if actual := cpu.Get(A); actual != expected {
-// 		t.Errorf("Expected %#X, got %#X", expected, actual)
-// 	}
-// }
+	if actual := cpu.Get(A); actual != expected {
+		t.Errorf("Expected %#X, got %#X", expected, actual)
+	}
+}
 
-// func TestStoreRelativeC(t *testing.T) {
-// 	cpu := Init()
+func TestStoreRelative(t *testing.T) {
+	cpu := Init()
 
-// 	var expected byte = 0xFF
+	var expected byte = 0xFF
 
-// 	cpu.LoadProgram(encode([]Instruction{
-// 		MoveImmediate{dest: C, immediate: 3},
-// 		MoveImmediate{dest: A, immediate: expected},
-// 		StoreRelative{addressType: RelativeC},
-// 	}))
-// 	cpu.Run()
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: C, immediate: 3},
+		MoveImmediate{dest: A, immediate: expected},
+		StoreRelative{},
+	}))
+	cpu.LoadAndRun()
 
-// 	if actual := cpu.memory.get(0xFF03); actual != expected {
-// 		t.Errorf("Expected %#X, got %#X", expected, actual)
-// 	}
-// }
+	if actual := cpu.memory.get(0xFF03); actual != expected {
+		t.Errorf("Expected %#X, got %#X", expected, actual)
+	}
+}
 
-// // TODO: reduce duplication in these tests
-// func TestLoadRelativeN(t *testing.T) {
-// 	cpu := Init()
+func TestLoadRelativeImmediateN(t *testing.T) {
+	cpu := Init()
 
-// 	var expected byte = 0xFF
-// 	cpu.memory.set(0xFF03, expected)
+	var expected byte = 0xFF
+	cpu.memory.set(0xFF03, expected)
 
-// 	cpu.LoadProgram(encode([]Instruction{
-// 		LoadRelative{addressType: RelativeN, immediate: 3},
-// 	}))
-// 	cpu.Run()
+	cpu.LoadProgram(encode([]Instruction{
+		LoadRelativeImmediateN{immediate: 3},
+	}))
+	cpu.LoadAndRun()
 
-// 	if actual := cpu.Get(A); actual != expected {
-// 		t.Errorf("Expected %#X, got %#X", expected, actual)
-// 	}
-// }
+	if actual := cpu.Get(A); actual != expected {
+		t.Errorf("Expected %#X, got %#X", expected, actual)
+	}
+}
 
-// func TestStoreRelativeN(t *testing.T) {
-// 	cpu := Init()
+func TestStoreRelativeImmediateN(t *testing.T) {
+	cpu := Init()
 
-// 	var expected byte = 0xFF
+	var expected byte = 0xFF
 
-// 	cpu.LoadProgram(encode([]Instruction{
-// 		MoveImmediate{dest: A, immediate: expected},
-// 		StoreRelative{addressType: RelativeN, immediate: 3},
-// 	}))
-// 	cpu.Run()
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: A, immediate: expected},
+		StoreRelativeImmediateN{immediate: 3},
+	}))
+	cpu.LoadAndRun()
 
-// 	if actual := cpu.memory.get(0xFF03); actual != expected {
-// 		t.Errorf("Expected %#X, got %#X", expected, actual)
-// 	}
-// }
+	if actual := cpu.memory.get(0xFF03); actual != expected {
+		t.Errorf("Expected %#X, got %#X", expected, actual)
+	}
+}
 
-// func TestLoadNN(t *testing.T) {
-// 	cpu := Init()
+func TestLoadRelativeImmediateNN(t *testing.T) {
+	cpu := Init()
 
-// 	var expected byte = 0xFF
-// 	cpu.memory.set(0xFF03, expected)
+	var expected byte = 0xFF
+	cpu.memory.set(0xFF03, expected)
 
-// 	cpu.LoadProgram(encode([]Instruction{
-// 		LoadRelative{addressType: RelativeNN, immediate: 0xFF03},
-// 	}))
-// 	cpu.Run()
+	cpu.LoadProgram(encode([]Instruction{
+		LoadRelativeImmediateNN{immediate: 0xFF03},
+	}))
+	cpu.LoadAndRun()
 
-// 	if actual := cpu.Get(A); actual != expected {
-// 		t.Errorf("Expected %#X, got %#X", expected, actual)
-// 	}
-// }
+	if actual := cpu.Get(A); actual != expected {
+		t.Errorf("Expected %#X, got %#X", expected, actual)
+	}
+}
 
-// func TestStoreNN(t *testing.T) {
-// 	cpu := Init()
+func TestStoreRelativeImmediateNN(t *testing.T) {
+	cpu := Init()
 
-// 	var expected byte = 0xFF
+	var expected byte = 0xFF
 
-// 	cpu.LoadProgram(encode([]Instruction{
-// 		MoveImmediate{dest: A, immediate: expected},
-// 		StoreRelative{addressType: RelativeNN, immediate: 0xFF03},
-// 	}))
-// 	cpu.Run()
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: A, immediate: expected},
+		StoreRelativeImmediateNN{immediate: 0xFF03},
+	}))
+	cpu.LoadAndRun()
 
-// 	if actual := cpu.memory.get(0xFF03); actual != expected {
-// 		t.Errorf("Expected %#X, got %#X", expected, actual)
-// 	}
-// }
+	if actual := cpu.memory.get(0xFF03); actual != expected {
+		t.Errorf("Expected %#X, got %#X", expected, actual)
+	}
+}
 
 // func TestLoadIncrement(t *testing.T) {
 // 	cpu := Init()
@@ -270,7 +269,7 @@ func TestLoadImmediate(t *testing.T) {
 // 		MoveImmediate{dest: L, immediate: 0x34},
 // 		LoadIncrement{},
 // 	}))
-// 	cpu.Run()
+// 	cpu.LoadAndRun()
 
 // 	if actual := cpu.Get(A); actual != expected {
 // 		t.Errorf("Expected %#X, got %#X", expected, actual)
@@ -290,7 +289,7 @@ func TestLoadImmediate(t *testing.T) {
 // 		MoveImmediate{dest: L, immediate: 0x34},
 // 		LoadDecrement{},
 // 	}))
-// 	cpu.Run()
+// 	cpu.LoadAndRun()
 
 // 	if actual := cpu.Get(A); actual != expected {
 // 		t.Errorf("Expected %#X, got %#X", expected, actual)
@@ -310,7 +309,7 @@ func TestLoadImmediate(t *testing.T) {
 // 		MoveImmediate{dest: L, immediate: 0x34},
 // 		StoreIncrement{},
 // 	}))
-// 	cpu.Run()
+// 	cpu.LoadAndRun()
 
 // 	if actual := cpu.memory[0x1234]; actual != expected {
 // 		t.Errorf("Expected %#X, got %#X", expected, actual)
@@ -330,7 +329,7 @@ func TestLoadImmediate(t *testing.T) {
 // 		MoveImmediate{dest: L, immediate: 0x34},
 // 		StoreDecrement{},
 // 	}))
-// 	cpu.Run()
+// 	cpu.LoadAndRun()
 
 // 	if actual := cpu.memory[0x1234]; actual != expected {
 // 		t.Errorf("Expected %#X, got %#X", expected, actual)
@@ -349,7 +348,7 @@ func TestLoadImmediate(t *testing.T) {
 // 		LoadRegisterPairImmediate{dest: HL, immediate: 0x1236},
 // 		LoadRegisterPairImmediate{dest: SP, immediate: 0x1237},
 // 	}))
-// 	cpu.Run()
+// 	cpu.LoadAndRun()
 
 // 	if bc := cpu.GetBC(); bc != 0x1234 {
 // 		t.Errorf("Expected %#X, got %#X", 0x1234, bc)
@@ -372,7 +371,7 @@ func TestLoadImmediate(t *testing.T) {
 // 		LoadRegisterPairImmediate{dest: HL, immediate: 0x4321},
 // 		HLtoSP{},
 // 	}))
-// 	cpu.Run()
+// 	cpu.LoadAndRun()
 
 // 	if sp := cpu.GetSP(); sp != 0x4321 {
 // 		t.Errorf("Expected %#X, got %#X", 0x4321, sp)
@@ -387,7 +386,7 @@ func TestLoadImmediate(t *testing.T) {
 // 		LoadRegisterPairImmediate{dest: HL, immediate: 0x1236},
 // 		Push{source: HL},
 // 	}))
-// 	cpu.Run()
+// 	cpu.LoadAndRun()
 
 // 	currentSP := cpu.GetSP()
 // 	if currentSP != startingSP-2 {
@@ -408,7 +407,7 @@ func TestLoadImmediate(t *testing.T) {
 // 		Push{source: HL},
 // 		Pop{dest: BC},
 // 	}))
-// 	cpu.Run()
+// 	cpu.LoadAndRun()
 
 // 	currentSP := cpu.GetSP()
 // 	if currentSP != startingSP {
@@ -429,7 +428,7 @@ func TestLoadImmediate(t *testing.T) {
 // 		HLtoSP{},
 // 		LoadHLSP{immediate: 2},
 // 	}))
-// 	cpu.Run()
+// 	cpu.LoadAndRun()
 
 // 	if actual := cpu.GetHL(); actual != 0xFFFA {
 // 		t.Errorf("Expected %#X, got %#X\n", 0xFFFA, actual)
@@ -443,7 +442,7 @@ func TestLoadImmediate(t *testing.T) {
 // 	cpu.LoadProgram(encode([]Instruction{
 // 		LoadHLSP{immediate: -10},
 // 	}))
-// 	cpu.Run()
+// 	cpu.LoadAndRun()
 
 // 	if actual := cpu.GetHL(); actual != initialSP-10 {
 // 		t.Errorf("Expected %#X, got %#X\n", initialSP-10, actual)
@@ -458,7 +457,7 @@ func TestLoadImmediate(t *testing.T) {
 // 	cpu.LoadProgram(encode([]Instruction{
 // 		StoreSP{immediate: 0x1234},
 // 	}))
-// 	cpu.Run()
+// 	cpu.LoadAndRun()
 
 // 	first := cpu.memory.get(0x1234)
 // 	second := cpu.memory.get(0x1235)
@@ -638,7 +637,7 @@ func TestLoadImmediate(t *testing.T) {
 // 		if test.withCarry {
 // 			cpu.setFlag(FullCarry, true)
 // 		}
-// 		cpu.Run()
+// 		cpu.LoadAndRun()
 
 // 		if actual := cpu.Get(A); actual != test.expected {
 // 			t.Errorf("%s: expected %#X, got %#X\n", test.name, test.expected, actual)
@@ -740,7 +739,7 @@ func TestLoadImmediate(t *testing.T) {
 // 			cpu.setFlag(FullCarry, true)
 // 		}
 // 		cpu.memory.load(0x1234, []byte{test.memory})
-// 		cpu.Run()
+// 		cpu.LoadAndRun()
 
 // 		if actual := cpu.Get(A); actual != test.expected {
 // 			t.Errorf("%s: expected %#X, got %#X\n", test.name, test.expected, actual)
@@ -758,7 +757,7 @@ func TestLoadImmediate(t *testing.T) {
 // 		MoveImmediate{dest: L, immediate: 0x34},
 // 		Increment{M},
 // 	}))
-// 	cpu.Run()
+// 	cpu.LoadAndRun()
 // 	if actual := cpu.GetMem(HL); actual != 0x51 {
 // 		t.Errorf("expected %#X, got %#X\n", 0x51, actual)
 // 	}
@@ -774,7 +773,7 @@ func TestLoadImmediate(t *testing.T) {
 // 		MoveImmediate{dest: L, immediate: 0x34},
 // 		Decrement{M},
 // 	}))
-// 	cpu.Run()
+// 	cpu.LoadAndRun()
 // 	if actual := cpu.GetMem(HL); actual != 0xFF {
 // 		t.Errorf("expected %#X, got %#X\n", 0xFF, actual)
 // 	}
@@ -789,7 +788,7 @@ func TestLoadImmediate(t *testing.T) {
 // 		MoveImmediate{dest: B, immediate: 0x2F},
 // 		Cmp{source: B},
 // 	}))
-// 	cpu.Run()
+// 	cpu.LoadAndRun()
 // 	expectFlagSet(t, cpu, "cmp", FlagSet{Negative: true, HalfCarry: true})
 // }
 
@@ -800,7 +799,7 @@ func TestLoadImmediate(t *testing.T) {
 // 		MoveImmediate{dest: A, immediate: 0x3C},
 // 		CmpImmediate{immediate: 0x3C},
 // 	}))
-// 	cpu.Run()
+// 	cpu.LoadAndRun()
 // 	expectFlagSet(t, cpu, "cmp immediate", FlagSet{Negative: true, Zero: true})
 // }
 
@@ -814,7 +813,7 @@ func TestLoadImmediate(t *testing.T) {
 // 		MoveImmediate{dest: A, immediate: 0x3C},
 // 		Cmp{source: M},
 // 	}))
-// 	cpu.Run()
+// 	cpu.LoadAndRun()
 // 	expectFlagSet(t, cpu, "cmp memory", FlagSet{Negative: true, FullCarry: true})
 // }
 
@@ -828,7 +827,7 @@ func TestLoadImmediate(t *testing.T) {
 // 		MoveImmediate{dest: C, immediate: 0x05},
 // 		AddPair{source: BC},
 // 	}))
-// 	cpu.Run()
+// 	cpu.LoadAndRun()
 
 // 	if actual := cpu.GetHL(); actual != 0x9028 {
 // 		t.Errorf("expected %#X, got %#X\n", 0x9028, actual)
@@ -847,7 +846,7 @@ func TestLoadImmediate(t *testing.T) {
 // 		MoveImmediate{dest: C, immediate: 0x05},
 // 		AddPair{source: HL},
 // 	}))
-// 	cpu.Run()
+// 	cpu.LoadAndRun()
 
 // 	if actual := cpu.GetHL(); actual != 0x1446 {
 // 		t.Errorf("expected %#X, got %#X\n", 0x1446, actual)
@@ -864,7 +863,7 @@ func TestLoadImmediate(t *testing.T) {
 // 		HLtoSP{},
 // 		AddSP{immediate: 2},
 // 	}))
-// 	cpu.Run()
+// 	cpu.LoadAndRun()
 
 // 	if actual := cpu.GetSP(); actual != 0xFFFA {
 // 		t.Errorf("expected %#X, got %#X\n", 0xFFFA, actual)
@@ -880,7 +879,7 @@ func TestLoadImmediate(t *testing.T) {
 // 		MoveImmediate{dest: E, immediate: 0x5F},
 // 		IncrementPair{dest: DE},
 // 	}))
-// 	cpu.Run()
+// 	cpu.LoadAndRun()
 
 // 	if actual := cpu.GetDE(); actual != 0x2360 {
 // 		t.Errorf("expected %#X, got %#X\n", 0x2360, actual)
@@ -895,7 +894,7 @@ func TestLoadImmediate(t *testing.T) {
 // 		MoveImmediate{dest: E, immediate: 0x5F},
 // 		DecrementPair{dest: DE},
 // 	}))
-// 	cpu.Run()
+// 	cpu.LoadAndRun()
 
 // 	if actual := cpu.GetDE(); actual != 0x235E {
 // 		t.Errorf("expected %#X, got %#X\n", 0x235E, actual)
@@ -957,7 +956,7 @@ func TestLoadImmediate(t *testing.T) {
 // 		cpu := Init()
 // 		cpu.LoadProgram(encode(test.instructions))
 // 		cpu.setFlags(test.inputFlags)
-// 		cpu.Run()
+// 		cpu.LoadAndRun()
 
 // 		if actual := cpu.Get(A); actual != test.expected {
 // 			t.Errorf("%s: expected %#X, got %#X\n", test.name, test.expected, actual)
@@ -1051,7 +1050,7 @@ func TestLoadImmediate(t *testing.T) {
 // 		cpu := Init()
 // 		cpu.LoadProgram(encode(test.instructions))
 // 		cpu.setFlags(test.inputFlags)
-// 		cpu.Run()
+// 		cpu.LoadAndRun()
 
 // 		if actual := cpu.Get(A); actual != test.expected {
 // 			t.Errorf("%s: expected %#X, got %#X\n", test.name, test.expected, actual)
@@ -1150,7 +1149,7 @@ func TestLoadImmediate(t *testing.T) {
 // 		}, test.instructions...)))
 // 		cpu.memory.load(0x1234, []byte{test.memory})
 // 		cpu.setFlags(test.inputFlags)
-// 		cpu.Run()
+// 		cpu.LoadAndRun()
 
 // 		if actual := cpu.GetMem(HL); actual != test.expected {
 // 			t.Errorf("%s: expected %#X, got %#X\n", test.name, test.expected, actual)
@@ -1224,10 +1223,10 @@ func TestLoadImmediate(t *testing.T) {
 // 		cpu := Init()
 // 		initialCycles := cpu.GetCycles()
 // 		cpu.LoadProgram(encode(test.instructions))
-// 		cpu.Run()
+// 		cpu.LoadAndRun()
 
 // 		// one more than the instruction cycle count because fetching the empty
-// 		// instruction that ends the Run() loop costs a cycle
+// 		// instruction that ends the LoadAndRun() loop costs a cycle
 // 		if cycles := cpu.GetCycles(); cycles-initialCycles-1 != test.expected {
 // 			t.Errorf("%s: Incorrect cycles value. Expected %d, got %d", test.message, test.expected, cycles-initialCycles-1)
 // 		}

@@ -2,16 +2,10 @@ package cpu
 
 import "fmt"
 
-type AddressType byte
 type Memory []byte
 
 const ProgramStartAddress = 0x150
 const StackStartAddress = 0xFF80
-const (
-	RelativeN  AddressType = 0x0
-	RelativeC              = 0x2
-	RelativeNN             = 0xA
-)
 
 func (m Memory) load(start int, data []byte) {
 	for i := 0; i < len(data); i++ {
