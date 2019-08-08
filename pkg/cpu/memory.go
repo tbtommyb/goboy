@@ -1,6 +1,10 @@
 package cpu
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/tbtommyb/goboy/pkg/registers"
+)
 
 type Memory []byte
 
@@ -36,30 +40,30 @@ func (cpu *CPU) WriteMem(address uint16, value byte) byte {
 	return cpu.memory.set(address, value)
 }
 
-func (cpu *CPU) GetMem(r RegisterPair) byte {
+func (cpu *CPU) GetMem(r registers.Pair) byte {
 	switch r {
-	case BC:
+	case registers.BC:
 		return cpu.readMem(cpu.GetBC())
-	case DE:
+	case registers.DE:
 		return cpu.readMem(cpu.GetDE())
-	case HL:
+	case registers.HL:
 		return cpu.readMem(cpu.GetHL())
-	case SP:
+	case registers.SP:
 		return cpu.readMem(cpu.GetSP())
 	default:
 		panic(fmt.Sprintf("GetMem: Invalid register %x", r))
 	}
 }
 
-func (cpu *CPU) SetMem(r RegisterPair, val byte) byte {
+func (cpu *CPU) SetMem(r registers.Pair, val byte) byte {
 	switch r {
-	case BC:
+	case registers.BC:
 		cpu.WriteMem(cpu.GetBC(), val)
-	case DE:
+	case registers.DE:
 		cpu.WriteMem(cpu.GetDE(), val)
-	case HL:
+	case registers.HL:
 		cpu.WriteMem(cpu.GetHL(), val)
-	case SP:
+	case registers.SP:
 		cpu.WriteMem(cpu.GetSP(), val)
 	default:
 		panic(fmt.Sprintf("SetMem: Invalid register %x", r))

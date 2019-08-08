@@ -3,10 +3,15 @@ package cpu
 import (
 	"fmt"
 	"math/bits"
+
+	"github.com/tbtommyb/goboy/pkg/decoder"
+	in "github.com/tbtommyb/goboy/pkg/instructions"
+	"github.com/tbtommyb/goboy/pkg/registers"
+	"github.com/tbtommyb/goboy/pkg/utils"
 )
 
 type CPU struct {
-	r      Registers
+	r      registers.Registers
 	flags  byte
 	SP, PC uint16
 	memory Memory
@@ -100,23 +105,23 @@ func cmpOp(args ...byte) FlagSet {
 	}
 }
 
-func rotateOp(i RotateInstruction, value, flag byte) (byte, FlagSet) {
+func rotateOp(i in.RotateInstruction, value, flag byte) (byte, FlagSet) {
 	var result byte
 	var flags FlagSet
-	switch i.Direction() {
-	case RotateLeft:
+	switch i.GetDirection() {
+	case in.RotateLeft:
 		result = bits.RotateLeft8(value, 1)
-		if !i.WithCopy() {
-			result = setBit(0, result, flag)
+		if !i.IsWithCopy() {
+			result = utils.SetBit(0, result, flag)
 		}
 		flags = FlagSet{
 			FullCarry: bits.LeadingZeros8(value) == 0,
 			Zero:      result == 0,
 		}
-	case RotateRight:
+	case in.RotateRight:
 		result = bits.RotateLeft8(value, -1)
-		if !i.WithCopy() {
-			result = setBit(7, result, flag)
+		if !i.IsWithCopy() {
+			result = utils.SetBit(7, result, flag)
 		}
 		flags = FlagSet{
 			FullCarry: bits.TrailingZeros8(value) == 0,
@@ -126,18 +131,18 @@ func rotateOp(i RotateInstruction, value, flag byte) (byte, FlagSet) {
 	return result, flags
 }
 
-func shiftOp(i RotateInstruction, value, flag byte) (byte, FlagSet) {
+func shiftOp(i in.RotateInstruction, value, flag byte) (byte, FlagSet) {
 	var result byte
 	var flags FlagSet
-	switch i.Direction() {
-	case RotateLeft:
+	switch i.GetDirection() {
+	case in.RotateLeft:
 		result = value << 1
 		flags = FlagSet{
 			FullCarry: bits.LeadingZeros8(value) == 0,
 			Zero:      result == 0,
 		}
-	case RotateRight:
-		if i.WithCopy() {
+	case in.RotateRight:
+		if i.IsWithCopy() {
 			result = byte(int8(value) >> 1) // Sign-extend right shift
 		} else {
 			result = value >> 1
@@ -153,64 +158,64 @@ func shiftOp(i RotateInstruction, value, flag byte) (byte, FlagSet) {
 
 func (cpu *CPU) perform(f func(...byte) (byte, FlagSet), args ...byte) {
 	result, flagSet := f(args...)
-	cpu.Set(A, result)
+	cpu.Set(registers.A, result)
 	cpu.setFlags(flagSet)
 }
 
-func (cpu *CPU) Execute(instr Instruction) {
+func (cpu *CPU) Execute(instr in.Instruction) {
 	switch i := instr.(type) {
-	case Move:
-		cpu.Set(i.dest, cpu.Get(i.source))
-	case MoveImmediate:
-		cpu.Set(i.dest, i.immediate)
-	case LoadIndirect:
-		cpu.Set(i.dest, cpu.GetMem(i.source))
-	case StoreIndirect:
-		address := mergePair(cpu.GetPair(i.dest))
-		cpu.WriteMem(address, cpu.Get(i.source))
-	case LoadRelative:
-		source := cpu.computeOffset(uint16(cpu.Get(C)))
-		cpu.Set(A, cpu.readMem(source))
-	case LoadRelativeImmediateN:
-		source := cpu.computeOffset(uint16(i.immediate))
-		cpu.Set(A, cpu.readMem(source))
-	case LoadRelativeImmediateNN:
-		cpu.Set(A, cpu.readMem(i.immediate))
-	case StoreRelative:
-		source := cpu.computeOffset(uint16(cpu.Get(C)))
-		cpu.WriteMem(source, cpu.Get(A))
-	case StoreRelativeImmediateN:
-		dest := cpu.computeOffset(uint16(i.immediate))
-		cpu.WriteMem(dest, cpu.Get(A))
-	case StoreRelativeImmediateNN:
-		cpu.WriteMem(i.immediate, cpu.Get(A))
-	case LoadIncrement:
-		cpu.Set(A, cpu.GetMem(HL))
+	case in.Move:
+		cpu.Set(i.Dest, cpu.Get(i.Source))
+	case in.MoveImmediate:
+		cpu.Set(i.Dest, i.Immediate)
+	case in.LoadIndirect:
+		cpu.Set(i.Dest, cpu.GetMem(i.Source))
+	case in.StoreIndirect:
+		address := utils.MergePair(cpu.GetPair(i.Dest))
+		cpu.WriteMem(address, cpu.Get(i.Source))
+	case in.LoadRelative:
+		source := cpu.computeOffset(uint16(cpu.Get(registers.C)))
+		cpu.Set(registers.A, cpu.readMem(source))
+	case in.LoadRelativeImmediateN:
+		source := cpu.computeOffset(uint16(i.Immediate))
+		cpu.Set(registers.A, cpu.readMem(source))
+	case in.LoadRelativeImmediateNN:
+		cpu.Set(registers.A, cpu.readMem(i.Immediate))
+	case in.StoreRelative:
+		source := cpu.computeOffset(uint16(cpu.Get(registers.C)))
+		cpu.WriteMem(source, cpu.Get(registers.A))
+	case in.StoreRelativeImmediateN:
+		dest := cpu.computeOffset(uint16(i.Immediate))
+		cpu.WriteMem(dest, cpu.Get(registers.A))
+	case in.StoreRelativeImmediateNN:
+		cpu.WriteMem(i.Immediate, cpu.Get(registers.A))
+	case in.LoadIncrement:
+		cpu.Set(registers.A, cpu.GetMem(registers.HL))
 		cpu.SetHL(cpu.GetHL() + 1)
-	case LoadDecrement:
-		cpu.Set(A, cpu.GetMem(HL))
+	case in.LoadDecrement:
+		cpu.Set(registers.A, cpu.GetMem(registers.HL))
 		cpu.SetHL(cpu.GetHL() - 1)
-	case StoreIncrement:
-		cpu.SetMem(HL, cpu.Get(A))
+	case in.StoreIncrement:
+		cpu.SetMem(registers.HL, cpu.Get(registers.A))
 		cpu.SetHL(cpu.GetHL() + 1)
-	case StoreDecrement:
-		cpu.SetMem(HL, cpu.Get(A))
+	case in.StoreDecrement:
+		cpu.SetMem(registers.HL, cpu.Get(registers.A))
 		cpu.SetHL(cpu.GetHL() - 1)
-	case LoadRegisterPairImmediate:
-		cpu.SetPair(i.dest, i.immediate)
-	case HLtoSP:
+	case in.LoadRegisterPairImmediate:
+		cpu.SetPair(i.Dest, i.Immediate)
+	case in.HLtoSP:
 		cpu.setSP(cpu.GetHL())
-	case Push:
-		high, low := cpu.GetPair(i.source)
+	case in.Push:
+		high, low := cpu.GetPair(i.Source)
 		cpu.pushStack(high)
 		cpu.pushStack(low)
 		cpu.incrementCycles() // TODO: remove need for this
-	case Pop:
+	case in.Pop:
 		low := cpu.popStack()
 		high := cpu.popStack()
-		cpu.SetPair(i.dest, mergePair(high, low))
-	case LoadHLSP:
-		a := uint16(i.immediate)
+		cpu.SetPair(i.Dest, utils.MergePair(high, low))
+	case in.LoadHLSP:
+		a := uint16(i.Immediate)
 		b := cpu.GetSP()
 		cpu.SetHL(a + b)
 		cpu.incrementCycles() // TODO: remove need for this
@@ -218,61 +223,61 @@ func (cpu *CPU) Execute(instr Instruction) {
 			HalfCarry: isAddHalfCarry16(a, b),
 			FullCarry: isAddFullCarry16(a, b),
 		})
-	case StoreSP:
-		cpu.WriteMem(i.immediate, byte(cpu.GetSP()))
-		cpu.WriteMem(i.immediate+1, byte(cpu.GetSP()>>8))
-	case Add:
-		carry := cpu.carryBit(i.withCarry, FullCarry)
-		cpu.perform(addOp, cpu.Get(A), cpu.Get(i.source), carry)
-	case AddImmediate:
-		carry := cpu.carryBit(i.withCarry, FullCarry)
-		cpu.perform(addOp, cpu.Get(A), i.immediate, carry)
-	case Subtract:
-		carry := cpu.carryBit(i.withCarry, FullCarry)
-		cpu.perform(subOp, cpu.Get(A), cpu.Get(i.source), carry)
-	case SubtractImmediate:
-		carry := cpu.carryBit(i.withCarry, FullCarry)
-		cpu.perform(subOp, cpu.Get(A), i.immediate, carry)
-	case And:
-		cpu.perform(andOp, cpu.Get(A), cpu.Get(i.source))
-	case AndImmediate:
-		cpu.perform(andOp, cpu.Get(A), i.immediate)
-	case Or:
-		cpu.perform(orOp, cpu.Get(A), cpu.Get(i.source))
-	case OrImmediate:
-		cpu.perform(orOp, cpu.Get(A), i.immediate)
-	case Xor:
-		cpu.perform(xorOp, cpu.Get(A), cpu.Get(i.source))
-	case XorImmediate:
-		cpu.perform(xorOp, cpu.Get(A), i.immediate)
-	case Cmp:
-		flagSet := cmpOp(cpu.Get(A), cpu.Get(i.source))
+	case in.StoreSP:
+		cpu.WriteMem(i.Immediate, byte(cpu.GetSP()))
+		cpu.WriteMem(i.Immediate+1, byte(cpu.GetSP()>>8))
+	case in.Add:
+		carry := cpu.carryBit(i.WithCarry, FullCarry)
+		cpu.perform(addOp, cpu.Get(registers.A), cpu.Get(i.Source), carry)
+	case in.AddImmediate:
+		carry := cpu.carryBit(i.WithCarry, FullCarry)
+		cpu.perform(addOp, cpu.Get(registers.A), i.Immediate, carry)
+	case in.Subtract:
+		carry := cpu.carryBit(i.WithCarry, FullCarry)
+		cpu.perform(subOp, cpu.Get(registers.A), cpu.Get(i.Source), carry)
+	case in.SubtractImmediate:
+		carry := cpu.carryBit(i.WithCarry, FullCarry)
+		cpu.perform(subOp, cpu.Get(registers.A), i.Immediate, carry)
+	case in.And:
+		cpu.perform(andOp, cpu.Get(registers.A), cpu.Get(i.Source))
+	case in.AndImmediate:
+		cpu.perform(andOp, cpu.Get(registers.A), i.Immediate)
+	case in.Or:
+		cpu.perform(orOp, cpu.Get(registers.A), cpu.Get(i.Source))
+	case in.OrImmediate:
+		cpu.perform(orOp, cpu.Get(registers.A), i.Immediate)
+	case in.Xor:
+		cpu.perform(xorOp, cpu.Get(registers.A), cpu.Get(i.Source))
+	case in.XorImmediate:
+		cpu.perform(xorOp, cpu.Get(registers.A), i.Immediate)
+	case in.Cmp:
+		flagSet := cmpOp(cpu.Get(registers.A), cpu.Get(i.Source))
 		cpu.setFlags(flagSet)
-	case CmpImmediate:
-		flagSet := cmpOp(cpu.Get(A), i.immediate)
+	case in.CmpImmediate:
+		flagSet := cmpOp(cpu.Get(registers.A), i.Immediate)
 		cpu.setFlags(flagSet)
-	case Increment:
-		a := cpu.Get(i.dest)
+	case in.Increment:
+		a := cpu.Get(i.Dest)
 		result := a + 1
-		cpu.Set(i.dest, result)
+		cpu.Set(i.Dest, result)
 		cpu.setFlags(FlagSet{
 			Zero:      result == 0,
 			HalfCarry: isAddHalfCarry(a, 1, 0),
 			FullCarry: cpu.isSet(FullCarry),
 		})
-	case Decrement:
-		a := cpu.Get(i.dest)
+	case in.Decrement:
+		a := cpu.Get(i.Dest)
 		result := a - 1
-		cpu.Set(i.dest, result)
+		cpu.Set(i.Dest, result)
 		cpu.setFlags(FlagSet{
 			Zero:      result == 0,
 			HalfCarry: isSubHalfCarry(a, 1, 0),
 			FullCarry: cpu.isSet(FullCarry),
 			Negative:  true,
 		})
-	case AddPair:
+	case in.AddPair:
 		a := cpu.GetHL()
-		b := mergePair(cpu.GetPair(i.source))
+		b := utils.MergePair(cpu.GetPair(i.Source))
 		result := a + b
 		cpu.SetHL(result)
 		cpu.setFlags(FlagSet{
@@ -281,9 +286,9 @@ func (cpu *CPU) Execute(instr Instruction) {
 			FullCarry: isAddFullCarry16(a, b),
 		})
 		cpu.incrementCycles()
-	case AddSP:
+	case in.AddSP:
 		a := cpu.GetSP()
-		b := i.immediate
+		b := i.Immediate
 		result := a + uint16(b)
 		cpu.setSP(result)
 		cpu.setFlags(FlagSet{
@@ -291,49 +296,55 @@ func (cpu *CPU) Execute(instr Instruction) {
 			FullCarry: isAddFullCarry16(a, uint16(b)),
 		})
 		cpu.incrementCycles()
-	case IncrementPair:
-		a := mergePair(cpu.GetPair(i.dest))
-		cpu.SetPair(i.dest, a+1)
+	case in.IncrementPair:
+		a := utils.MergePair(cpu.GetPair(i.Dest))
+		cpu.SetPair(i.Dest, a+1)
 		cpu.incrementCycles()
-	case DecrementPair:
-		a := mergePair(cpu.GetPair(i.dest))
-		cpu.SetPair(i.dest, a-1)
+	case in.DecrementPair:
+		a := utils.MergePair(cpu.GetPair(i.Dest))
+		cpu.SetPair(i.Dest, a-1)
 		cpu.incrementCycles()
-	case RotateA:
-		result, flagSet := rotateOp(i, cpu.Get(A), cpu.getFlag(FullCarry))
-		cpu.Set(A, result)
+	case in.RotateA:
+		result, flagSet := rotateOp(i, cpu.Get(registers.A), cpu.getFlag(FullCarry))
+		cpu.Set(registers.A, result)
 		cpu.setFlags(flagSet)
-	case RotateOperand:
+	case in.RotateOperand:
 		var result byte
 		var flagSet FlagSet
 
-		switch i.action {
-		case RotateAction:
-			result, flagSet = rotateOp(i, cpu.Get(i.source), cpu.getFlag(FullCarry))
-		case ShiftAction:
-			result, flagSet = shiftOp(i, cpu.Get(i.source), cpu.getFlag(FullCarry))
+		switch i.Action {
+		case in.RotateAction:
+			result, flagSet = rotateOp(i, cpu.Get(i.Source), cpu.getFlag(FullCarry))
+		case in.ShiftAction:
+			result, flagSet = shiftOp(i, cpu.Get(i.Source), cpu.getFlag(FullCarry))
 		}
-		cpu.Set(i.source, result)
+		cpu.Set(i.Source, result)
 		cpu.setFlags(flagSet)
-	case InvalidInstruction:
+	case in.InvalidInstruction:
 		panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 	}
 }
 
 func (cpu *CPU) Run() {
-	Decode(cpu, cpu.Execute)
+	decoder.Decode(cpu, cpu.Execute)
 }
 
 func Init() CPU {
 	return CPU{
-		r: Registers{
-			A: 0, B: 0, C: 0, D: 0, E: 0, H: 0, L: 0,
+		r: registers.Registers{
+			registers.A: 0,
+			registers.B: 0,
+			registers.C: 0,
+			registers.D: 0,
+			registers.E: 0,
+			registers.H: 0,
+			registers.L: 0,
 		}, SP: StackStartAddress, PC: ProgramStartAddress,
 		memory: InitMemory(),
 	}
 }
 
-func (cpu *CPU) next() byte {
+func (cpu *CPU) Next() byte {
 	value := cpu.memory.get(cpu.GetPC())
 	cpu.incrementPC()
 	cpu.incrementCycles()
