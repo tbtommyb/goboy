@@ -226,30 +226,30 @@ func (cpu *CPU) Run(instr Instruction) {
 		cpu.perform(addOp, cpu.Get(A), cpu.Get(i.source), carry)
 	case AddImmediate:
 		carry := cpu.carryBit(i.withCarry, FullCarry)
-		cpu.perform(addOp, cpu.Get(A), cpu.fetchAndIncrement(), carry)
+		cpu.perform(addOp, cpu.Get(A), i.immediate, carry)
 	case Subtract:
 		carry := cpu.carryBit(i.withCarry, FullCarry)
 		cpu.perform(subOp, cpu.Get(A), cpu.Get(i.source), carry)
 	case SubtractImmediate:
 		carry := cpu.carryBit(i.withCarry, FullCarry)
-		cpu.perform(subOp, cpu.Get(A), cpu.fetchAndIncrement(), carry)
+		cpu.perform(subOp, cpu.Get(A), i.immediate, carry)
 	case And:
 		cpu.perform(andOp, cpu.Get(A), cpu.Get(i.source))
 	case AndImmediate:
-		cpu.perform(andOp, cpu.Get(A), cpu.fetchAndIncrement())
+		cpu.perform(andOp, cpu.Get(A), i.immediate)
 	case Or:
 		cpu.perform(orOp, cpu.Get(A), cpu.Get(i.source))
 	case OrImmediate:
-		cpu.perform(orOp, cpu.Get(A), cpu.fetchAndIncrement())
+		cpu.perform(orOp, cpu.Get(A), i.immediate)
 	case Xor:
 		cpu.perform(xorOp, cpu.Get(A), cpu.Get(i.source))
 	case XorImmediate:
-		cpu.perform(xorOp, cpu.Get(A), cpu.fetchAndIncrement())
+		cpu.perform(xorOp, cpu.Get(A), i.immediate)
 	case Cmp:
 		flagSet := cmpOp(cpu.Get(A), cpu.Get(i.source))
 		cpu.setFlags(flagSet)
 	case CmpImmediate:
-		flagSet := cmpOp(cpu.Get(A), cpu.fetchAndIncrement())
+		flagSet := cmpOp(cpu.Get(A), i.immediate)
 		cpu.setFlags(flagSet)
 	case Increment:
 		a := cpu.Get(i.dest)
@@ -283,7 +283,7 @@ func (cpu *CPU) Run(instr Instruction) {
 		cpu.incrementCycles()
 	case AddSP:
 		a := cpu.GetSP()
-		b := cpu.fetchAndIncrement()
+		b := i.immediate
 		result := a + uint16(b)
 		cpu.setSP(result)
 		cpu.setFlags(FlagSet{
@@ -306,11 +306,6 @@ func (cpu *CPU) Run(instr Instruction) {
 	case RotateOperand:
 		var result byte
 		var flagSet FlagSet
-		operand := cpu.fetchAndIncrement()
-		i.direction = rotationDirection(operand)
-		i.withCopy = rotationCopy(operand)
-		i.source = source(operand)
-		i.action = rotationAction(operand)
 
 		switch i.action {
 		case RotateAction:

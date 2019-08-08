@@ -1,5 +1,68 @@
 package cpu
 
+type InstructionIterator interface {
+	next() byte
+}
+
+type RotationDirection byte
+type RotationAction byte
+
+const (
+	RotateLeft RotationDirection = iota
+	RotateRight
+)
+
+const (
+	RotateAction RotationAction = iota
+	ShiftAction
+)
+
+func source(opcode byte) Register {
+	return Register(opcode & SourceRegisterMask)
+}
+
+func dest(opcode byte) Register {
+	return Register(opcode & DestRegisterMask >> DestRegisterShift)
+}
+
+func pair(opcode byte) RegisterPair {
+	return RegisterPair(opcode & PairRegisterMask >> PairRegisterShift)
+}
+
+// AF and SP use same bit pattern in different instructions
+func muxPairs(r RegisterPair) RegisterPair {
+	if r == AF {
+		r = SP
+	}
+	return r
+}
+
+func demuxPairs(opcode byte) RegisterPair {
+	reg := pair(opcode)
+	if reg == SP {
+		reg = AF
+	}
+	return reg
+}
+
+func rotationDirection(opcode byte) RotationDirection {
+	if opcode&RotateDirectionMask > 0 {
+		return RotateRight
+	}
+	return RotateLeft
+}
+
+func rotationCopy(opcode byte) bool {
+	return opcode&RotateCopyMask == 0
+}
+
+func rotationAction(opcode byte) RotationAction {
+	if opcode&RotateActionMask > 0 {
+		return ShiftAction
+	}
+	return RotateAction
+}
+
 const MoveMask = 0xC0
 const MovePattern = 0x40
 
@@ -162,79 +225,80 @@ func Decode(il InstructionIterator, handle func(Instruction)) {
 			// LD nn, SP. 0b0000 1000
 			immediate := reverseMergePair(il.next(), il.next())
 			handle(StoreSP{immediate})
-		// case op&AddMask == AddPattern:
-		// 	// ADD A, r. 0b1000 0rrr
-		// 	// ADC A, r. 0b1000 1rrr
-		// 	withCarry := (op & CarryMask) > 0
-		// 	handle(Add{source: source(op), withCarry: withCarry}
-		// case op&AddImmediateMask == AddImmediatePattern:
-		// 	// ADD A n. 0b1100 0110
-		// 	withCarry := (op & CarryMask) > 0
-		// 	handle(AddImmediate{withCarry: withCarry}
-		// case op&SubtractMask == SubtractPattern:
-		// 	// SUB A, r. 0b1001 0rrr
-		// 	// SBC A, r. 0b1001 1rrr
-		// 	withCarry := (op & CarryMask) > 0
-		// 	handle(Subtract{source: source(op), withCarry: withCarry}
-		// case op&SubtractImmediateMask == SubtractImmediatePattern:
-		// 	// SUB A n. 0b1101 0110
-		// 	// SBC A n. 0b1101 1110
-		// 	withCarry := (op & CarryMask) > 0
-		// 	handle(SubtractImmediate{withCarry: withCarry}
-		// case op&AndMask == AndPattern:
-		// 	// AND A r. 0b1010 0rrr
-		// 	handle(And{source: source(op)}
-		// case op == AndImmediatePattern:
-		// 	// AND A n. 0b1110 0110
-		// 	handle(AndImmediate{}
-		// case op&OrMask == OrPattern:
-		// 	// OR A r. 0b1011 0rrr
-		// 	handle(Or{source: source(op)}
-		// case op == OrImmediatePattern:
-		// 	// OR A n. 0b1111 0110
-		// 	handle(OrImmediate{}
-		// case op&XorMask == XorPattern:
-		// 	// XOR A r. 0b1010 1rrr
-		// 	handle(Xor{source: source(op)}
-		// case op == XorImmediatePattern:
-		// 	// OR A n. 0b1110 1110
-		// 	handle(XorImmediate{}
-		// case op&CmpMask == CmpPattern:
-		// 	// CP A r. 0b1011 1rrr
-		// 	handle(Cmp{source: source(op)}
-		// case op == CmpImmediatePattern:
-		// 	// OR A n. 0b1111 1110
-		// 	handle(CmpImmediate{}
-		// case op&IncrementMask == IncrementPattern:
-		// 	// INC r. 0b00rr r100
-		// 	handle(Increment{dest: dest(op)}
-		// case op&DecrementMask == DecrementPattern:
-		// 	// DEC r. 0b00rr r101
-		// 	handle(Decrement{dest: dest(op)}
-		// case op&AddPairMask == AddPairPattern:
-		// 	// ADD HL, ss. 0b00ss 1001
-		// 	handle(AddPair{source: pair(op)}
-		// case op == AddSPPattern:
-		// 	// ADD SP, n. 0b1110 1000
-		// 	handle(AddSP{}
-		// case op&IncrementPairMask == IncrementPairPattern:
-		// 	// INC ss. 0b00ss 0011
-		// 	handle(IncrementPair{dest: pair(op)}
-		// case op&DecrementPairMask == DecrementPairPattern:
-		// 	// INC ss. 0b00ss 1011
-		// 	handle(DecrementPair{dest: pair(op)}
-		// case op&RotateMask == RotateAPattern:
-		// 	// RLCA. 0b0000 0111
-		// 	// RLA. 0b00001 0111
-		// 	// RRCA. 0b0000 1111
-		// 	// RRA. 0b0001 1111
-		// 	handle(RotateA{direction: rotationDirection(op), withCopy: rotationCopy(op)}
-		// case op == RotateOperandPrefix:
-		// 	// RLC r. 0b11000 1011, 0001 0rrr
-		// 	// RL r. 0b11000 1011, 0001 0rrr
-		// 	// RRC r. 0b11000 1011, 0000 1rrr
-		// 	// RR r. 0b11000 1011, 0001 1rrr
-		// 	handle(RotateOperand{}
+		case op&AddMask == AddPattern:
+			// ADD A, r. 0b1000 0rrr
+			// ADC A, r. 0b1000 1rrr
+			withCarry := (op & CarryMask) > 0
+			handle(Add{source: source(op), withCarry: withCarry})
+		case op&AddImmediateMask == AddImmediatePattern:
+			// ADD A n. 0b1100 0110
+			withCarry := (op & CarryMask) > 0
+			handle(AddImmediate{withCarry: withCarry, immediate: il.next()})
+		case op&SubtractMask == SubtractPattern:
+			// SUB A, r. 0b1001 0rrr
+			// SBC A, r. 0b1001 1rrr
+			withCarry := (op & CarryMask) > 0
+			handle(Subtract{source: source(op), withCarry: withCarry})
+		case op&SubtractImmediateMask == SubtractImmediatePattern:
+			// SUB A n. 0b1101 0110
+			// SBC A n. 0b1101 1110
+			withCarry := (op & CarryMask) > 0
+			handle(SubtractImmediate{withCarry: withCarry, immediate: il.next()})
+		case op&AndMask == AndPattern:
+			// AND A r. 0b1010 0rrr
+			handle(And{source: source(op)})
+		case op == AndImmediatePattern:
+			// AND A n. 0b1110 0110
+			handle(AndImmediate{immediate: il.next()})
+		case op&OrMask == OrPattern:
+			// OR A r. 0b1011 0rrr
+			handle(Or{source: source(op)})
+		case op == OrImmediatePattern:
+			// OR A n. 0b1111 0110
+			handle(OrImmediate{immediate: il.next()})
+		case op&XorMask == XorPattern:
+			// XOR A r. 0b1010 1rrr
+			handle(Xor{source: source(op)})
+		case op == XorImmediatePattern:
+			// OR A n. 0b1110 1110
+			handle(XorImmediate{immediate: il.next()})
+		case op&CmpMask == CmpPattern:
+			// CP A r. 0b1011 1rrr
+			handle(Cmp{source: source(op)})
+		case op == CmpImmediatePattern:
+			// OR A n. 0b1111 1110
+			handle(CmpImmediate{immediate: il.next()})
+		case op&IncrementMask == IncrementPattern:
+			// INC r. 0b00rr r100
+			handle(Increment{dest: dest(op)})
+		case op&DecrementMask == DecrementPattern:
+			// DEC r. 0b00rr r101
+			handle(Decrement{dest: dest(op)})
+		case op&AddPairMask == AddPairPattern:
+			// ADD HL, ss. 0b00ss 1001
+			handle(AddPair{source: pair(op)})
+		case op == AddSPPattern:
+			// ADD SP, n. 0b1110 1000
+			handle(AddSP{immediate: il.next()})
+		case op&IncrementPairMask == IncrementPairPattern:
+			// INC ss. 0b00ss 0011
+			handle(IncrementPair{dest: pair(op)})
+		case op&DecrementPairMask == DecrementPairPattern:
+			// INC ss. 0b00ss 1011
+			handle(DecrementPair{dest: pair(op)})
+		case op&RotateMask == RotateAPattern:
+			// RLCA. 0b0000 0111
+			// RLA. 0b00001 0111
+			// RRCA. 0b0000 1111
+			// RRA. 0b0001 1111
+			handle(RotateA{direction: rotationDirection(op), withCopy: rotationCopy(op)})
+		case op == RotateOperandPrefix:
+			// RLC r. 0b11000 1011, 0001 0rrr
+			// RL r. 0b11000 1011, 0001 0rrr
+			// RRC r. 0b11000 1011, 0000 1rrr
+			// RR r. 0b11000 1011, 0001 1rrr
+			operand := il.next()
+			handle(RotateOperand{direction: rotationDirection(operand), withCopy: rotationCopy(operand), source: source(operand), action: rotationAction(operand)})
 		case op == 0:
 			handle(EmptyInstruction{})
 		default:
