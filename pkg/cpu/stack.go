@@ -1,5 +1,7 @@
 package cpu
 
+import "github.com/tbtommyb/goboy/pkg/registers"
+
 // TODO: create separate stack structure
 func (cpu *CPU) GetSP() uint16 {
 	return cpu.SP
@@ -21,11 +23,11 @@ func (cpu *CPU) decrementSP() {
 
 func (cpu *CPU) pushStack(val byte) byte {
 	cpu.decrementSP()
-	return cpu.SetMem(SP, val)
+	return cpu.SetMem(registers.SP, val)
 }
 
 func (cpu *CPU) popStack() byte {
-	val := cpu.GetMem(SP)
+	val := cpu.GetMem(registers.SP)
 	cpu.incrementSP()
 	return val
 }

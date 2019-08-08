@@ -3,9 +3,12 @@ package cpu
 import (
 	"fmt"
 	"testing"
+
+	in "github.com/tbtommyb/goboy/pkg/instructions"
+	"github.com/tbtommyb/goboy/pkg/registers"
 )
 
-func encode(instructions []Instruction) []byte {
+func encode(instructions []in.Instruction) []byte {
 	var opcodes []byte
 	for _, instruction := range instructions {
 		instrOpcodes := instruction.Opcode()
@@ -18,12 +21,12 @@ func encode(instructions []Instruction) []byte {
 
 func TestIncrementPC(t *testing.T) {
 	testCases := []struct {
-		instructions []Instruction
+		instructions []in.Instruction
 		expected     uint16
 	}{
-		{instructions: []Instruction{}, expected: 1},
-		{instructions: []Instruction{Move{source: A, dest: B}}, expected: 2},
-		{instructions: []Instruction{Move{source: A, dest: B}, Move{source: B, dest: C}}, expected: 3},
+		{instructions: []in.Instruction{}, expected: 1},
+		{instructions: []in.Instruction{in.Move{Source: registers.A, Dest: registers.B}}, expected: 2},
+		{instructions: []in.Instruction{in.Move{Source: registers.A, Dest: registers.B}, in.Move{Source: registers.B, Dest: registers.C}}, expected: 3},
 	}
 
 	for _, test := range testCases {
@@ -51,13 +54,13 @@ func TestSetGetHL(t *testing.T) {
 func TestLoadProgram(t *testing.T) {
 	cpu := Init()
 
-	cpu.LoadProgram(encode([]Instruction{
-		Move{source: A, dest: B},
-		Move{source: B, dest: C},
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.Move{Source: registers.A, Dest: registers.B},
+		in.Move{Source: registers.B, Dest: registers.C},
 	}))
 	cpu.Run()
 
-	expectedOpcode := Move{source: B, dest: C}.Opcode()[0]
+	expectedOpcode := in.Move{Source: registers.B, Dest: registers.C}.Opcode()[0]
 	if actual := cpu.memory[ProgramStartAddress+1]; actual != expectedOpcode {
 		t.Errorf("Expected 0x88, got %x", actual)
 	}
@@ -66,12 +69,12 @@ func TestLoadProgram(t *testing.T) {
 func TestLoadImmediate(t *testing.T) {
 	cpu := Init()
 
-	cpu.LoadProgram(encode([]Instruction{
-		MoveImmediate{dest: A, immediate: 0xFF},
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.MoveImmediate{Dest: registers.A, Immediate: 0xFF},
 	}))
 	cpu.Run()
 
-	if regValue := cpu.Get(A); regValue != 0xFF {
+	if regValue := cpu.Get(registers.A); regValue != 0xFF {
 		t.Errorf("Expected 0xFF, got %x", regValue)
 	}
 }
@@ -80,16 +83,16 @@ func TestSetAndGetRegister(t *testing.T) {
 	cpu := Init()
 
 	var expected byte = 3
-	cpu.LoadProgram(encode([]Instruction{
-		MoveImmediate{dest: A, immediate: expected},
-		Move{source: A, dest: B},
-		Move{source: B, dest: C},
-		Move{source: C, dest: D},
-		Move{source: D, dest: E},
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.MoveImmediate{Dest: registers.A, Immediate: expected},
+		in.Move{Source: registers.A, Dest: registers.B},
+		in.Move{Source: registers.B, Dest: registers.C},
+		in.Move{Source: registers.C, Dest: registers.D},
+		in.Move{Source: registers.D, Dest: registers.E},
 	}))
 	cpu.Run()
 
-	if regValue := cpu.Get(E); regValue != 3 {
+	if regValue := cpu.Get(registers.E); regValue != 3 {
 		t.Errorf("Expected %X, got %X", expected, regValue)
 	}
 }
@@ -99,14 +102,14 @@ func TestLoadMemory(t *testing.T) {
 	var expected byte = 0xFF
 	cpu.memory.load(0x1234, []byte{expected})
 
-	cpu.LoadProgram(encode([]Instruction{
-		MoveImmediate{dest: H, immediate: 0x12},
-		MoveImmediate{dest: L, immediate: 0x34},
-		Move{dest: A, source: M},
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.MoveImmediate{Dest: registers.H, Immediate: 0x12},
+		in.MoveImmediate{Dest: registers.L, Immediate: 0x34},
+		in.Move{Dest: registers.A, Source: registers.M},
 	}))
 	cpu.Run()
 
-	if actual := cpu.Get(A); actual != expected {
+	if actual := cpu.Get(registers.A); actual != expected {
 		t.Errorf("Expected %#X, got %#X", expected, actual)
 	}
 }
@@ -115,11 +118,11 @@ func TestStoreMemory(t *testing.T) {
 	cpu := Init()
 	var expected byte = 0xFF
 
-	cpu.LoadProgram(encode([]Instruction{
-		MoveImmediate{dest: A, immediate: expected},
-		MoveImmediate{dest: H, immediate: 0x12},
-		MoveImmediate{dest: L, immediate: 0x34},
-		Move{source: A, dest: M},
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.MoveImmediate{Dest: registers.A, Immediate: expected},
+		in.MoveImmediate{Dest: registers.H, Immediate: 0x12},
+		in.MoveImmediate{Dest: registers.L, Immediate: 0x34},
+		in.Move{Source: registers.A, Dest: registers.M},
 	}))
 	cpu.Run()
 
@@ -133,14 +136,14 @@ func TestLoadIndirect(t *testing.T) {
 	var expected byte = 0xFF
 	cpu.memory.load(0x1234, []byte{expected})
 
-	cpu.LoadProgram(encode([]Instruction{
-		MoveImmediate{dest: B, immediate: 0x12},
-		MoveImmediate{dest: C, immediate: 0x34},
-		LoadIndirect{dest: A, source: BC},
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.MoveImmediate{Dest: registers.B, Immediate: 0x12},
+		in.MoveImmediate{Dest: registers.C, Immediate: 0x34},
+		in.LoadIndirect{Dest: registers.A, Source: registers.BC},
 	}))
 	cpu.Run()
 
-	if actual := cpu.Get(A); actual != expected {
+	if actual := cpu.Get(registers.A); actual != expected {
 		t.Errorf("Expected %#X, got %#X", expected, actual)
 	}
 }
@@ -149,11 +152,11 @@ func TestStoreIndirect(t *testing.T) {
 	cpu := Init()
 	var expected byte = 0xFF
 
-	cpu.LoadProgram(encode([]Instruction{
-		MoveImmediate{dest: A, immediate: expected},
-		MoveImmediate{dest: B, immediate: 0x12},
-		MoveImmediate{dest: C, immediate: 0x34},
-		StoreIndirect{source: A, dest: BC},
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.MoveImmediate{Dest: registers.A, Immediate: expected},
+		in.MoveImmediate{Dest: registers.B, Immediate: 0x12},
+		in.MoveImmediate{Dest: registers.C, Immediate: 0x34},
+		in.StoreIndirect{Source: registers.A, Dest: registers.BC},
 	}))
 	cpu.Run()
 
@@ -168,13 +171,13 @@ func TestLoadRelative(t *testing.T) {
 	var expected byte = 0xFF
 	cpu.memory.set(0xFF03, expected)
 
-	cpu.LoadProgram(encode([]Instruction{
-		MoveImmediate{dest: C, immediate: 3},
-		LoadRelative{},
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.MoveImmediate{Dest: registers.C, Immediate: 3},
+		in.LoadRelative{},
 	}))
 	cpu.Run()
 
-	if actual := cpu.Get(A); actual != expected {
+	if actual := cpu.Get(registers.A); actual != expected {
 		t.Errorf("Expected %#X, got %#X", expected, actual)
 	}
 }
@@ -184,10 +187,10 @@ func TestStoreRelative(t *testing.T) {
 
 	var expected byte = 0xFF
 
-	cpu.LoadProgram(encode([]Instruction{
-		MoveImmediate{dest: C, immediate: 3},
-		MoveImmediate{dest: A, immediate: expected},
-		StoreRelative{},
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.MoveImmediate{Dest: registers.C, Immediate: 3},
+		in.MoveImmediate{Dest: registers.A, Immediate: expected},
+		in.StoreRelative{},
 	}))
 	cpu.Run()
 
@@ -202,12 +205,12 @@ func TestLoadRelativeImmediateN(t *testing.T) {
 	var expected byte = 0xFF
 	cpu.memory.set(0xFF03, expected)
 
-	cpu.LoadProgram(encode([]Instruction{
-		LoadRelativeImmediateN{immediate: 3},
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.LoadRelativeImmediateN{Immediate: 3},
 	}))
 	cpu.Run()
 
-	if actual := cpu.Get(A); actual != expected {
+	if actual := cpu.Get(registers.A); actual != expected {
 		t.Errorf("Expected %#X, got %#X", expected, actual)
 	}
 }
@@ -217,9 +220,9 @@ func TestStoreRelativeImmediateN(t *testing.T) {
 
 	var expected byte = 0xFF
 
-	cpu.LoadProgram(encode([]Instruction{
-		MoveImmediate{dest: A, immediate: expected},
-		StoreRelativeImmediateN{immediate: 3},
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.MoveImmediate{Dest: registers.A, Immediate: expected},
+		in.StoreRelativeImmediateN{Immediate: 3},
 	}))
 	cpu.Run()
 
@@ -234,12 +237,12 @@ func TestLoadRelativeImmediateNN(t *testing.T) {
 	var expected byte = 0xFF
 	cpu.memory.set(0xFF03, expected)
 
-	cpu.LoadProgram(encode([]Instruction{
-		LoadRelativeImmediateNN{immediate: 0xFF03},
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.LoadRelativeImmediateNN{Immediate: 0xFF03},
 	}))
 	cpu.Run()
 
-	if actual := cpu.Get(A); actual != expected {
+	if actual := cpu.Get(registers.A); actual != expected {
 		t.Errorf("Expected %#X, got %#X", expected, actual)
 	}
 }
@@ -249,9 +252,9 @@ func TestStoreRelativeImmediateNN(t *testing.T) {
 
 	var expected byte = 0xFF
 
-	cpu.LoadProgram(encode([]Instruction{
-		MoveImmediate{dest: A, immediate: expected},
-		StoreRelativeImmediateNN{immediate: 0xFF03},
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.MoveImmediate{Dest: registers.A, Immediate: expected},
+		in.StoreRelativeImmediateNN{Immediate: 0xFF03},
 	}))
 	cpu.Run()
 
@@ -265,14 +268,14 @@ func TestLoadIncrement(t *testing.T) {
 	var expected byte = 0xFF
 	cpu.memory.load(0x1234, []byte{expected})
 
-	cpu.LoadProgram(encode([]Instruction{
-		MoveImmediate{dest: H, immediate: 0x12},
-		MoveImmediate{dest: L, immediate: 0x34},
-		LoadIncrement{},
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.MoveImmediate{Dest: registers.H, Immediate: 0x12},
+		in.MoveImmediate{Dest: registers.L, Immediate: 0x34},
+		in.LoadIncrement{},
 	}))
 	cpu.Run()
 
-	if actual := cpu.Get(A); actual != expected {
+	if actual := cpu.Get(registers.A); actual != expected {
 		t.Errorf("Expected %#X, got %#X", expected, actual)
 	}
 	if hl := cpu.GetHL(); hl != 0x1235 {
@@ -285,14 +288,14 @@ func TestLoadDecrement(t *testing.T) {
 	var expected byte = 0xFF
 	cpu.memory.load(0x1234, []byte{expected})
 
-	cpu.LoadProgram(encode([]Instruction{
-		MoveImmediate{dest: H, immediate: 0x12},
-		MoveImmediate{dest: L, immediate: 0x34},
-		LoadDecrement{},
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.MoveImmediate{Dest: registers.H, Immediate: 0x12},
+		in.MoveImmediate{Dest: registers.L, Immediate: 0x34},
+		in.LoadDecrement{},
 	}))
 	cpu.Run()
 
-	if actual := cpu.Get(A); actual != expected {
+	if actual := cpu.Get(registers.A); actual != expected {
 		t.Errorf("Expected %#X, got %#X", expected, actual)
 	}
 	if hl := cpu.GetHL(); hl != 0x1233 {
@@ -304,11 +307,11 @@ func TestStoreIncrement(t *testing.T) {
 	cpu := Init()
 	var expected byte = 0xFF
 
-	cpu.LoadProgram(encode([]Instruction{
-		MoveImmediate{dest: A, immediate: expected},
-		MoveImmediate{dest: H, immediate: 0x12},
-		MoveImmediate{dest: L, immediate: 0x34},
-		StoreIncrement{},
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.MoveImmediate{Dest: registers.A, Immediate: expected},
+		in.MoveImmediate{Dest: registers.H, Immediate: 0x12},
+		in.MoveImmediate{Dest: registers.L, Immediate: 0x34},
+		in.StoreIncrement{},
 	}))
 	cpu.Run()
 
@@ -324,11 +327,11 @@ func TestStoreDecrement(t *testing.T) {
 	cpu := Init()
 	var expected byte = 0xFF
 
-	cpu.LoadProgram(encode([]Instruction{
-		MoveImmediate{dest: A, immediate: expected},
-		MoveImmediate{dest: H, immediate: 0x12},
-		MoveImmediate{dest: L, immediate: 0x34},
-		StoreDecrement{},
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.MoveImmediate{Dest: registers.A, Immediate: expected},
+		in.MoveImmediate{Dest: registers.H, Immediate: 0x12},
+		in.MoveImmediate{Dest: registers.L, Immediate: 0x34},
+		in.StoreDecrement{},
 	}))
 	cpu.Run()
 
@@ -343,11 +346,11 @@ func TestStoreDecrement(t *testing.T) {
 func TestLoadRegisterPairImmediate(t *testing.T) {
 	cpu := Init()
 
-	cpu.LoadProgram(encode([]Instruction{
-		LoadRegisterPairImmediate{dest: BC, immediate: 0x1234},
-		LoadRegisterPairImmediate{dest: DE, immediate: 0x1235},
-		LoadRegisterPairImmediate{dest: HL, immediate: 0x1236},
-		LoadRegisterPairImmediate{dest: SP, immediate: 0x1237},
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.LoadRegisterPairImmediate{Dest: registers.BC, Immediate: 0x1234},
+		in.LoadRegisterPairImmediate{Dest: registers.DE, Immediate: 0x1235},
+		in.LoadRegisterPairImmediate{Dest: registers.HL, Immediate: 0x1236},
+		in.LoadRegisterPairImmediate{Dest: registers.SP, Immediate: 0x1237},
 	}))
 	cpu.Run()
 
@@ -368,9 +371,9 @@ func TestLoadRegisterPairImmediate(t *testing.T) {
 func TestHLtoSP(t *testing.T) {
 	cpu := Init()
 
-	cpu.LoadProgram(encode([]Instruction{
-		LoadRegisterPairImmediate{dest: HL, immediate: 0x4321},
-		HLtoSP{},
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.LoadRegisterPairImmediate{Dest: registers.HL, Immediate: 0x4321},
+		in.HLtoSP{},
 	}))
 	cpu.Run()
 
@@ -383,9 +386,9 @@ func TestPush(t *testing.T) {
 	cpu := Init()
 
 	startingSP := cpu.GetSP()
-	cpu.LoadProgram(encode([]Instruction{
-		LoadRegisterPairImmediate{dest: HL, immediate: 0x1236},
-		Push{source: HL},
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.LoadRegisterPairImmediate{Dest: registers.HL, Immediate: 0x1236},
+		in.Push{Source: registers.HL},
 	}))
 	cpu.Run()
 
@@ -403,10 +406,10 @@ func TestPop(t *testing.T) {
 	cpu := Init()
 
 	startingSP := cpu.GetSP()
-	cpu.LoadProgram(encode([]Instruction{
-		LoadRegisterPairImmediate{dest: HL, immediate: 0x1236},
-		Push{source: HL},
-		Pop{dest: BC},
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.LoadRegisterPairImmediate{Dest: registers.HL, Immediate: 0x1236},
+		in.Push{Source: registers.HL},
+		in.Pop{Dest: registers.BC},
 	}))
 	cpu.Run()
 
@@ -423,11 +426,11 @@ func TestPop(t *testing.T) {
 func TestLoadHLSPPositive(t *testing.T) {
 	cpu := Init()
 
-	cpu.LoadProgram(encode([]Instruction{
-		MoveImmediate{dest: H, immediate: 0xFF},
-		MoveImmediate{dest: L, immediate: 0xF8},
-		HLtoSP{},
-		LoadHLSP{immediate: 2},
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.MoveImmediate{Dest: registers.H, Immediate: 0xFF},
+		in.MoveImmediate{Dest: registers.L, Immediate: 0xF8},
+		in.HLtoSP{},
+		in.LoadHLSP{Immediate: 2},
 	}))
 	cpu.Run()
 
@@ -441,8 +444,8 @@ func TestLoadHLSPNegative(t *testing.T) {
 	cpu := Init()
 
 	initialSP := cpu.GetSP()
-	cpu.LoadProgram(encode([]Instruction{
-		LoadHLSP{immediate: -10},
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.LoadHLSP{Immediate: -10},
 	}))
 	cpu.Run()
 
@@ -456,8 +459,8 @@ func TestStoreSP(t *testing.T) {
 
 	var initial uint16 = 0xFFCD
 	cpu.setSP(initial)
-	cpu.LoadProgram(encode([]Instruction{
-		StoreSP{immediate: 0x1234},
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.StoreSP{Immediate: 0x1234},
 	}))
 	cpu.Run()
 
@@ -474,7 +477,7 @@ func TestStoreSP(t *testing.T) {
 func TestArithmetic(t *testing.T) {
 	testCases := []struct {
 		name         string
-		instructions []Instruction
+		instructions []in.Instruction
 		expected     byte
 		flags        FlagSet
 		withCarry    bool
@@ -483,10 +486,10 @@ func TestArithmetic(t *testing.T) {
 			name:     "add",
 			expected: 0x0,
 			flags:    FlagSet{Zero: true, FullCarry: true, HalfCarry: true},
-			instructions: []Instruction{
-				MoveImmediate{dest: B, immediate: 0xC6},
-				MoveImmediate{dest: A, immediate: 0x3A},
-				Add{source: B},
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.B, Immediate: 0xC6},
+				in.MoveImmediate{Dest: registers.A, Immediate: 0x3A},
+				in.Add{Source: registers.B},
 			},
 		},
 		{
@@ -494,39 +497,39 @@ func TestArithmetic(t *testing.T) {
 			withCarry: true,
 			expected:  0xF1,
 			flags:     FlagSet{HalfCarry: true},
-			instructions: []Instruction{
-				MoveImmediate{dest: E, immediate: 0x0F},
-				MoveImmediate{dest: A, immediate: 0xE1},
-				Add{source: E, withCarry: true},
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.E, Immediate: 0x0F},
+				in.MoveImmediate{Dest: registers.A, Immediate: 0xE1},
+				in.Add{Source: registers.E, WithCarry: true},
 			},
 		},
 		{
-			name:     "add immediate",
+			name:     "add Immediate",
 			expected: 0x3B,
 			flags:    FlagSet{FullCarry: true, HalfCarry: true},
-			instructions: []Instruction{
-				MoveImmediate{dest: A, immediate: 0x3C},
-				AddImmediate{immediate: 0xFF},
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.A, Immediate: 0x3C},
+				in.AddImmediate{Immediate: 0xFF},
 			},
 		},
 		{
-			name:      "add immediate with carry",
+			name:      "add Immediate with carry",
 			withCarry: true,
 			expected:  0x1D,
 			flags:     FlagSet{FullCarry: true},
-			instructions: []Instruction{
-				MoveImmediate{dest: A, immediate: 0xE1},
-				AddImmediate{immediate: 0x3B, withCarry: true},
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.A, Immediate: 0xE1},
+				in.AddImmediate{Immediate: 0x3B, WithCarry: true},
 			},
 		},
 		{
 			name:     "subtract",
 			expected: 0x0,
 			flags:    FlagSet{Negative: true, Zero: true},
-			instructions: []Instruction{
-				MoveImmediate{dest: A, immediate: 0x3E},
-				MoveImmediate{dest: E, immediate: 0x3E},
-				Subtract{source: E},
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.A, Immediate: 0x3E},
+				in.MoveImmediate{Dest: registers.E, Immediate: 0x3E},
+				in.Subtract{Source: registers.E},
 			},
 		},
 		{
@@ -534,102 +537,102 @@ func TestArithmetic(t *testing.T) {
 			withCarry: true,
 			expected:  0x10,
 			flags:     FlagSet{Negative: true},
-			instructions: []Instruction{
-				MoveImmediate{dest: A, immediate: 0x3B},
-				MoveImmediate{dest: H, immediate: 0x2A},
-				Subtract{source: H, withCarry: true},
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.A, Immediate: 0x3B},
+				in.MoveImmediate{Dest: registers.H, Immediate: 0x2A},
+				in.Subtract{Source: registers.H, WithCarry: true},
 			},
 		},
 		{
-			name:     "subtract immediate",
+			name:     "subtract Immediate",
 			expected: 0x2F,
 			flags:    FlagSet{Negative: true, HalfCarry: true},
-			instructions: []Instruction{
-				MoveImmediate{dest: A, immediate: 0x3E},
-				SubtractImmediate{immediate: 0x0F},
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.A, Immediate: 0x3E},
+				in.SubtractImmediate{Immediate: 0x0F},
 			},
 		},
 		{
-			name:      "subtract immediate with carry",
+			name:      "subtract Immediate with carry",
 			withCarry: true,
 			expected:  0x0,
 			flags:     FlagSet{Negative: true, Zero: true},
-			instructions: []Instruction{
-				MoveImmediate{dest: A, immediate: 0x3B},
-				SubtractImmediate{immediate: 0x3A, withCarry: true},
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.A, Immediate: 0x3B},
+				in.SubtractImmediate{Immediate: 0x3A, WithCarry: true},
 			},
 		},
 		{
 			name:     "and",
 			expected: 0x1A,
 			flags:    FlagSet{HalfCarry: true},
-			instructions: []Instruction{
-				MoveImmediate{dest: A, immediate: 0x5A},
-				MoveImmediate{dest: L, immediate: 0x3F},
-				And{source: L},
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.A, Immediate: 0x5A},
+				in.MoveImmediate{Dest: registers.L, Immediate: 0x3F},
+				in.And{Source: registers.L},
 			},
 		},
 		{
-			name:     "and immediate",
+			name:     "and Immediate",
 			expected: 0x18,
 			flags:    FlagSet{HalfCarry: true},
-			instructions: []Instruction{
-				MoveImmediate{dest: A, immediate: 0x5A},
-				AndImmediate{immediate: 0x38},
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.A, Immediate: 0x5A},
+				in.AndImmediate{Immediate: 0x38},
 			},
 		},
 		{
 			name:     "or",
 			expected: 0x5A,
 			flags:    FlagSet{},
-			instructions: []Instruction{
-				MoveImmediate{dest: A, immediate: 0x5A},
-				Or{source: A},
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.A, Immediate: 0x5A},
+				in.Or{Source: registers.A},
 			},
 		},
 		{
-			name:     "or immediate",
+			name:     "or Immediate",
 			expected: 0x5B,
 			flags:    FlagSet{},
-			instructions: []Instruction{
-				MoveImmediate{dest: A, immediate: 0x5A},
-				OrImmediate{immediate: 0x3},
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.A, Immediate: 0x5A},
+				in.OrImmediate{Immediate: 0x3},
 			},
 		},
 		{
 			name:     "xor",
 			expected: 0x0,
 			flags:    FlagSet{Zero: true},
-			instructions: []Instruction{
-				MoveImmediate{dest: A, immediate: 0xFF},
-				Xor{source: A},
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.A, Immediate: 0xFF},
+				in.Xor{Source: registers.A},
 			},
 		},
 		{
-			name:     "xor immediate",
+			name:     "xor Immediate",
 			expected: 0xF0,
 			flags:    FlagSet{},
-			instructions: []Instruction{
-				MoveImmediate{dest: A, immediate: 0xFF},
-				XorImmediate{immediate: 0x0F},
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.A, Immediate: 0xFF},
+				in.XorImmediate{Immediate: 0x0F},
 			},
 		},
 		{
 			name:     "inc",
 			expected: 0x0,
 			flags:    FlagSet{Zero: true, HalfCarry: true},
-			instructions: []Instruction{
-				MoveImmediate{dest: A, immediate: 0xFF},
-				Increment{dest: A},
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.A, Immediate: 0xFF},
+				in.Increment{Dest: registers.A},
 			},
 		},
 		{
 			name:     "dec",
 			expected: 0x0,
 			flags:    FlagSet{Zero: true, Negative: true},
-			instructions: []Instruction{
-				MoveImmediate{dest: A, immediate: 0x01},
-				Decrement{dest: A},
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.A, Immediate: 0x01},
+				in.Decrement{Dest: registers.A},
 			},
 		},
 	}
@@ -641,7 +644,7 @@ func TestArithmetic(t *testing.T) {
 		}
 		cpu.Run()
 
-		if actual := cpu.Get(A); actual != test.expected {
+		if actual := cpu.Get(registers.A); actual != test.expected {
 			t.Errorf("%s: expected %#X, got %#X\n", test.name, test.expected, actual)
 		}
 		expectFlagSet(t, cpu, test.name, test.flags)
@@ -651,7 +654,7 @@ func TestArithmetic(t *testing.T) {
 func TestArithmeticMemory(t *testing.T) {
 	testCases := []struct {
 		name         string
-		instructions []Instruction
+		instructions []in.Instruction
 		expected     byte
 		flags        FlagSet
 		withCarry    bool
@@ -662,9 +665,9 @@ func TestArithmeticMemory(t *testing.T) {
 			memory:   0x12,
 			expected: 0x4E,
 			flags:    FlagSet{},
-			instructions: []Instruction{
-				MoveImmediate{dest: A, immediate: 0x3C},
-				Add{source: M},
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.A, Immediate: 0x3C},
+				in.Add{Source: registers.M},
 			},
 		},
 		{
@@ -673,9 +676,9 @@ func TestArithmeticMemory(t *testing.T) {
 			memory:    0x1E,
 			expected:  0x0,
 			flags:     FlagSet{Zero: true, FullCarry: true, HalfCarry: true},
-			instructions: []Instruction{
-				MoveImmediate{dest: A, immediate: 0xE1},
-				Add{source: M, withCarry: true},
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.A, Immediate: 0xE1},
+				in.Add{Source: registers.M, WithCarry: true},
 			},
 		},
 		{
@@ -683,9 +686,9 @@ func TestArithmeticMemory(t *testing.T) {
 			memory:   0x40,
 			expected: 0xFE,
 			flags:    FlagSet{Negative: true, FullCarry: true},
-			instructions: []Instruction{
-				MoveImmediate{dest: A, immediate: 0x3E},
-				Subtract{source: M},
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.A, Immediate: 0x3E},
+				in.Subtract{Source: registers.M},
 			},
 		},
 		{
@@ -694,9 +697,9 @@ func TestArithmeticMemory(t *testing.T) {
 			withCarry: true,
 			expected:  0xEB,
 			flags:     FlagSet{Negative: true, HalfCarry: true, FullCarry: true},
-			instructions: []Instruction{
-				MoveImmediate{dest: A, immediate: 0x3B},
-				Subtract{source: M, withCarry: true},
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.A, Immediate: 0x3B},
+				in.Subtract{Source: registers.M, WithCarry: true},
 			},
 		},
 		{
@@ -704,9 +707,9 @@ func TestArithmeticMemory(t *testing.T) {
 			memory:   0x0,
 			expected: 0x0,
 			flags:    FlagSet{HalfCarry: true, Zero: true},
-			instructions: []Instruction{
-				MoveImmediate{dest: A, immediate: 0x5A},
-				And{source: M},
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.A, Immediate: 0x5A},
+				in.And{Source: registers.M},
 			},
 		},
 		{
@@ -714,9 +717,9 @@ func TestArithmeticMemory(t *testing.T) {
 			memory:   0xF,
 			expected: 0x5F,
 			flags:    FlagSet{},
-			instructions: []Instruction{
-				MoveImmediate{dest: A, immediate: 0x5A},
-				Or{source: M},
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.A, Immediate: 0x5A},
+				in.Or{Source: registers.M},
 			},
 		},
 		{
@@ -724,18 +727,18 @@ func TestArithmeticMemory(t *testing.T) {
 			memory:   0x8A,
 			expected: 0x75,
 			flags:    FlagSet{},
-			instructions: []Instruction{
-				MoveImmediate{dest: A, immediate: 0xFF},
-				Xor{source: M},
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.A, Immediate: 0xFF},
+				in.Xor{Source: registers.M},
 			},
 		},
 	}
 
 	for _, test := range testCases {
 		cpu := Init()
-		cpu.LoadProgram(encode(append([]Instruction{
-			MoveImmediate{dest: H, immediate: 0x12},
-			MoveImmediate{dest: L, immediate: 0x34},
+		cpu.LoadProgram(encode(append([]in.Instruction{
+			in.MoveImmediate{Dest: registers.H, Immediate: 0x12},
+			in.MoveImmediate{Dest: registers.L, Immediate: 0x34},
 		}, test.instructions...)))
 		if test.withCarry {
 			cpu.setFlag(FullCarry, true)
@@ -743,7 +746,7 @@ func TestArithmeticMemory(t *testing.T) {
 		cpu.memory.load(0x1234, []byte{test.memory})
 		cpu.Run()
 
-		if actual := cpu.Get(A); actual != test.expected {
+		if actual := cpu.Get(registers.A); actual != test.expected {
 			t.Errorf("%s: expected %#X, got %#X\n", test.name, test.expected, actual)
 		}
 		expectFlagSet(t, cpu, test.name, test.flags)
@@ -754,13 +757,13 @@ func TestIncrementMemory(t *testing.T) {
 	cpu := Init()
 
 	cpu.memory.load(0x1234, []byte{0x50})
-	cpu.LoadProgram(encode([]Instruction{
-		MoveImmediate{dest: H, immediate: 0x12},
-		MoveImmediate{dest: L, immediate: 0x34},
-		Increment{M},
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.MoveImmediate{Dest: registers.H, Immediate: 0x12},
+		in.MoveImmediate{Dest: registers.L, Immediate: 0x34},
+		in.Increment{registers.M},
 	}))
 	cpu.Run()
-	if actual := cpu.GetMem(HL); actual != 0x51 {
+	if actual := cpu.GetMem(registers.HL); actual != 0x51 {
 		t.Errorf("expected %#X, got %#X\n", 0x51, actual)
 	}
 	expectFlagSet(t, cpu, "inc memory", FlagSet{})
@@ -770,13 +773,13 @@ func TestDecrementMemory(t *testing.T) {
 	cpu := Init()
 
 	cpu.memory.load(0x1234, []byte{0x0})
-	cpu.LoadProgram(encode([]Instruction{
-		MoveImmediate{dest: H, immediate: 0x12},
-		MoveImmediate{dest: L, immediate: 0x34},
-		Decrement{M},
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.MoveImmediate{Dest: registers.H, Immediate: 0x12},
+		in.MoveImmediate{Dest: registers.L, Immediate: 0x34},
+		in.Decrement{registers.M},
 	}))
 	cpu.Run()
-	if actual := cpu.GetMem(HL); actual != 0xFF {
+	if actual := cpu.GetMem(registers.HL); actual != 0xFF {
 		t.Errorf("expected %#X, got %#X\n", 0xFF, actual)
 	}
 	expectFlagSet(t, cpu, "inc memory", FlagSet{HalfCarry: true, Negative: true})
@@ -785,10 +788,10 @@ func TestDecrementMemory(t *testing.T) {
 func TestCompare(t *testing.T) {
 	cpu := Init()
 
-	cpu.LoadProgram(encode([]Instruction{
-		MoveImmediate{dest: A, immediate: 0x3C},
-		MoveImmediate{dest: B, immediate: 0x2F},
-		Cmp{source: B},
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.MoveImmediate{Dest: registers.A, Immediate: 0x3C},
+		in.MoveImmediate{Dest: registers.B, Immediate: 0x2F},
+		in.Cmp{Source: registers.B},
 	}))
 	cpu.Run()
 	expectFlagSet(t, cpu, "cmp", FlagSet{Negative: true, HalfCarry: true})
@@ -797,23 +800,23 @@ func TestCompare(t *testing.T) {
 func TestCompareImmediate(t *testing.T) {
 	cpu := Init()
 
-	cpu.LoadProgram(encode([]Instruction{
-		MoveImmediate{dest: A, immediate: 0x3C},
-		CmpImmediate{immediate: 0x3C},
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.MoveImmediate{Dest: registers.A, Immediate: 0x3C},
+		in.CmpImmediate{Immediate: 0x3C},
 	}))
 	cpu.Run()
-	expectFlagSet(t, cpu, "cmp immediate", FlagSet{Negative: true, Zero: true})
+	expectFlagSet(t, cpu, "cmp Immediate", FlagSet{Negative: true, Zero: true})
 }
 
 func TestCompareMemory(t *testing.T) {
 	cpu := Init()
 
 	cpu.memory.load(0x1234, []byte{0x40})
-	cpu.LoadProgram(encode([]Instruction{
-		MoveImmediate{dest: H, immediate: 0x12},
-		MoveImmediate{dest: L, immediate: 0x34},
-		MoveImmediate{dest: A, immediate: 0x3C},
-		Cmp{source: M},
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.MoveImmediate{Dest: registers.H, Immediate: 0x12},
+		in.MoveImmediate{Dest: registers.L, Immediate: 0x34},
+		in.MoveImmediate{Dest: registers.A, Immediate: 0x3C},
+		in.Cmp{Source: registers.M},
 	}))
 	cpu.Run()
 	expectFlagSet(t, cpu, "cmp memory", FlagSet{Negative: true, FullCarry: true})
@@ -822,12 +825,12 @@ func TestCompareMemory(t *testing.T) {
 func TestAddPair(t *testing.T) {
 	cpu := Init()
 
-	cpu.LoadProgram(encode([]Instruction{
-		MoveImmediate{dest: H, immediate: 0x8A},
-		MoveImmediate{dest: L, immediate: 0x23},
-		MoveImmediate{dest: B, immediate: 0x06},
-		MoveImmediate{dest: C, immediate: 0x05},
-		AddPair{source: BC},
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.MoveImmediate{Dest: registers.H, Immediate: 0x8A},
+		in.MoveImmediate{Dest: registers.L, Immediate: 0x23},
+		in.MoveImmediate{Dest: registers.B, Immediate: 0x06},
+		in.MoveImmediate{Dest: registers.C, Immediate: 0x05},
+		in.AddPair{Source: registers.BC},
 	}))
 	cpu.Run()
 
@@ -841,12 +844,12 @@ func TestAddPair(t *testing.T) {
 func TestAddPairSecond(t *testing.T) {
 	cpu := Init()
 
-	cpu.LoadProgram(encode([]Instruction{
-		MoveImmediate{dest: H, immediate: 0x8A},
-		MoveImmediate{dest: L, immediate: 0x23},
-		MoveImmediate{dest: B, immediate: 0x06},
-		MoveImmediate{dest: C, immediate: 0x05},
-		AddPair{source: HL},
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.MoveImmediate{Dest: registers.H, Immediate: 0x8A},
+		in.MoveImmediate{Dest: registers.L, Immediate: 0x23},
+		in.MoveImmediate{Dest: registers.B, Immediate: 0x06},
+		in.MoveImmediate{Dest: registers.C, Immediate: 0x05},
+		in.AddPair{Source: registers.HL},
 	}))
 	cpu.Run()
 
@@ -859,11 +862,11 @@ func TestAddPairSecond(t *testing.T) {
 func TestAddSP(t *testing.T) {
 	cpu := Init()
 
-	cpu.LoadProgram(encode([]Instruction{
-		MoveImmediate{dest: H, immediate: 0xFF},
-		MoveImmediate{dest: L, immediate: 0xF8},
-		HLtoSP{},
-		AddSP{immediate: 2},
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.MoveImmediate{Dest: registers.H, Immediate: 0xFF},
+		in.MoveImmediate{Dest: registers.L, Immediate: 0xF8},
+		in.HLtoSP{},
+		in.AddSP{Immediate: 2},
 	}))
 	cpu.Run()
 
@@ -876,10 +879,10 @@ func TestAddSP(t *testing.T) {
 func TestIncrementPair(t *testing.T) {
 	cpu := Init()
 
-	cpu.LoadProgram(encode([]Instruction{
-		MoveImmediate{dest: D, immediate: 0x23},
-		MoveImmediate{dest: E, immediate: 0x5F},
-		IncrementPair{dest: DE},
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.MoveImmediate{Dest: registers.D, Immediate: 0x23},
+		in.MoveImmediate{Dest: registers.E, Immediate: 0x5F},
+		in.IncrementPair{Dest: registers.DE},
 	}))
 	cpu.Run()
 
@@ -891,10 +894,10 @@ func TestIncrementPair(t *testing.T) {
 func TestDecrementPair(t *testing.T) {
 	cpu := Init()
 
-	cpu.LoadProgram(encode([]Instruction{
-		MoveImmediate{dest: D, immediate: 0x23},
-		MoveImmediate{dest: E, immediate: 0x5F},
-		DecrementPair{dest: DE},
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.MoveImmediate{Dest: registers.D, Immediate: 0x23},
+		in.MoveImmediate{Dest: registers.E, Immediate: 0x5F},
+		in.DecrementPair{Dest: registers.DE},
 	}))
 	cpu.Run()
 
@@ -906,7 +909,7 @@ func TestDecrementPair(t *testing.T) {
 func TestRotateA(t *testing.T) {
 	testCases := []struct {
 		name          string
-		instructions  []Instruction
+		instructions  []in.Instruction
 		inputFlags    FlagSet
 		expected      byte
 		expectedFlags FlagSet
@@ -917,9 +920,9 @@ func TestRotateA(t *testing.T) {
 			expected:      0x0B,
 			inputFlags:    FlagSet{},
 			expectedFlags: FlagSet{FullCarry: true},
-			instructions: []Instruction{
-				MoveImmediate{dest: A, immediate: 0x85},
-				RotateA{withCopy: true, direction: RotateLeft},
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.A, Immediate: 0x85},
+				in.RotateA{WithCopy: true, Direction: in.RotateLeft},
 			},
 		},
 		{
@@ -927,9 +930,9 @@ func TestRotateA(t *testing.T) {
 			expected:      0x2B,
 			inputFlags:    FlagSet{FullCarry: true},
 			expectedFlags: FlagSet{FullCarry: true},
-			instructions: []Instruction{
-				MoveImmediate{dest: A, immediate: 0x95},
-				RotateA{direction: RotateLeft},
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.A, Immediate: 0x95},
+				in.RotateA{Direction: in.RotateLeft},
 			},
 		},
 		{
@@ -937,9 +940,9 @@ func TestRotateA(t *testing.T) {
 			expected:      0x9D,
 			inputFlags:    FlagSet{},
 			expectedFlags: FlagSet{FullCarry: true},
-			instructions: []Instruction{
-				MoveImmediate{dest: A, immediate: 0x3B},
-				RotateA{withCopy: true, direction: RotateRight},
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.A, Immediate: 0x3B},
+				in.RotateA{WithCopy: true, Direction: in.RotateRight},
 			},
 		},
 		{
@@ -947,9 +950,9 @@ func TestRotateA(t *testing.T) {
 			expected:      0x40,
 			inputFlags:    FlagSet{},
 			expectedFlags: FlagSet{FullCarry: true},
-			instructions: []Instruction{
-				MoveImmediate{dest: A, immediate: 0x81},
-				RotateA{direction: RotateRight},
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.A, Immediate: 0x81},
+				in.RotateA{Direction: in.RotateRight},
 			},
 		},
 	}
@@ -960,7 +963,7 @@ func TestRotateA(t *testing.T) {
 		cpu.setFlags(test.inputFlags)
 		cpu.Run()
 
-		if actual := cpu.Get(A); actual != test.expected {
+		if actual := cpu.Get(registers.A); actual != test.expected {
 			t.Errorf("%s: expected %#X, got %#X\n", test.name, test.expected, actual)
 		}
 		expectFlagSet(t, cpu, test.name, test.expectedFlags)
@@ -970,7 +973,7 @@ func TestRotateA(t *testing.T) {
 func TestRotateOperand(t *testing.T) {
 	testCases := []struct {
 		name          string
-		instructions  []Instruction
+		instructions  []in.Instruction
 		inputFlags    FlagSet
 		expected      byte
 		expectedFlags FlagSet
@@ -981,9 +984,9 @@ func TestRotateOperand(t *testing.T) {
 			expected:      0x0B,
 			inputFlags:    FlagSet{},
 			expectedFlags: FlagSet{FullCarry: true},
-			instructions: []Instruction{
-				MoveImmediate{dest: A, immediate: 0x85},
-				RotateOperand{source: A, withCopy: true, direction: RotateLeft},
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.A, Immediate: 0x85},
+				in.RotateOperand{Source: registers.A, WithCopy: true, Direction: in.RotateLeft},
 			},
 		},
 		{
@@ -991,9 +994,9 @@ func TestRotateOperand(t *testing.T) {
 			expected:      0x00,
 			inputFlags:    FlagSet{},
 			expectedFlags: FlagSet{FullCarry: true, Zero: true},
-			instructions: []Instruction{
-				MoveImmediate{dest: A, immediate: 0x80},
-				RotateOperand{source: A, direction: RotateLeft},
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.A, Immediate: 0x80},
+				in.RotateOperand{Source: registers.A, Direction: in.RotateLeft},
 			},
 		},
 		{
@@ -1001,9 +1004,9 @@ func TestRotateOperand(t *testing.T) {
 			expected:      0x80,
 			inputFlags:    FlagSet{},
 			expectedFlags: FlagSet{FullCarry: true},
-			instructions: []Instruction{
-				MoveImmediate{dest: A, immediate: 0x1},
-				RotateOperand{source: A, direction: RotateRight, withCopy: true},
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.A, Immediate: 0x1},
+				in.RotateOperand{Source: registers.A, Direction: in.RotateRight, WithCopy: true},
 			},
 		},
 		{
@@ -1011,9 +1014,9 @@ func TestRotateOperand(t *testing.T) {
 			expected:      0x0,
 			inputFlags:    FlagSet{},
 			expectedFlags: FlagSet{FullCarry: true, Zero: true},
-			instructions: []Instruction{
-				MoveImmediate{dest: A, immediate: 0x1},
-				RotateOperand{source: A, direction: RotateRight},
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.A, Immediate: 0x1},
+				in.RotateOperand{Source: registers.A, Direction: in.RotateRight},
 			},
 		},
 		{
@@ -1021,9 +1024,9 @@ func TestRotateOperand(t *testing.T) {
 			expected:      0x0,
 			inputFlags:    FlagSet{},
 			expectedFlags: FlagSet{FullCarry: true, Zero: true},
-			instructions: []Instruction{
-				MoveImmediate{dest: A, immediate: 0x80},
-				RotateOperand{action: ShiftAction, source: A, direction: RotateLeft},
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.A, Immediate: 0x80},
+				in.RotateOperand{Action: in.ShiftAction, Source: registers.A, Direction: in.RotateLeft},
 			},
 		},
 		{
@@ -1031,9 +1034,9 @@ func TestRotateOperand(t *testing.T) {
 			expected:      0xC5,
 			inputFlags:    FlagSet{},
 			expectedFlags: FlagSet{},
-			instructions: []Instruction{
-				MoveImmediate{dest: A, immediate: 0x8A},
-				RotateOperand{action: ShiftAction, source: A, direction: RotateRight, withCopy: true},
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.A, Immediate: 0x8A},
+				in.RotateOperand{Action: in.ShiftAction, Source: registers.A, Direction: in.RotateRight, WithCopy: true},
 			},
 		},
 		{
@@ -1041,9 +1044,9 @@ func TestRotateOperand(t *testing.T) {
 			expected:      0x0,
 			inputFlags:    FlagSet{},
 			expectedFlags: FlagSet{FullCarry: true, Zero: true},
-			instructions: []Instruction{
-				MoveImmediate{dest: A, immediate: 0x1},
-				RotateOperand{action: ShiftAction, source: A, direction: RotateRight},
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.A, Immediate: 0x1},
+				in.RotateOperand{Action: in.ShiftAction, Source: registers.A, Direction: in.RotateRight},
 			},
 		},
 	}
@@ -1054,7 +1057,7 @@ func TestRotateOperand(t *testing.T) {
 		cpu.setFlags(test.inputFlags)
 		cpu.Run()
 
-		if actual := cpu.Get(A); actual != test.expected {
+		if actual := cpu.Get(registers.A); actual != test.expected {
 			t.Errorf("%s: expected %#X, got %#X\n", test.name, test.expected, actual)
 		}
 		expectFlagSet(t, cpu, test.name, test.expectedFlags)
@@ -1064,7 +1067,7 @@ func TestRotateOperand(t *testing.T) {
 func TestRotateOperandWithMemory(t *testing.T) {
 	testCases := []struct {
 		name          string
-		instructions  []Instruction
+		instructions  []in.Instruction
 		inputFlags    FlagSet
 		expected      byte
 		expectedFlags FlagSet
@@ -1077,8 +1080,8 @@ func TestRotateOperandWithMemory(t *testing.T) {
 			expected:      0x0,
 			inputFlags:    FlagSet{},
 			expectedFlags: FlagSet{Zero: true},
-			instructions: []Instruction{
-				RotateOperand{source: M, withCopy: true, direction: RotateLeft},
+			instructions: []in.Instruction{
+				in.RotateOperand{Source: registers.M, WithCopy: true, Direction: in.RotateLeft},
 			},
 		},
 		{
@@ -1087,8 +1090,8 @@ func TestRotateOperandWithMemory(t *testing.T) {
 			expected:      0x22,
 			inputFlags:    FlagSet{},
 			expectedFlags: FlagSet{},
-			instructions: []Instruction{
-				RotateOperand{source: M, direction: RotateLeft},
+			instructions: []in.Instruction{
+				in.RotateOperand{Source: registers.M, Direction: in.RotateLeft},
 			},
 		},
 		{
@@ -1097,8 +1100,8 @@ func TestRotateOperandWithMemory(t *testing.T) {
 			expected:      0x0,
 			inputFlags:    FlagSet{},
 			expectedFlags: FlagSet{Zero: true},
-			instructions: []Instruction{
-				RotateOperand{source: M, direction: RotateRight, withCopy: true},
+			instructions: []in.Instruction{
+				in.RotateOperand{Source: registers.M, Direction: in.RotateRight, WithCopy: true},
 			},
 		},
 		{
@@ -1107,8 +1110,8 @@ func TestRotateOperandWithMemory(t *testing.T) {
 			expected:      0x45,
 			inputFlags:    FlagSet{},
 			expectedFlags: FlagSet{},
-			instructions: []Instruction{
-				RotateOperand{source: M, direction: RotateRight},
+			instructions: []in.Instruction{
+				in.RotateOperand{Source: registers.M, Direction: in.RotateRight},
 			},
 		},
 		{
@@ -1117,8 +1120,8 @@ func TestRotateOperandWithMemory(t *testing.T) {
 			expected:      0xFE,
 			inputFlags:    FlagSet{},
 			expectedFlags: FlagSet{FullCarry: true},
-			instructions: []Instruction{
-				RotateOperand{action: ShiftAction, source: M, direction: RotateLeft},
+			instructions: []in.Instruction{
+				in.RotateOperand{Action: in.ShiftAction, Source: registers.M, Direction: in.RotateLeft},
 			},
 		},
 		{
@@ -1127,8 +1130,8 @@ func TestRotateOperandWithMemory(t *testing.T) {
 			expected:      0x00,
 			inputFlags:    FlagSet{},
 			expectedFlags: FlagSet{Zero: true, FullCarry: true},
-			instructions: []Instruction{
-				RotateOperand{action: ShiftAction, source: M, direction: RotateRight, withCopy: true},
+			instructions: []in.Instruction{
+				in.RotateOperand{Action: in.ShiftAction, Source: registers.M, Direction: in.RotateRight, WithCopy: true},
 			},
 		},
 		{
@@ -1137,23 +1140,23 @@ func TestRotateOperandWithMemory(t *testing.T) {
 			expected:      0x7F,
 			inputFlags:    FlagSet{},
 			expectedFlags: FlagSet{FullCarry: true},
-			instructions: []Instruction{
-				RotateOperand{action: ShiftAction, source: M, direction: RotateRight},
+			instructions: []in.Instruction{
+				in.RotateOperand{Action: in.ShiftAction, Source: registers.M, Direction: in.RotateRight},
 			},
 		},
 	}
 
 	for _, test := range testCases {
 		cpu := Init()
-		cpu.LoadProgram(encode(append([]Instruction{
-			MoveImmediate{dest: H, immediate: 0x12},
-			MoveImmediate{dest: L, immediate: 0x34},
+		cpu.LoadProgram(encode(append([]in.Instruction{
+			in.MoveImmediate{Dest: registers.H, Immediate: 0x12},
+			in.MoveImmediate{Dest: registers.L, Immediate: 0x34},
 		}, test.instructions...)))
 		cpu.memory.load(0x1234, []byte{test.memory})
 		cpu.setFlags(test.inputFlags)
 		cpu.Run()
 
-		if actual := cpu.GetMem(HL); actual != test.expected {
+		if actual := cpu.GetMem(registers.HL); actual != test.expected {
 			t.Errorf("%s: expected %#X, got %#X\n", test.name, test.expected, actual)
 		}
 		expectFlagSet(t, cpu, test.name, test.expectedFlags)
@@ -1162,63 +1165,63 @@ func TestRotateOperandWithMemory(t *testing.T) {
 
 func TestInstructionCycles(t *testing.T) {
 	testCases := []struct {
-		instructions []Instruction
+		instructions []in.Instruction
 		expected     uint
 		message      string
 	}{
-		{instructions: []Instruction{Move{source: A, dest: B}}, expected: 1, message: "Move"},
-		{instructions: []Instruction{MoveImmediate{dest: H, immediate: 0x12}}, expected: 2, message: "Move immediate"},
-		{instructions: []Instruction{Move{dest: M, source: A}}, expected: 2, message: "Move memory"},
-		{instructions: []Instruction{MoveImmediate{dest: H, immediate: 0x12}, Move{source: A, dest: M}}, expected: 4, message: "Move immediate and move"},
-		{instructions: []Instruction{MoveImmediate{immediate: 0x12, dest: M}}, expected: 3, message: "Move immediate memory"},
-		{instructions: []Instruction{LoadIndirect{dest: A, source: BC}}, expected: 2, message: "load Pair BC"},
-		{instructions: []Instruction{StoreIndirect{dest: BC, source: A}}, expected: 2, message: "Store Pair BC"},
-		{instructions: []Instruction{LoadRelative{}}, expected: 2, message: "load Relative"},
-		{instructions: []Instruction{StoreRelative{}}, expected: 2, message: "Store Relative"},
-		{instructions: []Instruction{LoadRelativeImmediateN{immediate: 0x1}}, expected: 3, message: "load Relative N"},
-		{instructions: []Instruction{StoreRelativeImmediateN{immediate: 0x1}}, expected: 3, message: "Store Relative N"},
-		{instructions: []Instruction{LoadRelativeImmediateNN{immediate: 0x2}}, expected: 4, message: "load NN"},
-		{instructions: []Instruction{StoreRelativeImmediateNN{}}, expected: 4, message: "Store NN"},
-		{instructions: []Instruction{LoadIncrement{}}, expected: 2, message: "load increment"},
-		{instructions: []Instruction{LoadDecrement{}}, expected: 2, message: "load decrement"},
-		{instructions: []Instruction{StoreIncrement{}}, expected: 2, message: "Store increment"},
-		{instructions: []Instruction{StoreDecrement{}}, expected: 2, message: "Store decrement"},
-		{instructions: []Instruction{LoadRegisterPairImmediate{dest: BC, immediate: 0x1234}}, expected: 3, message: "load register pair immediate"},
-		{instructions: []Instruction{HLtoSP{}}, expected: 2, message: "HL to SP"},
-		{instructions: []Instruction{Push{source: BC}}, expected: 4, message: "Push"},
-		{instructions: []Instruction{Pop{dest: BC}}, expected: 3, message: "Pop"},
-		{instructions: []Instruction{LoadHLSP{immediate: 20}}, expected: 3, message: "load HL SP"},
-		{instructions: []Instruction{StoreSP{immediate: 0xDEAD}}, expected: 5, message: "Store SP"},
-		{instructions: []Instruction{Add{source: B}}, expected: 1, message: "Add"},
-		{instructions: []Instruction{Add{source: M}}, expected: 2, message: "Add from memory"},
-		{instructions: []Instruction{AddImmediate{immediate: 0x12}}, expected: 2, message: "Add Immediate"},
-		{instructions: []Instruction{Subtract{source: B}}, expected: 1, message: "Subtract"},
-		{instructions: []Instruction{Subtract{source: M}}, expected: 2, message: "Subtract from memory"},
-		{instructions: []Instruction{SubtractImmediate{immediate: 0x12}}, expected: 2, message: "Subtract Immediate"},
-		{instructions: []Instruction{And{source: B}}, expected: 1, message: "And"},
-		{instructions: []Instruction{And{source: M}}, expected: 2, message: "And from memory"},
-		{instructions: []Instruction{AndImmediate{immediate: 0x12}}, expected: 2, message: "And Immediate"},
-		{instructions: []Instruction{Or{source: B}}, expected: 1, message: "Or"},
-		{instructions: []Instruction{Or{source: M}}, expected: 2, message: "Or from memory"},
-		{instructions: []Instruction{OrImmediate{immediate: 0x12}}, expected: 2, message: "Or Immediate"},
-		{instructions: []Instruction{Xor{source: B}}, expected: 1, message: "Xor"},
-		{instructions: []Instruction{Xor{source: M}}, expected: 2, message: "Xor from memory"},
-		{instructions: []Instruction{XorImmediate{immediate: 0x12}}, expected: 2, message: "Xor Immediate"},
-		{instructions: []Instruction{Cmp{source: B}}, expected: 1, message: "Cmp"},
-		{instructions: []Instruction{Cmp{source: M}}, expected: 2, message: "Cmp from memory"},
-		{instructions: []Instruction{CmpImmediate{immediate: 0x12}}, expected: 2, message: "Cmp Immediate"},
-		{instructions: []Instruction{Increment{dest: A}}, expected: 1, message: "Inc"},
-		{instructions: []Instruction{Increment{dest: M}}, expected: 3, message: "Inc memory"},
-		{instructions: []Instruction{Decrement{dest: A}}, expected: 1, message: "Dec"},
-		{instructions: []Instruction{Decrement{dest: M}}, expected: 3, message: "Dec memory"},
-		{instructions: []Instruction{AddPair{source: HL}}, expected: 2, message: "Add pair"},
-		{instructions: []Instruction{AddSP{immediate: 3}}, expected: 4, message: "Add SP"},
-		{instructions: []Instruction{IncrementPair{dest: DE}}, expected: 2, message: "Increment pair"},
-		{instructions: []Instruction{DecrementPair{dest: DE}}, expected: 2, message: "Decrement pair"},
-		{instructions: []Instruction{RotateA{withCopy: true, direction: RotateLeft}}, expected: 1, message: "RLCA"},
-		{instructions: []Instruction{RotateA{direction: RotateRight}}, expected: 1, message: "RRA"},
-		{instructions: []Instruction{RotateOperand{direction: RotateLeft, withCopy: true, source: A}}, expected: 2, message: "RLC"},
-		{instructions: []Instruction{RotateOperand{direction: RotateLeft, withCopy: true, source: M}}, expected: 4, message: "RLC"},
+		{instructions: []in.Instruction{in.Move{Source: registers.A, Dest: registers.B}}, expected: 1, message: "in.Move"},
+		{instructions: []in.Instruction{in.MoveImmediate{Dest: registers.H, Immediate: 0x12}}, expected: 2, message: "in.Move Immediate"},
+		{instructions: []in.Instruction{in.Move{Dest: registers.M, Source: registers.A}}, expected: 2, message: "Move memory"},
+		{instructions: []in.Instruction{in.MoveImmediate{Dest: registers.H, Immediate: 0x12}, in.Move{Source: registers.A, Dest: registers.M}}, expected: 4, message: "Move Immediate and move"},
+		{instructions: []in.Instruction{in.MoveImmediate{Immediate: 0x12, Dest: registers.M}}, expected: 3, message: "Move Immediate memory"},
+		{instructions: []in.Instruction{in.LoadIndirect{Dest: registers.A, Source: registers.BC}}, expected: 2, message: "load Pair BC"},
+		{instructions: []in.Instruction{in.StoreIndirect{Dest: registers.BC, Source: registers.A}}, expected: 2, message: "Store Pair BC"},
+		{instructions: []in.Instruction{in.LoadRelative{}}, expected: 2, message: "load Relative"},
+		{instructions: []in.Instruction{in.StoreRelative{}}, expected: 2, message: "Store Relative"},
+		{instructions: []in.Instruction{in.LoadRelativeImmediateN{Immediate: 0x1}}, expected: 3, message: "load Relative N"},
+		{instructions: []in.Instruction{in.StoreRelativeImmediateN{Immediate: 0x1}}, expected: 3, message: "Store Relative N"},
+		{instructions: []in.Instruction{in.LoadRelativeImmediateNN{Immediate: 0x2}}, expected: 4, message: "load NN"},
+		{instructions: []in.Instruction{in.StoreRelativeImmediateNN{}}, expected: 4, message: "Store NN"},
+		{instructions: []in.Instruction{in.LoadIncrement{}}, expected: 2, message: "load increment"},
+		{instructions: []in.Instruction{in.LoadDecrement{}}, expected: 2, message: "load decrement"},
+		{instructions: []in.Instruction{in.StoreIncrement{}}, expected: 2, message: "Store increment"},
+		{instructions: []in.Instruction{in.StoreDecrement{}}, expected: 2, message: "Store decrement"},
+		{instructions: []in.Instruction{in.LoadRegisterPairImmediate{Dest: registers.BC, Immediate: 0x1234}}, expected: 3, message: "load register pair Immediate"},
+		{instructions: []in.Instruction{in.HLtoSP{}}, expected: 2, message: "HL to SP"},
+		{instructions: []in.Instruction{in.Push{Source: registers.BC}}, expected: 4, message: "Push"},
+		{instructions: []in.Instruction{in.Pop{Dest: registers.BC}}, expected: 3, message: "Pop"},
+		{instructions: []in.Instruction{in.LoadHLSP{Immediate: 20}}, expected: 3, message: "load HL SP"},
+		{instructions: []in.Instruction{in.StoreSP{Immediate: 0xDEAD}}, expected: 5, message: "Store SP"},
+		{instructions: []in.Instruction{in.Add{Source: registers.B}}, expected: 1, message: "Add"},
+		{instructions: []in.Instruction{in.Add{Source: registers.M}}, expected: 2, message: "Add from memory"},
+		{instructions: []in.Instruction{in.AddImmediate{Immediate: 0x12}}, expected: 2, message: "Add Immediate"},
+		{instructions: []in.Instruction{in.Subtract{Source: registers.B}}, expected: 1, message: "Subtract"},
+		{instructions: []in.Instruction{in.Subtract{Source: registers.M}}, expected: 2, message: "Subtract from memory"},
+		{instructions: []in.Instruction{in.SubtractImmediate{Immediate: 0x12}}, expected: 2, message: "Subtract Immediate"},
+		{instructions: []in.Instruction{in.And{Source: registers.B}}, expected: 1, message: "And"},
+		{instructions: []in.Instruction{in.And{Source: registers.M}}, expected: 2, message: "And from memory"},
+		{instructions: []in.Instruction{in.AndImmediate{Immediate: 0x12}}, expected: 2, message: "And Immediate"},
+		{instructions: []in.Instruction{in.Or{Source: registers.B}}, expected: 1, message: "Or"},
+		{instructions: []in.Instruction{in.Or{Source: registers.M}}, expected: 2, message: "Or from memory"},
+		{instructions: []in.Instruction{in.OrImmediate{Immediate: 0x12}}, expected: 2, message: "Or Immediate"},
+		{instructions: []in.Instruction{in.Xor{Source: registers.B}}, expected: 1, message: "Xor"},
+		{instructions: []in.Instruction{in.Xor{Source: registers.M}}, expected: 2, message: "Xor from memory"},
+		{instructions: []in.Instruction{in.XorImmediate{Immediate: 0x12}}, expected: 2, message: "Xor Immediate"},
+		{instructions: []in.Instruction{in.Cmp{Source: registers.B}}, expected: 1, message: "Cmp"},
+		{instructions: []in.Instruction{in.Cmp{Source: registers.M}}, expected: 2, message: "Cmp from memory"},
+		{instructions: []in.Instruction{in.CmpImmediate{Immediate: 0x12}}, expected: 2, message: "Cmp Immediate"},
+		{instructions: []in.Instruction{in.Increment{Dest: registers.A}}, expected: 1, message: "Inc"},
+		{instructions: []in.Instruction{in.Increment{Dest: registers.M}}, expected: 3, message: "Inc memory"},
+		{instructions: []in.Instruction{in.Decrement{Dest: registers.A}}, expected: 1, message: "Dec"},
+		{instructions: []in.Instruction{in.Decrement{Dest: registers.M}}, expected: 3, message: "Dec memory"},
+		{instructions: []in.Instruction{in.AddPair{Source: registers.HL}}, expected: 2, message: "Add pair"},
+		{instructions: []in.Instruction{in.AddSP{Immediate: 3}}, expected: 4, message: "Add SP"},
+		{instructions: []in.Instruction{in.IncrementPair{Dest: registers.DE}}, expected: 2, message: "Increment pair"},
+		{instructions: []in.Instruction{in.DecrementPair{Dest: registers.DE}}, expected: 2, message: "Decrement pair"},
+		{instructions: []in.Instruction{in.RotateA{WithCopy: true, Direction: in.RotateLeft}}, expected: 1, message: "RLCA"},
+		{instructions: []in.Instruction{in.RotateA{Direction: in.RotateRight}}, expected: 1, message: "RRA"},
+		{instructions: []in.Instruction{in.RotateOperand{Direction: in.RotateLeft, WithCopy: true, Source: registers.A}}, expected: 2, message: "RLC"},
+		{instructions: []in.Instruction{in.RotateOperand{Direction: in.RotateLeft, WithCopy: true, Source: registers.M}}, expected: 4, message: "RLC"},
 	}
 
 	for _, test := range testCases {
