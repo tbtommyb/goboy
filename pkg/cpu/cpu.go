@@ -157,7 +157,7 @@ func (cpu *CPU) perform(f func(...byte) (byte, FlagSet), args ...byte) {
 	cpu.setFlags(flagSet)
 }
 
-func (cpu *CPU) Run(instr Instruction) {
+func (cpu *CPU) Execute(instr Instruction) {
 	switch i := instr.(type) {
 	case Move:
 		cpu.Set(i.dest, cpu.Get(i.source))
@@ -320,8 +320,8 @@ func (cpu *CPU) Run(instr Instruction) {
 	}
 }
 
-func (cpu *CPU) LoadAndRun() {
-	Decode(cpu, cpu.Run)
+func (cpu *CPU) Run() {
+	Decode(cpu, cpu.Execute)
 }
 
 func Init() CPU {
