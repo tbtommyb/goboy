@@ -210,20 +210,17 @@ func (cpu *CPU) Run(instr Instruction) {
 		high := cpu.popStack()
 		cpu.SetPair(i.dest, mergePair(high, low))
 	case LoadHLSP:
-		a := int8(cpu.fetchAndIncrement())
+		a := uint16(i.immediate)
 		b := cpu.GetSP()
-		cpu.SetHL(uint16(a) + b)
+		cpu.SetHL(a + b)
 		cpu.incrementCycles() // TODO: remove need for this
 		cpu.setFlags(FlagSet{
-			HalfCarry: isAddHalfCarry16(uint16(a), b),
-			FullCarry: isAddFullCarry16(uint16(a), b),
+			HalfCarry: isAddHalfCarry16(a, b),
+			FullCarry: isAddFullCarry16(a, b),
 		})
 	case StoreSP:
-		var immediate uint16
-		immediate |= uint16(cpu.fetchAndIncrement())
-		immediate |= uint16(cpu.fetchAndIncrement()) << 8
-		cpu.WriteMem(immediate, byte(cpu.GetSP()))
-		cpu.WriteMem(immediate+1, byte(cpu.GetSP()>>8))
+		cpu.WriteMem(i.immediate, byte(cpu.GetSP()))
+		cpu.WriteMem(i.immediate+1, byte(cpu.GetSP()>>8))
 	case Add:
 		carry := cpu.carryBit(i.withCarry, FullCarry)
 		cpu.perform(addOp, cpu.Get(A), cpu.Get(i.source), carry)

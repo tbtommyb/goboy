@@ -8,6 +8,10 @@ func mergePair(high, low byte) uint16 {
 	return uint16(high)<<8 | uint16(low)
 }
 
+func reverseMergePair(low, high byte) uint16 {
+	return mergePair(high, low)
+}
+
 func setBit(pos, value, flag byte) byte {
 	value ^= (-flag ^ value) & (1 << pos)
 	return value

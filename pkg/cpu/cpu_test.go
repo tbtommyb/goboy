@@ -1,6 +1,7 @@
 package cpu
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -259,195 +260,196 @@ func TestStoreRelativeImmediateNN(t *testing.T) {
 	}
 }
 
-// func TestLoadIncrement(t *testing.T) {
-// 	cpu := Init()
-// 	var expected byte = 0xFF
-// 	cpu.memory.load(0x1234, []byte{expected})
+func TestLoadIncrement(t *testing.T) {
+	cpu := Init()
+	var expected byte = 0xFF
+	cpu.memory.load(0x1234, []byte{expected})
 
-// 	cpu.LoadProgram(encode([]Instruction{
-// 		MoveImmediate{dest: H, immediate: 0x12},
-// 		MoveImmediate{dest: L, immediate: 0x34},
-// 		LoadIncrement{},
-// 	}))
-// 	cpu.LoadAndRun()
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: H, immediate: 0x12},
+		MoveImmediate{dest: L, immediate: 0x34},
+		LoadIncrement{},
+	}))
+	cpu.LoadAndRun()
 
-// 	if actual := cpu.Get(A); actual != expected {
-// 		t.Errorf("Expected %#X, got %#X", expected, actual)
-// 	}
-// 	if hl := cpu.GetHL(); hl != 0x1235 {
-// 		t.Errorf("Expected %#X, got %#X", 0x1235, hl)
-// 	}
-// }
+	if actual := cpu.Get(A); actual != expected {
+		t.Errorf("Expected %#X, got %#X", expected, actual)
+	}
+	if hl := cpu.GetHL(); hl != 0x1235 {
+		t.Errorf("Expected %#X, got %#X", 0x1235, hl)
+	}
+}
 
-// func TestLoadDecrement(t *testing.T) {
-// 	cpu := Init()
-// 	var expected byte = 0xFF
-// 	cpu.memory.load(0x1234, []byte{expected})
+func TestLoadDecrement(t *testing.T) {
+	cpu := Init()
+	var expected byte = 0xFF
+	cpu.memory.load(0x1234, []byte{expected})
 
-// 	cpu.LoadProgram(encode([]Instruction{
-// 		MoveImmediate{dest: H, immediate: 0x12},
-// 		MoveImmediate{dest: L, immediate: 0x34},
-// 		LoadDecrement{},
-// 	}))
-// 	cpu.LoadAndRun()
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: H, immediate: 0x12},
+		MoveImmediate{dest: L, immediate: 0x34},
+		LoadDecrement{},
+	}))
+	cpu.LoadAndRun()
 
-// 	if actual := cpu.Get(A); actual != expected {
-// 		t.Errorf("Expected %#X, got %#X", expected, actual)
-// 	}
-// 	if hl := cpu.GetHL(); hl != 0x1233 {
-// 		t.Errorf("Expected %#X, got %#X", 0x1233, hl)
-// 	}
-// }
+	if actual := cpu.Get(A); actual != expected {
+		t.Errorf("Expected %#X, got %#X", expected, actual)
+	}
+	if hl := cpu.GetHL(); hl != 0x1233 {
+		t.Errorf("Expected %#X, got %#X", 0x1233, hl)
+	}
+}
 
-// func TestStoreIncrement(t *testing.T) {
-// 	cpu := Init()
-// 	var expected byte = 0xFF
+func TestStoreIncrement(t *testing.T) {
+	cpu := Init()
+	var expected byte = 0xFF
 
-// 	cpu.LoadProgram(encode([]Instruction{
-// 		MoveImmediate{dest: A, immediate: expected},
-// 		MoveImmediate{dest: H, immediate: 0x12},
-// 		MoveImmediate{dest: L, immediate: 0x34},
-// 		StoreIncrement{},
-// 	}))
-// 	cpu.LoadAndRun()
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: A, immediate: expected},
+		MoveImmediate{dest: H, immediate: 0x12},
+		MoveImmediate{dest: L, immediate: 0x34},
+		StoreIncrement{},
+	}))
+	cpu.LoadAndRun()
 
-// 	if actual := cpu.memory[0x1234]; actual != expected {
-// 		t.Errorf("Expected %#X, got %#X", expected, actual)
-// 	}
-// 	if hl := cpu.GetHL(); hl != 0x1235 {
-// 		t.Errorf("Expected %#X, got %#X", 0x1235, hl)
-// 	}
-// }
+	if actual := cpu.memory[0x1234]; actual != expected {
+		t.Errorf("Expected %#X, got %#X", expected, actual)
+	}
+	if hl := cpu.GetHL(); hl != 0x1235 {
+		t.Errorf("Expected %#X, got %#X", 0x1235, hl)
+	}
+}
 
-// func TestStoreDecrement(t *testing.T) {
-// 	cpu := Init()
-// 	var expected byte = 0xFF
+func TestStoreDecrement(t *testing.T) {
+	cpu := Init()
+	var expected byte = 0xFF
 
-// 	cpu.LoadProgram(encode([]Instruction{
-// 		MoveImmediate{dest: A, immediate: expected},
-// 		MoveImmediate{dest: H, immediate: 0x12},
-// 		MoveImmediate{dest: L, immediate: 0x34},
-// 		StoreDecrement{},
-// 	}))
-// 	cpu.LoadAndRun()
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: A, immediate: expected},
+		MoveImmediate{dest: H, immediate: 0x12},
+		MoveImmediate{dest: L, immediate: 0x34},
+		StoreDecrement{},
+	}))
+	cpu.LoadAndRun()
 
-// 	if actual := cpu.memory[0x1234]; actual != expected {
-// 		t.Errorf("Expected %#X, got %#X", expected, actual)
-// 	}
-// 	if hl := cpu.GetHL(); hl != 0x1233 {
-// 		t.Errorf("Expected %#X, got %#X", 0x1233, hl)
-// 	}
-// }
+	if actual := cpu.memory[0x1234]; actual != expected {
+		t.Errorf("Expected %#X, got %#X", expected, actual)
+	}
+	if hl := cpu.GetHL(); hl != 0x1233 {
+		t.Errorf("Expected %#X, got %#X", 0x1233, hl)
+	}
+}
 
-// func TestLoadRegisterPairImmediate(t *testing.T) {
-// 	cpu := Init()
+func TestLoadRegisterPairImmediate(t *testing.T) {
+	cpu := Init()
 
-// 	cpu.LoadProgram(encode([]Instruction{
-// 		LoadRegisterPairImmediate{dest: BC, immediate: 0x1234},
-// 		LoadRegisterPairImmediate{dest: DE, immediate: 0x1235},
-// 		LoadRegisterPairImmediate{dest: HL, immediate: 0x1236},
-// 		LoadRegisterPairImmediate{dest: SP, immediate: 0x1237},
-// 	}))
-// 	cpu.LoadAndRun()
+	cpu.LoadProgram(encode([]Instruction{
+		LoadRegisterPairImmediate{dest: BC, immediate: 0x1234},
+		LoadRegisterPairImmediate{dest: DE, immediate: 0x1235},
+		LoadRegisterPairImmediate{dest: HL, immediate: 0x1236},
+		LoadRegisterPairImmediate{dest: SP, immediate: 0x1237},
+	}))
+	cpu.LoadAndRun()
 
-// 	if bc := cpu.GetBC(); bc != 0x1234 {
-// 		t.Errorf("Expected %#X, got %#X", 0x1234, bc)
-// 	}
-// 	if de := cpu.GetDE(); de != 0x1235 {
-// 		t.Errorf("Expected %#X, got %#X", 0x1235, de)
-// 	}
-// 	if hl := cpu.GetHL(); hl != 0x1236 {
-// 		t.Errorf("Expected %#X, got %#X", 0x1236, hl)
-// 	}
-// 	if sp := cpu.GetSP(); sp != 0x1237 {
-// 		t.Errorf("Expected %#X, got %#X", 0x1237, sp)
-// 	}
-// }
+	if bc := cpu.GetBC(); bc != 0x1234 {
+		t.Errorf("Expected %#X, got %#X", 0x1234, bc)
+	}
+	if de := cpu.GetDE(); de != 0x1235 {
+		t.Errorf("Expected %#X, got %#X", 0x1235, de)
+	}
+	if hl := cpu.GetHL(); hl != 0x1236 {
+		t.Errorf("Expected %#X, got %#X", 0x1236, hl)
+	}
+	if sp := cpu.GetSP(); sp != 0x1237 {
+		t.Errorf("Expected %#X, got %#X", 0x1237, sp)
+	}
+}
 
-// func TestHLtoSP(t *testing.T) {
-// 	cpu := Init()
+func TestHLtoSP(t *testing.T) {
+	cpu := Init()
 
-// 	cpu.LoadProgram(encode([]Instruction{
-// 		LoadRegisterPairImmediate{dest: HL, immediate: 0x4321},
-// 		HLtoSP{},
-// 	}))
-// 	cpu.LoadAndRun()
+	cpu.LoadProgram(encode([]Instruction{
+		LoadRegisterPairImmediate{dest: HL, immediate: 0x4321},
+		HLtoSP{},
+	}))
+	cpu.LoadAndRun()
 
-// 	if sp := cpu.GetSP(); sp != 0x4321 {
-// 		t.Errorf("Expected %#X, got %#X", 0x4321, sp)
-// 	}
-// }
+	if sp := cpu.GetSP(); sp != 0x4321 {
+		t.Errorf("Expected %#X, got %#X", 0x4321, sp)
+	}
+}
 
-// func TestPush(t *testing.T) {
-// 	cpu := Init()
+func TestPush(t *testing.T) {
+	cpu := Init()
 
-// 	startingSP := cpu.GetSP()
-// 	cpu.LoadProgram(encode([]Instruction{
-// 		LoadRegisterPairImmediate{dest: HL, immediate: 0x1236},
-// 		Push{source: HL},
-// 	}))
-// 	cpu.LoadAndRun()
+	startingSP := cpu.GetSP()
+	cpu.LoadProgram(encode([]Instruction{
+		LoadRegisterPairImmediate{dest: HL, immediate: 0x1236},
+		Push{source: HL},
+	}))
+	cpu.LoadAndRun()
 
-// 	currentSP := cpu.GetSP()
-// 	if currentSP != startingSP-2 {
-// 		t.Errorf("SP incorrect: %#v\n", currentSP)
-// 	}
+	currentSP := cpu.GetSP()
+	if currentSP != startingSP-2 {
+		t.Errorf("SP incorrect: %#v\n", currentSP)
+	}
 
-// 	if actual := cpu.memory[currentSP : currentSP+2]; actual[0] != 0x36 || actual[1] != 0x12 {
-// 		t.Errorf("Expected %#X, got %#X%X", 0x1236, actual[0], actual[1])
-// 	}
-// }
+	if actual := cpu.memory[currentSP : currentSP+2]; actual[0] != 0x36 || actual[1] != 0x12 {
+		t.Errorf("Expected %#X, got %#X%X", 0x1236, actual[0], actual[1])
+	}
+}
 
-// func TestPop(t *testing.T) {
-// 	cpu := Init()
+func TestPop(t *testing.T) {
+	cpu := Init()
 
-// 	startingSP := cpu.GetSP()
-// 	cpu.LoadProgram(encode([]Instruction{
-// 		LoadRegisterPairImmediate{dest: HL, immediate: 0x1236},
-// 		Push{source: HL},
-// 		Pop{dest: BC},
-// 	}))
-// 	cpu.LoadAndRun()
+	startingSP := cpu.GetSP()
+	cpu.LoadProgram(encode([]Instruction{
+		LoadRegisterPairImmediate{dest: HL, immediate: 0x1236},
+		Push{source: HL},
+		Pop{dest: BC},
+	}))
+	cpu.LoadAndRun()
 
-// 	currentSP := cpu.GetSP()
-// 	if currentSP != startingSP {
-// 		t.Errorf("SP incorrect: %#v\n", currentSP)
-// 	}
+	currentSP := cpu.GetSP()
+	if currentSP != startingSP {
+		t.Errorf("SP incorrect: %#v\n", currentSP)
+	}
 
-// 	if cpu.GetBC() != cpu.GetHL() {
-// 		t.Errorf("Expected %#X, got %#X", cpu.GetHL(), cpu.GetBC())
-// 	}
-// }
+	if cpu.GetBC() != cpu.GetHL() {
+		t.Errorf("Expected %#X, got %#X", cpu.GetHL(), cpu.GetBC())
+	}
+}
 
-// func TestLoadHLSPPositive(t *testing.T) {
-// 	cpu := Init()
+func TestLoadHLSPPositive(t *testing.T) {
+	cpu := Init()
 
-// 	cpu.LoadProgram(encode([]Instruction{
-// 		MoveImmediate{dest: H, immediate: 0xFF},
-// 		MoveImmediate{dest: L, immediate: 0xF8},
-// 		HLtoSP{},
-// 		LoadHLSP{immediate: 2},
-// 	}))
-// 	cpu.LoadAndRun()
+	cpu.LoadProgram(encode([]Instruction{
+		MoveImmediate{dest: H, immediate: 0xFF},
+		MoveImmediate{dest: L, immediate: 0xF8},
+		HLtoSP{},
+		LoadHLSP{immediate: 2},
+	}))
+	cpu.LoadAndRun()
 
-// 	if actual := cpu.GetHL(); actual != 0xFFFA {
-// 		t.Errorf("Expected %#X, got %#X\n", 0xFFFA, actual)
-// 	}
-// 	expectFlagSet(t, cpu, "load HL SP positive", FlagSet{})
-// }
-// func TestLoadHLSPNegative(t *testing.T) {
-// 	cpu := Init()
+	if actual := cpu.GetHL(); actual != 0xFFFA {
+		t.Errorf("Expected %#X, got %#X\n", 0xFFFA, actual)
+	}
+	expectFlagSet(t, cpu, "load HL SP positive", FlagSet{})
+}
 
-// 	initialSP := cpu.GetSP()
-// 	cpu.LoadProgram(encode([]Instruction{
-// 		LoadHLSP{immediate: -10},
-// 	}))
-// 	cpu.LoadAndRun()
+func TestLoadHLSPNegative(t *testing.T) {
+	cpu := Init()
 
-// 	if actual := cpu.GetHL(); actual != initialSP-10 {
-// 		t.Errorf("Expected %#X, got %#X\n", initialSP-10, actual)
-// 	}
-// }
+	initialSP := cpu.GetSP()
+	cpu.LoadProgram(encode([]Instruction{
+		LoadHLSP{immediate: -10},
+	}))
+	cpu.LoadAndRun()
+
+	if actual := cpu.GetHL(); actual != initialSP-10 {
+		t.Errorf("Expected %#X, got %#X\n", initialSP-10, actual)
+	}
+}
 
 // func TestStoreSP(t *testing.T) {
 // 	cpu := Init()
@@ -1233,21 +1235,21 @@ func TestStoreRelativeImmediateNN(t *testing.T) {
 // 	}
 // }
 
-// func expectFlagSet(t *testing.T, cpu CPU, name string, fs FlagSet) {
-// 	var errs []string
-// 	if actual := cpu.isSet(Zero); actual != fs.Zero {
-// 		errs = append(errs, fmt.Sprintf("expected Zero to be %t, got %t", fs.Zero, actual))
-// 	}
-// 	if actual := cpu.isSet(Negative); actual != fs.Negative {
-// 		errs = append(errs, fmt.Sprintf("expected Negative to be %t, got %t", fs.Negative, actual))
-// 	}
-// 	if actual := cpu.isSet(HalfCarry); actual != fs.HalfCarry {
-// 		errs = append(errs, fmt.Sprintf("expected HalfCarry to be %t, got %t", fs.HalfCarry, actual))
-// 	}
-// 	if actual := cpu.isSet(FullCarry); actual != fs.FullCarry {
-// 		errs = append(errs, fmt.Sprintf("expected FullCarry to be %t, got %t", fs.FullCarry, actual))
-// 	}
-// 	for _, err := range errs {
-// 		t.Errorf("%s: %s", name, err)
-// 	}
-// }
+func expectFlagSet(t *testing.T, cpu CPU, name string, fs FlagSet) {
+	var errs []string
+	if actual := cpu.isSet(Zero); actual != fs.Zero {
+		errs = append(errs, fmt.Sprintf("expected Zero to be %t, got %t", fs.Zero, actual))
+	}
+	if actual := cpu.isSet(Negative); actual != fs.Negative {
+		errs = append(errs, fmt.Sprintf("expected Negative to be %t, got %t", fs.Negative, actual))
+	}
+	if actual := cpu.isSet(HalfCarry); actual != fs.HalfCarry {
+		errs = append(errs, fmt.Sprintf("expected HalfCarry to be %t, got %t", fs.HalfCarry, actual))
+	}
+	if actual := cpu.isSet(FullCarry); actual != fs.FullCarry {
+		errs = append(errs, fmt.Sprintf("expected FullCarry to be %t, got %t", fs.FullCarry, actual))
+	}
+	for _, err := range errs {
+		t.Errorf("%s: %s", name, err)
+	}
+}

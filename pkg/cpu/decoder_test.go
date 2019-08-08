@@ -1,7 +1,6 @@
 package cpu
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -25,10 +24,10 @@ func compare(a, b []byte) bool {
 var testCases = []DoubleOpcodeTestCase{
 	{[]byte{0x6, 0x12}, MoveImmediate{dest: B, immediate: 0x12}},
 	{[]byte{0x36, 0x34}, MoveImmediate{dest: M, immediate: 0x34}},
-	{[]byte{0xF2, 0x11}, LoadRelative{}},
+	{[]byte{0xF2}, LoadRelative{}},
 	{[]byte{0xF0, 0x11}, LoadRelativeImmediateN{immediate: 0x11}},
 	{[]byte{0xFA, 0x11, 0x22}, LoadRelativeImmediateNN{immediate: 0x1122}},
-	{[]byte{0xE2, 0x11}, StoreRelative{}},
+	{[]byte{0xE2}, StoreRelative{}},
 	{[]byte{0xE0, 0x11}, StoreRelativeImmediateN{immediate: 0x11}},
 	{[]byte{0xEA, 0x11, 0x22}, StoreRelativeImmediateNN{immediate: 0x1122}},
 	{[]byte{0xFF}, InvalidInstruction{opcode: 0xFF}},
@@ -44,21 +43,29 @@ var testCases = []DoubleOpcodeTestCase{
 	{[]byte{0x3A}, LoadDecrement{}},
 	{[]byte{0x22}, StoreIncrement{}},
 	{[]byte{0x32}, StoreDecrement{}},
-	{[]byte{0x1}, LoadRegisterPairImmediate{dest: BC}},
-	{[]byte{0x11}, LoadRegisterPairImmediate{dest: DE}},
-	{[]byte{0x21}, LoadRegisterPairImmediate{dest: HL}},
-	{[]byte{0x31}, LoadRegisterPairImmediate{dest: SP}},
+	{[]byte{0x1, 0x34, 0x12}, LoadRegisterPairImmediate{dest: BC, immediate: 0x1234}},
+	{[]byte{0x11, 0x34, 0x12}, LoadRegisterPairImmediate{dest: DE, immediate: 0x1234}},
+	{[]byte{0x21, 0x34, 0x12}, LoadRegisterPairImmediate{dest: HL, immediate: 0x1234}},
+	{[]byte{0x31, 0x34, 0x12}, LoadRegisterPairImmediate{dest: SP, immediate: 0x1234}},
 	{[]byte{0xF9}, HLtoSP{}},
+	{[]byte{0xC5}, Push{source: BC}},
+	{[]byte{0xD5}, Push{source: DE}},
+	{[]byte{0xE5}, Push{source: HL}},
+	{[]byte{0xF5}, Push{source: AF}},
+	{[]byte{0xC1}, Pop{dest: BC}},
+	{[]byte{0xD1}, Pop{dest: DE}},
+	{[]byte{0xE1}, Pop{dest: HL}},
+	{[]byte{0xF1}, Pop{dest: AF}},
+	{[]byte{0xF8, 0x12}, LoadHLSP{immediate: 0x12}},
+	{[]byte{0x8, 0x44, 0x55}, StoreSP{immediate: 0x5544}},
 }
 
 func TestDecoder(t *testing.T) {
 	for _, testCase := range testCases {
 		il := InstructionList{instructions: testCase.opcodes}
 		Decode(&il, func(actual Instruction) {
-			result := actual.Opcode()
-			ok := compare(result, testCase.opcodes)
-			if !ok {
-				fmt.Errorf("Expected %#v, got %#v", testCase.opcodes, result)
+			if actual != testCase.expected {
+				t.Errorf("Expected %#v, got %#v", testCase.expected, actual)
 			}
 		})
 	}
@@ -71,22 +78,13 @@ func TestOpcode(t *testing.T) {
 			result := actual.Opcode()
 			ok := compare(result, testCase.opcodes)
 			if !ok {
-				fmt.Errorf("Expected %#v, got %#v", testCase.opcodes, result)
+				t.Errorf("Expected %#v, got %#v", testCase.opcodes, result)
 			}
 		})
 	}
 }
 
 // var testCases = map[byte]Instruction{
-// 0xC5: Push{source: BC},
-// 0xD5: Push{source: DE},
-// 0xE5: Push{source: HL},
-// 0xF5: Push{source: AF},
-// 0xC1: Pop{dest: BC},
-// 0xD1: Pop{dest: DE},
-// 0xE1: Pop{dest: HL},
-// 0xF1: Pop{dest: AF},
-// 0xF8: LoadHLSP{},
 // 0x8:  StoreSP{},
 // 0x81: Add{source: C},
 // 0x8F: Add{source: A, withCarry: true},

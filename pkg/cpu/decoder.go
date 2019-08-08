@@ -147,22 +147,21 @@ func Decode(il InstructionIterator, handle func(Instruction)) {
 			handle(StoreRelativeImmediateNN{immediate})
 		case op&LoadRegisterPairImmediateMask == LoadRegisterPairImmediatePattern:
 			// LD dd, nn. 0b00dd 0001
-			var immediate uint16
-			immediate |= uint16(il.next())
-			immediate |= uint16(il.next()) << 8
+			immediate := reverseMergePair(il.next(), il.next())
 			handle(LoadRegisterPairImmediate{dest: pair(op), immediate: immediate})
-		// case op&PushPopMask == PushPattern:
-		// 	// PUSH qq. 0b11qq 0101
-		// 	handle(Push{source: demuxPairs(op)}
-		// case op&PushPopMask == PopPattern:
-		// 	// POP qq. 0b11qq 0001
-		// 	handle(Pop{dest: demuxPairs(op)}
-		// case op == LoadHLSPPattern:
-		// 	// LDHL SP, e. 0b1111 1000
-		// 	handle(LoadHLSP{}
-		// case op == StoreSPPattern:
-		// 	// LD nn, SP. 0b0000 1000
-		// 	handle(StoreSP{}
+		case op&PushPopMask == PushPattern:
+			// PUSH qq. 0b11qq 0101
+			handle(Push{source: demuxPairs(op)})
+		case op&PushPopMask == PopPattern:
+			// POP qq. 0b11qq 0001
+			handle(Pop{dest: demuxPairs(op)})
+		case op == LoadHLSPPattern:
+			// LDHL SP, e. 0b1111 1000
+			handle(LoadHLSP{immediate: int8(il.next())})
+		case op == StoreSPPattern:
+			// LD nn, SP. 0b0000 1000
+			immediate := reverseMergePair(il.next(), il.next())
+			handle(StoreSP{immediate})
 		// case op&AddMask == AddPattern:
 		// 	// ADD A, r. 0b1000 0rrr
 		// 	// ADC A, r. 0b1000 1rrr
