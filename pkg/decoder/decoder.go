@@ -13,6 +13,9 @@ type Iterator interface {
 func Decode(il Iterator, handle func(in.Instruction)) {
 	for op := il.Next(); op != 0; op = il.Next() {
 		switch {
+		case op == in.HaltPattern:
+			// HALT. 0b0111 0110
+			handle(in.Halt{})
 		case op&in.MoveMask == in.MovePattern:
 			// LD D, S. 0b01dd dsss
 			handle(in.Move{Source: in.Source(op), Dest: in.Dest(op)})
@@ -155,6 +158,15 @@ func Decode(il Iterator, handle func(in.Instruction)) {
 				// SRA m. 0b1100 1011, 0010 1rrr
 				// SRR m. 0b1100 1011, 0011 1rrr
 				handle(in.Shift{Direction: in.GetDirection(operand), Source: in.Source(operand), WithCopy: in.GetWithCopyShift(operand)})
+			case operand&in.BitMask == in.BitPattern:
+				// BIT b r. 0b1100 1011, 01bb brrr
+				handle(in.Bit{Source: in.Source(operand), BitNumber: in.BitNumber(operand)})
+			case operand&in.SetMask == in.SetPattern:
+				// SET b r. 0b1100 1011, 11bb brrr
+				handle(in.Set{Source: in.Source(operand), BitNumber: in.BitNumber(operand)})
+			case operand&in.ResetMask == in.ResetPattern:
+				// RES b r. 0b1100 1011, 10bb brrr
+				handle(in.Reset{Source: in.Source(operand), BitNumber: in.BitNumber(operand)})
 			default:
 				// RLC r. 0b11000 1011, 0001 0rrr
 				// RL r. 0b11000 1011, 0001 0rrr
@@ -162,8 +174,76 @@ func Decode(il Iterator, handle func(in.Instruction)) {
 				// RR r. 0b11000 1011, 0001 1rrr
 				handle(in.RotateOperand{Direction: in.GetDirection(operand), WithCopy: in.GetWithCopyRotation(operand), Source: in.Source(operand)})
 			}
-		case op == 0:
-			handle(in.EmptyInstruction{})
+		case op == in.JumpImmediatePattern:
+			// JP nn. 0b1100 0011, L, H
+			Immediate := utils.ReverseMergePair(il.Next(), il.Next())
+			handle(in.JumpImmediate{Immediate})
+		case op&in.JumpConditionalMask == in.JumpImmediateConditionalPattern:
+			// JP cc nn. 0b110c c010, L, H
+			Immediate := utils.ReverseMergePair(il.Next(), il.Next())
+			Condition := in.GetCondition(op)
+			handle(in.JumpImmediateConditional{Immediate, Condition})
+		case op == in.JumpRelativePattern:
+			// JR, n. 0b0001 1000, n
+			Immediate := int8(il.Next()) + 2
+			handle(in.JumpRelative{Immediate})
+		case op&in.JumpConditionalMask == in.JumpRelativeConditionalPattern:
+			// JR cc n. 0b001c c000, n
+			Immediate := int8(il.Next()) + 2
+			Condition := in.GetCondition(op)
+			handle(in.JumpRelativeConditional{Immediate, Condition})
+		case op == in.JumpMemoryPattern:
+			// JP (HL). 0b1110 1001
+			handle(in.JumpMemory{})
+		case op == in.CallPattern:
+			// CALL nn. 0b1100 1101, n, n
+			Immediate := utils.ReverseMergePair(il.Next(), il.Next())
+			handle(in.Call{Immediate})
+		case op&in.CallConditionalMask == in.CallConditionalPattern:
+			// CALL cc nn. 0b110c c100
+			Immediate := utils.ReverseMergePair(il.Next(), il.Next())
+			Condition := in.GetCondition(op)
+			handle(in.CallConditional{Immediate, Condition})
+		case op == in.ReturnPattern:
+			// RET. 0b1100 1001
+			handle(in.Return{})
+		case op == in.ReturnInterruptPattern:
+			// RETI. 0b1101 1001
+			handle(in.ReturnInterrupt{})
+		case op&in.ReturnConditionalMask == in.ReturnConditionalPattern:
+			// RET cc nn. 0b110c c000
+			Condition := in.GetCondition(op)
+			handle(in.ReturnConditional{Condition})
+		case op&in.RSTMask == in.RSTPattern:
+			// RST t. 0b11tt t111
+			handle(in.RST{Operand: in.GetOperand(op)})
+		case op == in.DAAPattern:
+			// DAA. 0b0010 0111
+			handle(in.DAA{})
+		case op == in.ComplementPattern:
+			// CPL. 0b0010 1111
+			handle(in.Complement{})
+		case op == in.CCFPattern:
+			// CCF. 0b0011 1111
+			handle(in.CCF{})
+		case op == in.SCFPattern:
+			// CCF. 0b0011 0111
+			handle(in.SCF{})
+		case op == in.DisableInterruptPattern:
+			// DI. 0b1111 0011
+			handle(in.DisableInterrupt{})
+		case op == in.EnableInterruptPattern:
+			// DI. 0b1111 0011
+			handle(in.EnableInterrupt{})
+		case op == in.NopPattern:
+			// NOP. 0b0000 0000
+			handle(in.Nop{})
+		case op == in.StopPattern:
+			// HALT. 0b00001 0000, 0b0000 0000
+			next := il.Next()
+			if next == in.NopPattern {
+				handle(in.Stop{})
+			}
 		default:
 			handle(in.InvalidInstruction{ErrorOpcode: op})
 		}

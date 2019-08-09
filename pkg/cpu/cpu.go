@@ -16,6 +16,7 @@ type CPU struct {
 	SP, PC uint16
 	memory Memory
 	cycles uint
+	IME    bool
 }
 
 func (cpu *CPU) GetPC() uint16 {
@@ -26,12 +27,21 @@ func (cpu *CPU) incrementPC() {
 	cpu.PC += 1
 }
 
+func (cpu *CPU) setPC(value uint16) {
+	cpu.incrementCycles()
+	cpu.PC = value
+}
+
 func (cpu *CPU) GetCycles() uint {
 	return cpu.cycles
 }
 
 func (cpu *CPU) incrementCycles() {
 	cpu.cycles += 1
+}
+
+func (cpu *CPU) decrementCycles() {
+	cpu.cycles -= 1
 }
 
 func addOp(args ...byte) (byte, FlagSet) {
@@ -152,6 +162,14 @@ func shiftOp(i in.Shift, value, flag byte) (byte, FlagSet) {
 			FullCarry: bits.TrailingZeros8(value) == 0,
 			Zero:      result == 0,
 		}
+	}
+	return result, flags
+}
+
+func swapOp(value byte) (byte, FlagSet) {
+	result := (value&0xf)<<4 | (value&0xf0)>>4
+	flags := FlagSet{
+		Zero: result == 0,
 	}
 	return result, flags
 }
@@ -309,20 +327,130 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 		cpu.Set(registers.A, result)
 		cpu.setFlags(flagSet)
 	case in.RotateOperand:
-		var result byte
-		var flagSet FlagSet
-
-		result, flagSet = rotateOp(i, cpu.Get(i.Source), cpu.getFlag(FullCarry))
+		result, flagSet := rotateOp(i, cpu.Get(i.Source), cpu.getFlag(FullCarry))
 		cpu.Set(i.Source, result)
 		cpu.setFlags(flagSet)
 	case in.Shift:
-		var result byte
-		var flagSet FlagSet
-		result, flagSet = shiftOp(i, cpu.Get(i.Source), cpu.getFlag(FullCarry))
+		result, flagSet := shiftOp(i, cpu.Get(i.Source), cpu.getFlag(FullCarry))
 		cpu.Set(i.Source, result)
 		cpu.setFlags(flagSet)
 	case in.Swap:
-		fmt.Printf("SWAP")
+		result, flagSet := swapOp(cpu.Get(i.Source))
+		cpu.Set(i.Source, result)
+		cpu.setFlags(flagSet)
+	case in.Bit:
+		cpu.setFlags(FlagSet{
+			Negative:  false,
+			HalfCarry: true,
+			Zero:      !utils.IsSet(i.BitNumber, cpu.Get(i.Source)),
+			FullCarry: cpu.isSet(FullCarry),
+		})
+	case in.Set:
+		bit := i.BitNumber
+		result := utils.SetBit(bit, cpu.Get(i.Source), 1)
+		cpu.Set(i.Source, result)
+	case in.Reset:
+		bit := i.BitNumber
+		result := utils.SetBit(bit, cpu.Get(i.Source), 0)
+		cpu.Set(i.Source, result)
+	case in.JumpImmediate:
+		cpu.setPC(i.Immediate)
+	case in.JumpImmediateConditional:
+		if cpu.conditionMet(i.Condition) {
+			cpu.setPC(i.Immediate)
+		}
+	case in.JumpRelative:
+		// -2 to account for decoder having moved past immediate value. Refactor?
+		cpu.setPC(cpu.GetPC() - 2 + uint16(i.Immediate))
+	case in.JumpRelativeConditional:
+		if cpu.conditionMet(i.Condition) {
+			cpu.setPC(cpu.GetPC() - 2 + uint16(i.Immediate))
+		}
+	case in.JumpMemory:
+		cpu.setPC(cpu.GetHL())
+		cpu.decrementCycles() // TODO: hack attack
+	case in.Call:
+		high, low := utils.SplitPair(cpu.GetPC())
+		cpu.pushStack(high)
+		cpu.pushStack(low)
+		cpu.setPC(i.Immediate)
+	case in.CallConditional:
+		if cpu.conditionMet(i.Condition) {
+			high, low := utils.SplitPair(cpu.GetPC())
+			cpu.pushStack(high)
+			cpu.pushStack(low)
+			cpu.setPC(i.Immediate)
+		}
+	case in.Return:
+		cpu.setPC(utils.ReverseMergePair(cpu.popStack(), cpu.popStack()))
+	case in.ReturnInterrupt:
+		cpu.setPC(utils.ReverseMergePair(cpu.popStack(), cpu.popStack()))
+	case in.ReturnConditional:
+		if cpu.conditionMet(i.Condition) {
+			cpu.setPC(utils.ReverseMergePair(cpu.popStack(), cpu.popStack()))
+		}
+		cpu.incrementCycles()
+	case in.RST:
+		high, low := utils.SplitPair(cpu.GetPC())
+		cpu.pushStack(high)
+		cpu.pushStack(low)
+		cpu.setPC(uint16(i.Operand << in.OperandShift))
+	case in.DAA:
+		if !cpu.isSet(Negative) {
+			if cpu.isSet(FullCarry) || cpu.Get(registers.A) > 0x99 {
+				cpu.Set(registers.A, cpu.Get(registers.A)+0x60)
+				cpu.setFlag(FullCarry, true)
+			}
+			if cpu.isSet(HalfCarry) || (cpu.Get(registers.A)&0x0f) > 0x9 {
+				cpu.Set(registers.A, cpu.Get(registers.A)+0x6)
+			}
+		} else {
+			if cpu.isSet(FullCarry) {
+				cpu.Set(registers.A, cpu.Get(registers.A)-0x60)
+				cpu.setFlag(FullCarry, true)
+			}
+			if cpu.isSet(HalfCarry) {
+				cpu.Set(registers.A, cpu.Get(registers.A)-0x6)
+			}
+		}
+		cpu.setFlags(FlagSet{
+			Zero:      cpu.Get(registers.A) == 0,
+			HalfCarry: false,
+			FullCarry: cpu.isSet(FullCarry),
+			Negative:  cpu.isSet(Negative),
+		})
+	case in.Complement:
+		cpu.Set(registers.A, ^cpu.Get(registers.A))
+		cpu.setFlags(FlagSet{
+			Negative:  true,
+			HalfCarry: true,
+			Zero:      cpu.isSet(Zero),
+			FullCarry: cpu.isSet(FullCarry),
+		})
+	case in.CCF:
+		cpu.setFlags(FlagSet{
+			FullCarry: !cpu.isSet(FullCarry),
+			Negative:  false,
+			HalfCarry: false,
+			Zero:      cpu.isSet(Zero),
+		})
+	case in.SCF:
+		cpu.setFlags(FlagSet{
+			FullCarry: true,
+			Negative:  false,
+			HalfCarry: false,
+			Zero:      cpu.isSet(Zero),
+		})
+	case in.EnableInterrupt:
+		cpu.enableInterrupts()
+	case in.DisableInterrupt:
+		cpu.disableInterrupts()
+	case in.Nop:
+		cpu.incrementCycles()
+	case in.Stop:
+		// TODO: implement
+	case in.Halt:
+		// TODO: implement
 	case in.InvalidInstruction:
 		panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 	}
@@ -342,7 +470,7 @@ func Init() CPU {
 			registers.E: 0,
 			registers.H: 0,
 			registers.L: 0,
-		}, SP: StackStartAddress, PC: ProgramStartAddress,
+		}, SP: StackStartAddress, PC: ProgramStartAddress, IME: false,
 		memory: InitMemory(),
 	}
 }

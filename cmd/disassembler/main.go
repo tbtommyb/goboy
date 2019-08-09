@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 
 	"github.com/tbtommyb/goboy/pkg/decoder"
-	"github.com/tbtommyb/goboy/pkg/disassembler"
 	in "github.com/tbtommyb/goboy/pkg/instructions"
 )
 
@@ -22,7 +21,7 @@ func main() {
 		fmt.Printf("File reading error %#v", err)
 		return
 	}
-	disassembler := disassembler.Disassembler{}
+	disassembler := in.List{}
 	disassembler.Load(data)
 
 	decoder.Decode(&disassembler, printOp)

@@ -1,6 +1,9 @@
 package instructions
 
-import "github.com/tbtommyb/goboy/pkg/registers"
+import (
+	"github.com/tbtommyb/goboy/pkg/conditions"
+	"github.com/tbtommyb/goboy/pkg/registers"
+)
 
 type Direction byte
 
@@ -17,9 +20,9 @@ type InvalidInstruction struct{ ErrorOpcode byte }
 
 func (i InvalidInstruction) Opcode() []byte { return []byte{i.ErrorOpcode} }
 
-type EmptyInstruction struct{}
+type Nop struct{}
 
-func (i EmptyInstruction) Opcode() []byte { return []byte{0} }
+func (i Nop) Opcode() []byte { return []byte{NopPattern} }
 
 type Move struct {
 	Source, Dest registers.Single
@@ -418,45 +421,162 @@ func (i Swap) Opcode() []byte {
 	return []byte{Prefix, SwapPattern | byte(i.Source)}
 }
 
-func GetDirection(opcode byte) Direction {
-	if opcode&RotateDirectionMask > 0 {
-		return Right
-	}
-	return Left
+type Bit struct {
+	Source    registers.Single
+	BitNumber byte
 }
 
-func GetWithCopyRotation(opcode byte) bool {
-	return opcode&RotateCopyMask == 0
+func (i Bit) Opcode() []byte {
+	return []byte{Prefix, BitPattern | byte(i.Source) | byte(i.BitNumber<<BitNumberShift)}
 }
 
-func GetWithCopyShift(opcode byte) bool {
-	return opcode&ShiftCopyMask == ShiftCopyPattern
+type Set struct {
+	Source    registers.Single
+	BitNumber byte
 }
 
-func Source(opcode byte) registers.Single {
-	return registers.Single(opcode & SourceRegisterMask)
+func (i Set) Opcode() []byte {
+	return []byte{Prefix, SetPattern | byte(i.Source) | byte(i.BitNumber<<BitNumberShift)}
 }
 
-func Dest(opcode byte) registers.Single {
-	return registers.Single(opcode & DestRegisterMask >> DestRegisterShift)
+type Reset struct {
+	Source    registers.Single
+	BitNumber byte
 }
 
-func Pair(opcode byte) registers.Pair {
-	return registers.Pair(opcode & PairRegisterMask >> PairRegisterShift)
+func (i Reset) Opcode() []byte {
+	return []byte{Prefix, ResetPattern | byte(i.Source) | byte(i.BitNumber<<BitNumberShift)}
 }
 
-// AF and SP use same bit pattern in different instructions
-func MuxPairs(r registers.Pair) registers.Pair {
-	if r == registers.AF {
-		r = registers.SP
-	}
-	return r
+type JumpImmediate struct {
+	Immediate uint16
 }
 
-func DemuxPairs(opcode byte) registers.Pair {
-	reg := Pair(opcode)
-	if reg == registers.SP {
-		reg = registers.AF
-	}
-	return reg
+func (i JumpImmediate) Opcode() []byte {
+	return []byte{JumpImmediatePattern, byte(i.Immediate), byte(i.Immediate >> 8)}
+}
+
+type JumpImmediateConditional struct {
+	Immediate uint16
+	Condition conditions.Condition
+}
+
+func (i JumpImmediateConditional) Opcode() []byte {
+	return []byte{JumpImmediateConditionalPattern | byte(i.Condition<<ConditionShift), byte(i.Immediate), byte(i.Immediate >> 8)}
+}
+
+type JumpRelative struct {
+	Immediate int8
+}
+
+func (i JumpRelative) Opcode() []byte {
+	return []byte{JumpRelativePattern, byte(i.Immediate - 2)}
+}
+
+type JumpRelativeConditional struct {
+	Immediate int8
+	Condition conditions.Condition
+}
+
+func (i JumpRelativeConditional) Opcode() []byte {
+	return []byte{JumpRelativeConditionalPattern | byte(i.Condition<<ConditionShift), byte(i.Immediate - 2)}
+}
+
+type JumpMemory struct{}
+
+func (i JumpMemory) Opcode() []byte {
+	return []byte{JumpMemoryPattern}
+}
+
+type Call struct {
+	Immediate uint16
+}
+
+func (i Call) Opcode() []byte {
+	return []byte{CallPattern, byte(i.Immediate), byte(i.Immediate >> 8)}
+}
+
+type CallConditional struct {
+	Immediate uint16
+	Condition conditions.Condition
+}
+
+func (i CallConditional) Opcode() []byte {
+	return []byte{CallConditionalPattern | byte(i.Condition<<ConditionShift), byte(i.Immediate), byte(i.Immediate >> 8)}
+}
+
+type Return struct{}
+
+func (i Return) Opcode() []byte {
+	return []byte{ReturnPattern}
+}
+
+type ReturnInterrupt struct{}
+
+func (i ReturnInterrupt) Opcode() []byte {
+	return []byte{ReturnInterruptPattern}
+}
+
+type ReturnConditional struct {
+	Condition conditions.Condition
+}
+
+func (i ReturnConditional) Opcode() []byte {
+	return []byte{ReturnConditionalPattern | byte(i.Condition<<ConditionShift)}
+}
+
+type RST struct {
+	Operand byte
+}
+
+func (i RST) Opcode() []byte {
+	return []byte{RSTPattern | byte(i.Operand<<3)}
+}
+
+type DAA struct{}
+
+func (i DAA) Opcode() []byte {
+	return []byte{DAAPattern}
+}
+
+type Complement struct{}
+
+func (i Complement) Opcode() []byte {
+	return []byte{ComplementPattern}
+}
+
+type CCF struct{}
+
+func (i CCF) Opcode() []byte {
+	return []byte{CCFPattern}
+}
+
+type SCF struct{}
+
+func (i SCF) Opcode() []byte {
+	return []byte{SCFPattern}
+}
+
+type DisableInterrupt struct{}
+
+func (i DisableInterrupt) Opcode() []byte {
+	return []byte{DisableInterruptPattern}
+}
+
+type EnableInterrupt struct{}
+
+func (i EnableInterrupt) Opcode() []byte {
+	return []byte{EnableInterruptPattern}
+}
+
+type Halt struct{}
+
+func (i Halt) Opcode() []byte {
+	return []byte{HaltPattern}
+}
+
+type Stop struct{}
+
+func (i Stop) Opcode() []byte {
+	return []byte{StopPattern, NopPattern}
 }

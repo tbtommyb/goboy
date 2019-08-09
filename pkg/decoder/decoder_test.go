@@ -3,7 +3,7 @@ package decoder
 import (
 	"testing"
 
-	"github.com/tbtommyb/goboy/pkg/disassembler"
+	"github.com/tbtommyb/goboy/pkg/conditions"
 	in "github.com/tbtommyb/goboy/pkg/instructions"
 	"github.com/tbtommyb/goboy/pkg/registers"
 )
@@ -34,8 +34,7 @@ var testCases = []DoubleOpcodeTestCase{
 	{[]byte{0xE2}, in.StoreRelative{}},
 	{[]byte{0xE0, 0x11}, in.StoreRelativeImmediateN{Immediate: 0x11}},
 	{[]byte{0xEA, 0x11, 0x22}, in.StoreRelativeImmediateNN{Immediate: 0x1122}},
-	{[]byte{0xFF}, in.InvalidInstruction{ErrorOpcode: 0xFF}},
-	{[]byte{0x00}, in.EmptyInstruction{}},
+	{[]byte{0x00}, in.Nop{}},
 	{[]byte{0x77}, in.Move{Source: registers.A, Dest: registers.M}},
 	{[]byte{0x46}, in.Move{Source: registers.M, Dest: registers.B}},
 	{[]byte{0x47}, in.Move{Source: registers.A, Dest: registers.B}},
@@ -104,11 +103,39 @@ var testCases = []DoubleOpcodeTestCase{
 	{[]byte{0xCB, 0x3E}, in.Shift{Direction: in.Right, Source: registers.M}},
 	{[]byte{0xCB, 0x26}, in.Shift{Direction: in.Left, Source: registers.M}},
 	{[]byte{0xCB, 0x36}, in.Swap{Source: registers.M}},
+	{[]byte{0xCB, 0x59}, in.Bit{BitNumber: 3, Source: registers.C}},
+	{[]byte{0xCB, 0x46}, in.Bit{BitNumber: 0, Source: registers.M}},
+	{[]byte{0xCB, 0x7F}, in.Bit{BitNumber: 7, Source: registers.A}},
+	{[]byte{0xCB, 0xFE}, in.Set{BitNumber: 7, Source: registers.M}},
+	{[]byte{0xCB, 0xC7}, in.Set{BitNumber: 0, Source: registers.A}},
+	{[]byte{0xCB, 0xBE}, in.Reset{BitNumber: 7, Source: registers.M}},
+	{[]byte{0xCB, 0x87}, in.Reset{BitNumber: 0, Source: registers.A}},
+	{[]byte{0xC3, 0x55, 0x44}, in.JumpImmediate{Immediate: 0x4455}},
+	{[]byte{0xC2, 0x55, 0x44}, in.JumpImmediateConditional{Condition: conditions.NZ, Immediate: 0x4455}},
+	{[]byte{0xCA, 0x55, 0x44}, in.JumpImmediateConditional{Condition: conditions.Z, Immediate: 0x4455}},
+	{[]byte{0xD2, 0x55, 0x44}, in.JumpImmediateConditional{Condition: conditions.NC, Immediate: 0x4455}},
+	{[]byte{0x18, 0x8}, in.JumpRelative{Immediate: 10}},
+	{[]byte{0x28, 0xC}, in.JumpRelativeConditional{Condition: conditions.Z, Immediate: 14}},
+	{[]byte{0xE9}, in.JumpMemory{}},
+	{[]byte{0xCD, 0x34, 0x12}, in.Call{Immediate: 0x1234}},
+	{[]byte{0xCC, 0x34, 0x12}, in.CallConditional{Condition: conditions.Z, Immediate: 0x1234}},
+	{[]byte{0xC9}, in.Return{}},
+	{[]byte{0xD9}, in.ReturnInterrupt{}},
+	{[]byte{0xD8}, in.ReturnConditional{Condition: conditions.C}},
+	{[]byte{0xDF}, in.RST{Operand: 3}},
+	{[]byte{0x27}, in.DAA{}},
+	{[]byte{0x2F}, in.Complement{}},
+	{[]byte{0x3F}, in.CCF{}},
+	{[]byte{0x37}, in.SCF{}},
+	{[]byte{0xF3}, in.DisableInterrupt{}},
+	{[]byte{0xFB}, in.EnableInterrupt{}},
+	{[]byte{0x76}, in.Halt{}},
+	{[]byte{0x10, 0x0}, in.Stop{}},
 }
 
 func TestDecoder(t *testing.T) {
 	for _, testCase := range testCases {
-		il := disassembler.Disassembler{Instructions: testCase.opcodes}
+		il := in.List{Instructions: testCase.opcodes}
 		Decode(&il, func(actual in.Instruction) {
 			if actual != testCase.expected {
 				t.Errorf("Expected %#v, got %#v", testCase.expected, actual)
@@ -119,7 +146,7 @@ func TestDecoder(t *testing.T) {
 
 func TestOpcode(t *testing.T) {
 	for _, testCase := range testCases {
-		il := disassembler.Disassembler{Instructions: testCase.opcodes}
+		il := in.List{Instructions: testCase.opcodes}
 		Decode(&il, func(actual in.Instruction) {
 			result := actual.Opcode()
 			ok := compare(result, testCase.opcodes)

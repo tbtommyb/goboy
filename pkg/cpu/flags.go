@@ -74,3 +74,15 @@ func (cpu *CPU) getFlag(flag Flag) byte {
 	}
 	return value
 }
+
+func (cpu *CPU) enableInterrupts() {
+	cpu.IME = true
+}
+
+func (cpu *CPU) disableInterrupts() {
+	cpu.IME = false
+}
+
+func (cpu *CPU) interruptsEnabled() bool {
+	return cpu.IME
+}

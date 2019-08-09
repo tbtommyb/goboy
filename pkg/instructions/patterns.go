@@ -92,7 +92,7 @@ const RotateDirectionShift = 3
 const RotateCopyMask = 0x10
 const RotateCopyShift = 4
 
-const ShiftMask = 0x20
+const ShiftMask = 0xE0
 const ShiftPattern = 0x20
 const ShiftCopyShift = 4
 const ShiftCopyMask = 0x18
@@ -100,3 +100,50 @@ const ShiftCopyPattern = 0x8
 
 const SwapMask = 0x38
 const SwapPattern = 0x30
+
+const BitMask = 0xC0
+const BitPattern = 0x40
+const BitNumberShift = 3
+const BitNumberMask = 0x38
+
+const SetMask = 0xC0
+const SetPattern = 0xC0
+
+const ResetMask = 0xC0
+const ResetPattern = 0x80
+
+const JumpImmediatePattern = 0xC3
+const JumpImmediateConditionalPattern = 0xC2
+const JumpConditionalMask = 0xE7
+const ConditionMask = 0x18
+const ConditionShift = 3
+const JumpRelativePattern = 0x18
+const JumpRelativeConditionalPattern = 0x20
+const JumpMemoryPattern = 0xE9
+
+const CallPattern = 0xCD
+const CallConditionalMask = 0xE7
+const CallConditionalPattern = 0xC4
+
+const ReturnPattern = 0xC9
+const ReturnInterruptPattern = 0xD9
+const ReturnConditionalMask = 0xE7
+const ReturnConditionalPattern = 0xC0
+
+const RSTMask = 0xC7
+const RSTPattern = 0xC7
+const OperandMask = 0x38
+const OperandShift = 3
+
+const DAAPattern = 0x27
+
+const ComplementPattern = 0x2F
+const NopPattern = 0x0
+const CCFPattern = 0x3F
+const SCFPattern = 0x37
+
+const DisableInterruptPattern = 0xF3
+const EnableInterruptPattern = 0xFB
+
+const HaltPattern = 0x76
+const StopPattern = 0x10
