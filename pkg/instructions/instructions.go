@@ -2,17 +2,11 @@ package instructions
 
 import "github.com/tbtommyb/goboy/pkg/registers"
 
-type RotationDirection byte
-type RotationAction byte
+type Direction byte
 
 const (
-	RotateLeft RotationDirection = iota
-	RotateRight
-)
-
-const (
-	RotateAction RotationAction = iota
-	ShiftAction
+	Left Direction = iota
+	Right
 )
 
 type Instruction interface {
@@ -347,12 +341,12 @@ func (i DecrementPair) Opcode() []byte {
 }
 
 type RotateInstruction interface {
-	GetDirection() RotationDirection
+	GetDirection() Direction
 	IsWithCopy() bool
 }
 
 type RotateA struct {
-	Direction RotationDirection
+	Direction Direction
 	WithCopy  bool
 }
 
@@ -364,7 +358,7 @@ func (i RotateA) Opcode() []byte {
 	return []byte{byte(RotateAPattern | byte(i.Direction<<RotateDirectionShift) | copyBit<<RotateCopyShift)}
 }
 
-func (i RotateA) GetDirection() RotationDirection {
+func (i RotateA) GetDirection() Direction {
 	return i.Direction
 }
 
@@ -373,8 +367,7 @@ func (i RotateA) IsWithCopy() bool {
 }
 
 type RotateOperand struct {
-	Action    RotationAction
-	Direction RotationDirection
+	Direction Direction
 	WithCopy  bool
 	Source    registers.Single
 }
@@ -384,10 +377,10 @@ func (i RotateOperand) Opcode() []byte {
 	if i.WithCopy {
 		copyBit = 0
 	}
-	return []byte{RotateOperandPrefix, byte(i.Direction<<RotateDirectionShift) | byte(copyBit<<RotateCopyShift) | byte(i.Source) | byte(i.Action<<RotateActionShift)}
+	return []byte{Prefix, byte(i.Direction<<RotateDirectionShift) | byte(copyBit<<RotateCopyShift) | byte(i.Source)}
 }
 
-func (i RotateOperand) GetDirection() RotationDirection {
+func (i RotateOperand) GetDirection() Direction {
 	return i.Direction
 }
 
@@ -395,22 +388,49 @@ func (i RotateOperand) IsWithCopy() bool {
 	return i.WithCopy
 }
 
-func GetRotationDirection(opcode byte) RotationDirection {
-	if opcode&RotateDirectionMask > 0 {
-		return RotateRight
-	}
-	return RotateLeft
+type Shift struct {
+	Direction Direction
+	Source    registers.Single
+	WithCopy  bool
 }
 
-func GetWithRotationCopy(opcode byte) bool {
+func (i Shift) Opcode() []byte {
+	var copyBit byte
+	if i.Direction == Right && !i.WithCopy {
+		copyBit = 1
+	}
+	return []byte{Prefix, ShiftPattern | byte(i.Direction<<RotateDirectionShift) | byte(copyBit<<ShiftCopyShift) | byte(i.Source)}
+}
+
+func (i Shift) GetDirection() Direction {
+	return i.Direction
+}
+
+func (i Shift) IsWithCopy() bool {
+	return i.WithCopy
+}
+
+type Swap struct {
+	Source registers.Single
+}
+
+func (i Swap) Opcode() []byte {
+	return []byte{Prefix, SwapPattern | byte(i.Source)}
+}
+
+func GetDirection(opcode byte) Direction {
+	if opcode&RotateDirectionMask > 0 {
+		return Right
+	}
+	return Left
+}
+
+func GetWithCopyRotation(opcode byte) bool {
 	return opcode&RotateCopyMask == 0
 }
 
-func GetRotationAction(opcode byte) RotationAction {
-	if opcode&RotateActionMask > 0 {
-		return ShiftAction
-	}
-	return RotateAction
+func GetWithCopyShift(opcode byte) bool {
+	return opcode&ShiftCopyMask == ShiftCopyPattern
 }
 
 func Source(opcode byte) registers.Single {

@@ -143,14 +143,25 @@ func Decode(il Iterator, handle func(in.Instruction)) {
 			// RLA. 0b00001 0111
 			// RRCA. 0b0000 1111
 			// RRA. 0b0001 1111
-			handle(in.RotateA{Direction: in.GetRotationDirection(op), WithCopy: in.GetWithRotationCopy(op)})
-		case op == in.RotateOperandPrefix:
-			// RLC r. 0b11000 1011, 0001 0rrr
-			// RL r. 0b11000 1011, 0001 0rrr
-			// RRC r. 0b11000 1011, 0000 1rrr
-			// RR r. 0b11000 1011, 0001 1rrr
+			handle(in.RotateA{Direction: in.GetDirection(op), WithCopy: in.GetWithCopyRotation(op)})
+		case op == in.Prefix:
 			operand := il.Next()
-			handle(in.RotateOperand{Direction: in.GetRotationDirection(operand), WithCopy: in.GetWithRotationCopy(operand), Source: in.Source(operand), Action: in.GetRotationAction(operand)})
+			switch {
+			case operand&in.SwapMask == in.SwapPattern:
+				// SWAP m. 0b1100 1011, 0011 0rrr
+				handle(in.Swap{Source: in.Source(operand)})
+			case operand&in.ShiftMask == in.ShiftPattern:
+				// SLA m. 0b1100 1011, 0010 0rrr
+				// SRA m. 0b1100 1011, 0010 1rrr
+				// SRR m. 0b1100 1011, 0011 1rrr
+				handle(in.Shift{Direction: in.GetDirection(operand), Source: in.Source(operand), WithCopy: in.GetWithCopyShift(operand)})
+			default:
+				// RLC r. 0b11000 1011, 0001 0rrr
+				// RL r. 0b11000 1011, 0001 0rrr
+				// RRC r. 0b11000 1011, 0000 1rrr
+				// RR r. 0b11000 1011, 0001 1rrr
+				handle(in.RotateOperand{Direction: in.GetDirection(operand), WithCopy: in.GetWithCopyRotation(operand), Source: in.Source(operand)})
+			}
 		case op == 0:
 			handle(in.EmptyInstruction{})
 		default:

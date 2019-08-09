@@ -84,12 +84,19 @@ const IncrementPairPattern = 0x3
 const DecrementPairMask = 0xCF
 const DecrementPairPattern = 0xB
 
+const Prefix = 0xCB
 const RotateMask = 0xE7
 const RotateAPattern = 0x7
 const RotateDirectionMask = 0x8
 const RotateDirectionShift = 3
 const RotateCopyMask = 0x10
 const RotateCopyShift = 4
-const RotateOperandPrefix = 0xCB
-const RotateActionMask = 0x20
-const RotateActionShift = 5
+
+const ShiftMask = 0x20
+const ShiftPattern = 0x20
+const ShiftCopyShift = 4
+const ShiftCopyMask = 0x18
+const ShiftCopyPattern = 0x8
+
+const SwapMask = 0x38
+const SwapPattern = 0x30
