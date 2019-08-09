@@ -156,6 +156,14 @@ func shiftOp(i in.Shift, value, flag byte) (byte, FlagSet) {
 	return result, flags
 }
 
+func swapOp(value byte) (byte, FlagSet) {
+	result := (value&0xf)<<4 | (value&0xf0)>>4
+	flags := FlagSet{
+		Zero: result == 0,
+	}
+	return result, flags
+}
+
 func (cpu *CPU) perform(f func(...byte) (byte, FlagSet), args ...byte) {
 	result, flagSet := f(args...)
 	cpu.Set(registers.A, result)
@@ -309,20 +317,17 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 		cpu.Set(registers.A, result)
 		cpu.setFlags(flagSet)
 	case in.RotateOperand:
-		var result byte
-		var flagSet FlagSet
-
-		result, flagSet = rotateOp(i, cpu.Get(i.Source), cpu.getFlag(FullCarry))
+		result, flagSet := rotateOp(i, cpu.Get(i.Source), cpu.getFlag(FullCarry))
 		cpu.Set(i.Source, result)
 		cpu.setFlags(flagSet)
 	case in.Shift:
-		var result byte
-		var flagSet FlagSet
-		result, flagSet = shiftOp(i, cpu.Get(i.Source), cpu.getFlag(FullCarry))
+		result, flagSet := shiftOp(i, cpu.Get(i.Source), cpu.getFlag(FullCarry))
 		cpu.Set(i.Source, result)
 		cpu.setFlags(flagSet)
 	case in.Swap:
-		fmt.Printf("SWAP")
+		result, flagSet := swapOp(cpu.Get(i.Source))
+		cpu.Set(i.Source, result)
+		cpu.setFlags(flagSet)
 	case in.InvalidInstruction:
 		panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 	}

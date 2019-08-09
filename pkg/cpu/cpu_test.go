@@ -1049,6 +1049,16 @@ func TestRotateOperand(t *testing.T) {
 				in.Shift{Source: registers.A, Direction: in.Right},
 			},
 		},
+		{
+			name:          "SWAP",
+			expected:      0x0,
+			inputFlags:    FlagSet{},
+			expectedFlags: FlagSet{Zero: true},
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.A, Immediate: 0x0},
+				in.Swap{Source: registers.A},
+			},
+		},
 	}
 
 	for _, test := range testCases {
@@ -1144,6 +1154,16 @@ func TestRotateOperandWithMemory(t *testing.T) {
 				in.Shift{Source: registers.M, Direction: in.Right},
 			},
 		},
+		{
+			name:          "SWAP",
+			memory:        0xF0,
+			expected:      0x0F,
+			inputFlags:    FlagSet{},
+			expectedFlags: FlagSet{},
+			instructions: []in.Instruction{
+				in.Swap{Source: registers.M},
+			},
+		},
 	}
 
 	for _, test := range testCases {
@@ -1222,6 +1242,10 @@ func TestInstructionCycles(t *testing.T) {
 		{instructions: []in.Instruction{in.RotateA{Direction: in.Right}}, expected: 1, message: "RRA"},
 		{instructions: []in.Instruction{in.RotateOperand{Direction: in.Left, WithCopy: true, Source: registers.A}}, expected: 2, message: "RLC"},
 		{instructions: []in.Instruction{in.RotateOperand{Direction: in.Left, WithCopy: true, Source: registers.M}}, expected: 4, message: "RLC"},
+		{instructions: []in.Instruction{in.Shift{Direction: in.Right, Source: registers.A}}, expected: 2, message: "SRL"},
+		{instructions: []in.Instruction{in.Shift{Direction: in.Right, Source: registers.M}}, expected: 4, message: "SRL"},
+		{instructions: []in.Instruction{in.Swap{Source: registers.B}}, expected: 2, message: "Swap register"},
+		{instructions: []in.Instruction{in.Swap{Source: registers.M}}, expected: 4, message: "Swap memory"},
 	}
 
 	for _, test := range testCases {
