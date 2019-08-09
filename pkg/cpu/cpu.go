@@ -109,7 +109,7 @@ func rotateOp(i in.RotateInstruction, value, flag byte) (byte, FlagSet) {
 	var result byte
 	var flags FlagSet
 	switch i.GetDirection() {
-	case in.RotateLeft:
+	case in.Left:
 		result = bits.RotateLeft8(value, 1)
 		if !i.IsWithCopy() {
 			result = utils.SetBit(0, result, flag)
@@ -118,7 +118,7 @@ func rotateOp(i in.RotateInstruction, value, flag byte) (byte, FlagSet) {
 			FullCarry: bits.LeadingZeros8(value) == 0,
 			Zero:      result == 0,
 		}
-	case in.RotateRight:
+	case in.Right:
 		result = bits.RotateLeft8(value, -1)
 		if !i.IsWithCopy() {
 			result = utils.SetBit(7, result, flag)
@@ -131,17 +131,17 @@ func rotateOp(i in.RotateInstruction, value, flag byte) (byte, FlagSet) {
 	return result, flags
 }
 
-func shiftOp(i in.RotateInstruction, value, flag byte) (byte, FlagSet) {
+func shiftOp(i in.Shift, value, flag byte) (byte, FlagSet) {
 	var result byte
 	var flags FlagSet
 	switch i.GetDirection() {
-	case in.RotateLeft:
+	case in.Left:
 		result = value << 1
 		flags = FlagSet{
 			FullCarry: bits.LeadingZeros8(value) == 0,
 			Zero:      result == 0,
 		}
-	case in.RotateRight:
+	case in.Right:
 		if i.IsWithCopy() {
 			result = byte(int8(value) >> 1) // Sign-extend right shift
 		} else {
@@ -312,14 +312,17 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 		var result byte
 		var flagSet FlagSet
 
-		switch i.Action {
-		case in.RotateAction:
-			result, flagSet = rotateOp(i, cpu.Get(i.Source), cpu.getFlag(FullCarry))
-		case in.ShiftAction:
-			result, flagSet = shiftOp(i, cpu.Get(i.Source), cpu.getFlag(FullCarry))
-		}
+		result, flagSet = rotateOp(i, cpu.Get(i.Source), cpu.getFlag(FullCarry))
 		cpu.Set(i.Source, result)
 		cpu.setFlags(flagSet)
+	case in.Shift:
+		var result byte
+		var flagSet FlagSet
+		result, flagSet = shiftOp(i, cpu.Get(i.Source), cpu.getFlag(FullCarry))
+		cpu.Set(i.Source, result)
+		cpu.setFlags(flagSet)
+	case in.Swap:
+		fmt.Printf("SWAP")
 	case in.InvalidInstruction:
 		panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 	}

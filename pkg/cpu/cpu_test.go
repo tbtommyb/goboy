@@ -922,7 +922,7 @@ func TestRotateA(t *testing.T) {
 			expectedFlags: FlagSet{FullCarry: true},
 			instructions: []in.Instruction{
 				in.MoveImmediate{Dest: registers.A, Immediate: 0x85},
-				in.RotateA{WithCopy: true, Direction: in.RotateLeft},
+				in.RotateA{WithCopy: true, Direction: in.Left},
 			},
 		},
 		{
@@ -932,7 +932,7 @@ func TestRotateA(t *testing.T) {
 			expectedFlags: FlagSet{FullCarry: true},
 			instructions: []in.Instruction{
 				in.MoveImmediate{Dest: registers.A, Immediate: 0x95},
-				in.RotateA{Direction: in.RotateLeft},
+				in.RotateA{Direction: in.Left},
 			},
 		},
 		{
@@ -942,7 +942,7 @@ func TestRotateA(t *testing.T) {
 			expectedFlags: FlagSet{FullCarry: true},
 			instructions: []in.Instruction{
 				in.MoveImmediate{Dest: registers.A, Immediate: 0x3B},
-				in.RotateA{WithCopy: true, Direction: in.RotateRight},
+				in.RotateA{WithCopy: true, Direction: in.Right},
 			},
 		},
 		{
@@ -952,7 +952,7 @@ func TestRotateA(t *testing.T) {
 			expectedFlags: FlagSet{FullCarry: true},
 			instructions: []in.Instruction{
 				in.MoveImmediate{Dest: registers.A, Immediate: 0x81},
-				in.RotateA{Direction: in.RotateRight},
+				in.RotateA{Direction: in.Right},
 			},
 		},
 	}
@@ -986,7 +986,7 @@ func TestRotateOperand(t *testing.T) {
 			expectedFlags: FlagSet{FullCarry: true},
 			instructions: []in.Instruction{
 				in.MoveImmediate{Dest: registers.A, Immediate: 0x85},
-				in.RotateOperand{Source: registers.A, WithCopy: true, Direction: in.RotateLeft},
+				in.RotateOperand{Source: registers.A, WithCopy: true, Direction: in.Left},
 			},
 		},
 		{
@@ -996,7 +996,7 @@ func TestRotateOperand(t *testing.T) {
 			expectedFlags: FlagSet{FullCarry: true, Zero: true},
 			instructions: []in.Instruction{
 				in.MoveImmediate{Dest: registers.A, Immediate: 0x80},
-				in.RotateOperand{Source: registers.A, Direction: in.RotateLeft},
+				in.RotateOperand{Source: registers.A, Direction: in.Left},
 			},
 		},
 		{
@@ -1006,7 +1006,7 @@ func TestRotateOperand(t *testing.T) {
 			expectedFlags: FlagSet{FullCarry: true},
 			instructions: []in.Instruction{
 				in.MoveImmediate{Dest: registers.A, Immediate: 0x1},
-				in.RotateOperand{Source: registers.A, Direction: in.RotateRight, WithCopy: true},
+				in.RotateOperand{Source: registers.A, Direction: in.Right, WithCopy: true},
 			},
 		},
 		{
@@ -1016,7 +1016,7 @@ func TestRotateOperand(t *testing.T) {
 			expectedFlags: FlagSet{FullCarry: true, Zero: true},
 			instructions: []in.Instruction{
 				in.MoveImmediate{Dest: registers.A, Immediate: 0x1},
-				in.RotateOperand{Source: registers.A, Direction: in.RotateRight},
+				in.RotateOperand{Source: registers.A, Direction: in.Right},
 			},
 		},
 		{
@@ -1026,7 +1026,7 @@ func TestRotateOperand(t *testing.T) {
 			expectedFlags: FlagSet{FullCarry: true, Zero: true},
 			instructions: []in.Instruction{
 				in.MoveImmediate{Dest: registers.A, Immediate: 0x80},
-				in.RotateOperand{Action: in.ShiftAction, Source: registers.A, Direction: in.RotateLeft},
+				in.Shift{Source: registers.A, Direction: in.Left},
 			},
 		},
 		{
@@ -1036,7 +1036,7 @@ func TestRotateOperand(t *testing.T) {
 			expectedFlags: FlagSet{},
 			instructions: []in.Instruction{
 				in.MoveImmediate{Dest: registers.A, Immediate: 0x8A},
-				in.RotateOperand{Action: in.ShiftAction, Source: registers.A, Direction: in.RotateRight, WithCopy: true},
+				in.Shift{Source: registers.A, Direction: in.Right, WithCopy: true},
 			},
 		},
 		{
@@ -1046,7 +1046,7 @@ func TestRotateOperand(t *testing.T) {
 			expectedFlags: FlagSet{FullCarry: true, Zero: true},
 			instructions: []in.Instruction{
 				in.MoveImmediate{Dest: registers.A, Immediate: 0x1},
-				in.RotateOperand{Action: in.ShiftAction, Source: registers.A, Direction: in.RotateRight},
+				in.Shift{Source: registers.A, Direction: in.Right},
 			},
 		},
 	}
@@ -1081,7 +1081,7 @@ func TestRotateOperandWithMemory(t *testing.T) {
 			inputFlags:    FlagSet{},
 			expectedFlags: FlagSet{Zero: true},
 			instructions: []in.Instruction{
-				in.RotateOperand{Source: registers.M, WithCopy: true, Direction: in.RotateLeft},
+				in.RotateOperand{Source: registers.M, WithCopy: true, Direction: in.Left},
 			},
 		},
 		{
@@ -1091,7 +1091,7 @@ func TestRotateOperandWithMemory(t *testing.T) {
 			inputFlags:    FlagSet{},
 			expectedFlags: FlagSet{},
 			instructions: []in.Instruction{
-				in.RotateOperand{Source: registers.M, Direction: in.RotateLeft},
+				in.RotateOperand{Source: registers.M, Direction: in.Left},
 			},
 		},
 		{
@@ -1101,7 +1101,7 @@ func TestRotateOperandWithMemory(t *testing.T) {
 			inputFlags:    FlagSet{},
 			expectedFlags: FlagSet{Zero: true},
 			instructions: []in.Instruction{
-				in.RotateOperand{Source: registers.M, Direction: in.RotateRight, WithCopy: true},
+				in.RotateOperand{Source: registers.M, Direction: in.Right, WithCopy: true},
 			},
 		},
 		{
@@ -1111,7 +1111,7 @@ func TestRotateOperandWithMemory(t *testing.T) {
 			inputFlags:    FlagSet{},
 			expectedFlags: FlagSet{},
 			instructions: []in.Instruction{
-				in.RotateOperand{Source: registers.M, Direction: in.RotateRight},
+				in.RotateOperand{Source: registers.M, Direction: in.Right},
 			},
 		},
 		{
@@ -1121,7 +1121,7 @@ func TestRotateOperandWithMemory(t *testing.T) {
 			inputFlags:    FlagSet{},
 			expectedFlags: FlagSet{FullCarry: true},
 			instructions: []in.Instruction{
-				in.RotateOperand{Action: in.ShiftAction, Source: registers.M, Direction: in.RotateLeft},
+				in.Shift{Source: registers.M, Direction: in.Left},
 			},
 		},
 		{
@@ -1131,7 +1131,7 @@ func TestRotateOperandWithMemory(t *testing.T) {
 			inputFlags:    FlagSet{},
 			expectedFlags: FlagSet{Zero: true, FullCarry: true},
 			instructions: []in.Instruction{
-				in.RotateOperand{Action: in.ShiftAction, Source: registers.M, Direction: in.RotateRight, WithCopy: true},
+				in.Shift{Source: registers.M, Direction: in.Right, WithCopy: true},
 			},
 		},
 		{
@@ -1141,7 +1141,7 @@ func TestRotateOperandWithMemory(t *testing.T) {
 			inputFlags:    FlagSet{},
 			expectedFlags: FlagSet{FullCarry: true},
 			instructions: []in.Instruction{
-				in.RotateOperand{Action: in.ShiftAction, Source: registers.M, Direction: in.RotateRight},
+				in.Shift{Source: registers.M, Direction: in.Right},
 			},
 		},
 	}
@@ -1218,10 +1218,10 @@ func TestInstructionCycles(t *testing.T) {
 		{instructions: []in.Instruction{in.AddSP{Immediate: 3}}, expected: 4, message: "Add SP"},
 		{instructions: []in.Instruction{in.IncrementPair{Dest: registers.DE}}, expected: 2, message: "Increment pair"},
 		{instructions: []in.Instruction{in.DecrementPair{Dest: registers.DE}}, expected: 2, message: "Decrement pair"},
-		{instructions: []in.Instruction{in.RotateA{WithCopy: true, Direction: in.RotateLeft}}, expected: 1, message: "RLCA"},
-		{instructions: []in.Instruction{in.RotateA{Direction: in.RotateRight}}, expected: 1, message: "RRA"},
-		{instructions: []in.Instruction{in.RotateOperand{Direction: in.RotateLeft, WithCopy: true, Source: registers.A}}, expected: 2, message: "RLC"},
-		{instructions: []in.Instruction{in.RotateOperand{Direction: in.RotateLeft, WithCopy: true, Source: registers.M}}, expected: 4, message: "RLC"},
+		{instructions: []in.Instruction{in.RotateA{WithCopy: true, Direction: in.Left}}, expected: 1, message: "RLCA"},
+		{instructions: []in.Instruction{in.RotateA{Direction: in.Right}}, expected: 1, message: "RRA"},
+		{instructions: []in.Instruction{in.RotateOperand{Direction: in.Left, WithCopy: true, Source: registers.A}}, expected: 2, message: "RLC"},
+		{instructions: []in.Instruction{in.RotateOperand{Direction: in.Left, WithCopy: true, Source: registers.M}}, expected: 4, message: "RLC"},
 	}
 
 	for _, test := range testCases {
