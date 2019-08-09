@@ -418,6 +418,15 @@ func (i Swap) Opcode() []byte {
 	return []byte{Prefix, SwapPattern | byte(i.Source)}
 }
 
+type Bit struct {
+	Source    registers.Single
+	BitNumber byte
+}
+
+func (i Bit) Opcode() []byte {
+	return []byte{Prefix, BitPattern | byte(i.Source) | byte(i.BitNumber<<BitNumberShift)}
+}
+
 func GetDirection(opcode byte) Direction {
 	if opcode&RotateDirectionMask > 0 {
 		return Right
@@ -431,6 +440,10 @@ func GetWithCopyRotation(opcode byte) bool {
 
 func GetWithCopyShift(opcode byte) bool {
 	return opcode&ShiftCopyMask == ShiftCopyPattern
+}
+
+func BitNumber(opcode byte) byte {
+	return (opcode & BitNumberMask) >> BitNumberShift
 }
 
 func Source(opcode byte) registers.Single {

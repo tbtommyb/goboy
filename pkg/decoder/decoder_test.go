@@ -104,6 +104,9 @@ var testCases = []DoubleOpcodeTestCase{
 	{[]byte{0xCB, 0x3E}, in.Shift{Direction: in.Right, Source: registers.M}},
 	{[]byte{0xCB, 0x26}, in.Shift{Direction: in.Left, Source: registers.M}},
 	{[]byte{0xCB, 0x36}, in.Swap{Source: registers.M}},
+	{[]byte{0xCB, 0x59}, in.Bit{BitNumber: 3, Source: registers.C}},
+	{[]byte{0xCB, 0x46}, in.Bit{BitNumber: 0, Source: registers.M}},
+	{[]byte{0xCB, 0x7F}, in.Bit{BitNumber: 7, Source: registers.A}},
 }
 
 func TestDecoder(t *testing.T) {

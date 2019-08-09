@@ -328,6 +328,13 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 		result, flagSet := swapOp(cpu.Get(i.Source))
 		cpu.Set(i.Source, result)
 		cpu.setFlags(flagSet)
+	case in.Bit:
+		cpu.setFlags(FlagSet{
+			Negative:  false,
+			HalfCarry: true,
+			Zero:      !utils.IsSet(i.BitNumber, cpu.Get(i.Source)),
+			FullCarry: cpu.isSet(FullCarry),
+		})
 	case in.InvalidInstruction:
 		panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 	}

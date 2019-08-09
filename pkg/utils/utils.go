@@ -12,3 +12,7 @@ func SetBit(pos, value, flag byte) byte {
 	value ^= (-flag ^ value) & (1 << pos)
 	return value
 }
+
+func IsSet(pos, value byte) bool {
+	return value&(1<<pos) > 0
+}

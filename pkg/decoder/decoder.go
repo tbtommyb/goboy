@@ -155,6 +155,9 @@ func Decode(il Iterator, handle func(in.Instruction)) {
 				// SRA m. 0b1100 1011, 0010 1rrr
 				// SRR m. 0b1100 1011, 0011 1rrr
 				handle(in.Shift{Direction: in.GetDirection(operand), Source: in.Source(operand), WithCopy: in.GetWithCopyShift(operand)})
+			case operand&in.BitMask == in.BitPattern:
+				// BIT b r. 0b1100 1011, 01bb brrr
+				handle(in.Bit{Source: in.Source(operand), BitNumber: in.BitNumber(operand)})
 			default:
 				// RLC r. 0b11000 1011, 0001 0rrr
 				// RL r. 0b11000 1011, 0001 0rrr

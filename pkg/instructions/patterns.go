@@ -92,7 +92,7 @@ const RotateDirectionShift = 3
 const RotateCopyMask = 0x10
 const RotateCopyShift = 4
 
-const ShiftMask = 0x20
+const ShiftMask = 0xE0
 const ShiftPattern = 0x20
 const ShiftCopyShift = 4
 const ShiftCopyMask = 0x18
@@ -100,3 +100,8 @@ const ShiftCopyPattern = 0x8
 
 const SwapMask = 0x38
 const SwapPattern = 0x30
+
+const BitMask = 0xC0
+const BitPattern = 0x40
+const BitNumberShift = 3
+const BitNumberMask = 0x38

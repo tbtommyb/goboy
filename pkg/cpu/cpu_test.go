@@ -1183,6 +1183,75 @@ func TestRotateOperandWithMemory(t *testing.T) {
 	}
 }
 
+func TestBit(t *testing.T) {
+	testCases := []struct {
+		name          string
+		instructions  []in.Instruction
+		expectedFlags FlagSet
+		memory        byte
+	}{
+		{
+			name:          "BIT",
+			expectedFlags: FlagSet{HalfCarry: true},
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.A, Immediate: 0x80},
+				in.Bit{BitNumber: 7, Source: registers.A},
+			},
+		},
+		{
+			name:          "BIT",
+			expectedFlags: FlagSet{Zero: true, HalfCarry: true},
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.A, Immediate: 0xEF},
+				in.Bit{BitNumber: 4, Source: registers.A},
+			},
+		},
+	}
+	for _, test := range testCases {
+		cpu := Init()
+		cpu.LoadProgram(encode(test.instructions))
+		cpu.Run()
+		expectFlagSet(t, cpu, test.name, test.expectedFlags)
+	}
+}
+
+func TestBitMemory(t *testing.T) {
+	testCases := []struct {
+		name          string
+		instructions  []in.Instruction
+		expectedFlags FlagSet
+		memory        byte
+	}{
+		{
+			name:          "BIT",
+			memory:        0xFE,
+			expectedFlags: FlagSet{Zero: true, HalfCarry: true},
+			instructions: []in.Instruction{
+				in.Bit{BitNumber: 0, Source: registers.M},
+			},
+		},
+		{
+			name:          "BIT",
+			memory:        0xFE,
+			expectedFlags: FlagSet{HalfCarry: true},
+			instructions: []in.Instruction{
+				in.Bit{BitNumber: 1, Source: registers.M},
+			},
+		},
+	}
+	for _, test := range testCases {
+		cpu := Init()
+		cpu.LoadProgram(encode(append([]in.Instruction{
+			in.MoveImmediate{Dest: registers.H, Immediate: 0x12},
+			in.MoveImmediate{Dest: registers.L, Immediate: 0x34},
+		}, test.instructions...)))
+		cpu.memory.load(0x1234, []byte{test.memory})
+		cpu.Run()
+
+		expectFlagSet(t, cpu, test.name, test.expectedFlags)
+	}
+}
+
 func TestInstructionCycles(t *testing.T) {
 	testCases := []struct {
 		instructions []in.Instruction
@@ -1246,6 +1315,8 @@ func TestInstructionCycles(t *testing.T) {
 		{instructions: []in.Instruction{in.Shift{Direction: in.Right, Source: registers.M}}, expected: 4, message: "SRL"},
 		{instructions: []in.Instruction{in.Swap{Source: registers.B}}, expected: 2, message: "Swap register"},
 		{instructions: []in.Instruction{in.Swap{Source: registers.M}}, expected: 4, message: "Swap memory"},
+		{instructions: []in.Instruction{in.Bit{BitNumber: 2, Source: registers.C}}, expected: 2, message: "Bit"},
+		{instructions: []in.Instruction{in.Bit{BitNumber: 2, Source: registers.M}}, expected: 3, message: "Bit memory"},
 	}
 
 	for _, test := range testCases {
