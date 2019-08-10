@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/tbtommyb/goboy/pkg/conditions"
 	in "github.com/tbtommyb/goboy/pkg/instructions"
 	"github.com/tbtommyb/goboy/pkg/registers"
 )
@@ -1365,7 +1366,59 @@ func TestJump(t *testing.T) {
 			t.Errorf("Expected %x, got %x", test.expected, actual-1)
 		}
 	}
+}
 
+func TestJumpConditional(t *testing.T) {
+	testCases := []struct {
+		name         string
+		instructions []in.Instruction
+		flags        FlagSet
+		expected     uint16
+	}{
+		{
+			name:     "JP conditional ?NZ",
+			expected: ProgramStartAddress + 3,
+			flags:    FlagSet{Zero: true},
+			instructions: []in.Instruction{
+				in.JumpImmediateConditional{Condition: conditions.NZ, Immediate: 0x8000},
+			},
+		},
+		{
+			name:     "JP conditional Z",
+			expected: 0x8000,
+			flags:    FlagSet{Zero: true},
+			instructions: []in.Instruction{
+				in.JumpImmediateConditional{Condition: conditions.Z, Immediate: 0x8000},
+			},
+		},
+		{
+			name:     "JP conditional C",
+			expected: ProgramStartAddress + 3,
+			flags:    FlagSet{Zero: true},
+			instructions: []in.Instruction{
+				in.JumpImmediateConditional{Condition: conditions.C, Immediate: 0x8000},
+			},
+		},
+		{
+			name:     "JP conditional NC",
+			expected: 0x8000,
+			flags:    FlagSet{Zero: true},
+			instructions: []in.Instruction{
+				in.JumpImmediateConditional{Condition: conditions.NC, Immediate: 0x8000},
+			},
+		},
+	}
+	for _, test := range testCases {
+		cpu := Init()
+		cpu.LoadProgram(encode(test.instructions))
+		cpu.setFlags(test.flags)
+		cpu.Run()
+
+		// -1 becuase the Run loop goes to next instruction before failing
+		if actual := cpu.GetPC(); actual-1 != test.expected {
+			t.Errorf("Expected %x, got %x", test.expected, actual-1)
+		}
+	}
 }
 
 func TestInstructionCycles(t *testing.T) {
@@ -1438,6 +1491,11 @@ func TestInstructionCycles(t *testing.T) {
 		{instructions: []in.Instruction{in.Reset{BitNumber: 0, Source: registers.A}}, expected: 2, message: "Reset"},
 		{instructions: []in.Instruction{in.Reset{BitNumber: 0, Source: registers.M}}, expected: 4, message: "Reset memory"},
 		{instructions: []in.Instruction{in.JumpImmediate{Immediate: 0x1234}}, expected: 4, message: "Jump immediate"},
+		{instructions: []in.Instruction{in.JumpImmediateConditional{Condition: conditions.NC, Immediate: 0x1234}}, expected: 4, message: "Jump conditional met"},
+		{instructions: []in.Instruction{
+			in.Add{Source: registers.A},
+			in.JumpImmediateConditional{Condition: conditions.NZ, Immediate: 0x1234},
+		}, expected: 4, message: "Jump conditional not met"},
 	}
 
 	for _, test := range testCases {

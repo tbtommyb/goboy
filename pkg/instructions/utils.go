@@ -1,6 +1,9 @@
 package instructions
 
-import "github.com/tbtommyb/goboy/pkg/registers"
+import (
+	"github.com/tbtommyb/goboy/pkg/conditions"
+	"github.com/tbtommyb/goboy/pkg/registers"
+)
 
 func GetDirection(opcode byte) Direction {
 	if opcode&RotateDirectionMask > 0 {
@@ -31,6 +34,10 @@ func Dest(opcode byte) registers.Single {
 
 func Pair(opcode byte) registers.Pair {
 	return registers.Pair(opcode & PairRegisterMask >> PairRegisterShift)
+}
+
+func GetCondition(opcode byte) conditions.Condition {
+	return conditions.Condition((opcode & ConditionMask) >> ConditionShift)
 }
 
 // AF and SP use same bit pattern in different instructions

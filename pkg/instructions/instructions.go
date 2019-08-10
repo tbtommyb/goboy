@@ -1,6 +1,9 @@
 package instructions
 
-import "github.com/tbtommyb/goboy/pkg/registers"
+import (
+	"github.com/tbtommyb/goboy/pkg/conditions"
+	"github.com/tbtommyb/goboy/pkg/registers"
+)
 
 type Direction byte
 
@@ -451,4 +454,13 @@ type JumpImmediate struct {
 
 func (i JumpImmediate) Opcode() []byte {
 	return []byte{JumpImmediatePattern, byte(i.Immediate), byte(i.Immediate >> 8)}
+}
+
+type JumpImmediateConditional struct {
+	Immediate uint16
+	Condition conditions.Condition
+}
+
+func (i JumpImmediateConditional) Opcode() []byte {
+	return []byte{JumpImmediateConditionalPattern | byte(i.Condition<<ConditionShift), byte(i.Immediate), byte(i.Immediate >> 8)}
 }

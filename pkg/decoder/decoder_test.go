@@ -3,6 +3,7 @@ package decoder
 import (
 	"testing"
 
+	"github.com/tbtommyb/goboy/pkg/conditions"
 	"github.com/tbtommyb/goboy/pkg/disassembler"
 	in "github.com/tbtommyb/goboy/pkg/instructions"
 	"github.com/tbtommyb/goboy/pkg/registers"
@@ -112,6 +113,9 @@ var testCases = []DoubleOpcodeTestCase{
 	{[]byte{0xCB, 0xBE}, in.Reset{BitNumber: 7, Source: registers.M}},
 	{[]byte{0xCB, 0x87}, in.Reset{BitNumber: 0, Source: registers.A}},
 	{[]byte{0xC3, 0x55, 0x44}, in.JumpImmediate{Immediate: 0x4455}},
+	{[]byte{0xC2, 0x55, 0x44}, in.JumpImmediateConditional{Condition: conditions.NZ, Immediate: 0x4455}},
+	{[]byte{0xCA, 0x55, 0x44}, in.JumpImmediateConditional{Condition: conditions.Z, Immediate: 0x4455}},
+	{[]byte{0xD2, 0x55, 0x44}, in.JumpImmediateConditional{Condition: conditions.NC, Immediate: 0x4455}},
 }
 
 func TestDecoder(t *testing.T) {

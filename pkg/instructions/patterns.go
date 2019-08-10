@@ -113,3 +113,7 @@ const ResetMask = 0xC0
 const ResetPattern = 0x80
 
 const JumpImmediatePattern = 0xC3
+const JumpImmediateConditionalMask = 0xE7
+const JumpImmediateConditionalPattern = 0xC2
+const ConditionMask = 0x18
+const ConditionShift = 3
