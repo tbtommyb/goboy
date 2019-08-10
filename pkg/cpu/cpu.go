@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math/bits"
 
-	"github.com/tbtommyb/goboy/pkg/conditions"
 	"github.com/tbtommyb/goboy/pkg/decoder"
 	in "github.com/tbtommyb/goboy/pkg/instructions"
 	"github.com/tbtommyb/goboy/pkg/registers"
@@ -352,26 +351,17 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 	case in.JumpImmediate:
 		cpu.setPC(i.Immediate)
 	case in.JumpImmediateConditional:
-		switch i.Condition {
-		case conditions.NC:
-			if !cpu.isSet(FullCarry) {
-				cpu.setPC(i.Immediate)
-			}
-		case conditions.C:
-			if cpu.isSet(FullCarry) {
-				cpu.setPC(i.Immediate)
-			}
-		case conditions.NZ:
-			if !cpu.isSet(Zero) {
-				cpu.setPC(i.Immediate)
-			}
-		case conditions.Z:
-			if cpu.isSet(Zero) {
-				cpu.setPC(i.Immediate)
-			}
+		if cpu.conditionMet(i.Condition) {
+			cpu.setPC(i.Immediate)
 		}
 	case in.JumpRelative:
-		cpu.setPC(cpu.GetPC() + uint16(i.Immediate))
+		// -2 to account for decoder having moved past immediate value. Refactor?
+		cpu.setPC(cpu.GetPC() - 2 + uint16(i.Immediate))
+	case in.JumpRelativeConditional:
+		if cpu.conditionMet(i.Condition) {
+			cpu.setPC(cpu.GetPC() - 2 + uint16(i.Immediate))
+		}
+
 	case in.InvalidInstruction:
 		panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 	}

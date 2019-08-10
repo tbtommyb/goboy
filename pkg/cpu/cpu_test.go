@@ -1357,7 +1357,7 @@ func TestJump(t *testing.T) {
 		},
 		{
 			name:     "JR",
-			expected: ProgramStartAddress + 12,
+			expected: ProgramStartAddress + 10,
 			instructions: []in.Instruction{
 				in.JumpRelative{Immediate: 10},
 			},
@@ -1412,6 +1412,14 @@ func TestJumpConditional(t *testing.T) {
 			flags:    FlagSet{Zero: true},
 			instructions: []in.Instruction{
 				in.JumpImmediateConditional{Condition: conditions.NC, Immediate: 0x8000},
+			},
+		},
+		{
+			name:     "JR conditional NC",
+			expected: ProgramStartAddress + 12,
+			flags:    FlagSet{Zero: true},
+			instructions: []in.Instruction{
+				in.JumpRelativeConditional{Condition: conditions.Z, Immediate: 12},
 			},
 		},
 	}
@@ -1504,6 +1512,11 @@ func TestInstructionCycles(t *testing.T) {
 			in.JumpImmediateConditional{Condition: conditions.NZ, Immediate: 0x1234},
 		}, expected: 4, message: "Jump conditional not met"},
 		{instructions: []in.Instruction{in.JumpRelative{Immediate: 2}}, expected: 3, message: "Jump relative"},
+		{instructions: []in.Instruction{in.JumpRelativeConditional{Condition: conditions.NC, Immediate: 2}}, expected: 3, message: "JR conditional met"},
+		{instructions: []in.Instruction{
+			in.Add{Source: registers.A},
+			in.JumpRelativeConditional{Condition: conditions.NZ, Immediate: 2},
+		}, expected: 3, message: "JR conditional not met"},
 	}
 
 	for _, test := range testCases {

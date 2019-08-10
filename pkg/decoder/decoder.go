@@ -175,15 +175,20 @@ func Decode(il Iterator, handle func(in.Instruction)) {
 			// JP nn. 0b1100 0011, L, H
 			Immediate := utils.ReverseMergePair(il.Next(), il.Next())
 			handle(in.JumpImmediate{Immediate})
-		case op&in.JumpImmediateConditionalMask == in.JumpImmediateConditionalPattern:
-			// JP nn. 0b110c c010, L, H
+		case op&in.JumpConditionalMask == in.JumpImmediateConditionalPattern:
+			// JP cc nn. 0b110c c010, L, H
 			Immediate := utils.ReverseMergePair(il.Next(), il.Next())
 			Condition := in.GetCondition(op)
 			handle(in.JumpImmediateConditional{Immediate, Condition})
 		case op == in.JumpRelativePattern:
-			// JR, e. 0b0001 1000
+			// JR, n. 0b0001 1000, n
 			Immediate := int8(il.Next()) + 2
 			handle(in.JumpRelative{Immediate})
+		case op&in.JumpConditionalMask == in.JumpRelativeConditionalPattern:
+			// JR cc n. 0b001c c000, n
+			Immediate := int8(il.Next()) + 2
+			Condition := in.GetCondition(op)
+			handle(in.JumpRelativeConditional{Immediate, Condition})
 		case op == 0:
 			handle(in.EmptyInstruction{})
 		default:

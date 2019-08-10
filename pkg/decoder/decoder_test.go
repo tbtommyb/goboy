@@ -116,6 +116,7 @@ var testCases = []DoubleOpcodeTestCase{
 	{[]byte{0xCA, 0x55, 0x44}, in.JumpImmediateConditional{Condition: conditions.Z, Immediate: 0x4455}},
 	{[]byte{0xD2, 0x55, 0x44}, in.JumpImmediateConditional{Condition: conditions.NC, Immediate: 0x4455}},
 	{[]byte{0x18, 0x8}, in.JumpRelative{Immediate: 10}},
+	{[]byte{0x28, 0xC}, in.JumpRelativeConditional{Condition: conditions.Z, Immediate: 14}},
 }
 
 func TestDecoder(t *testing.T) {
