@@ -119,3 +119,4 @@ const ConditionMask = 0x18
 const ConditionShift = 3
 const JumpRelativePattern = 0x18
 const JumpRelativeConditionalPattern = 0x20
+const JumpMemoryPattern = 0xE9

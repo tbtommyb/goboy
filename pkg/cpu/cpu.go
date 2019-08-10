@@ -39,6 +39,10 @@ func (cpu *CPU) incrementCycles() {
 	cpu.cycles += 1
 }
 
+func (cpu *CPU) decrementCycles() {
+	cpu.cycles -= 1
+}
+
 func addOp(args ...byte) (byte, FlagSet) {
 	a, b, carry := args[0], args[1], args[2]
 	result := a + b + carry
@@ -362,6 +366,9 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 			cpu.setPC(cpu.GetPC() - 2 + uint16(i.Immediate))
 		}
 
+	case in.JumpMemory:
+		cpu.setPC(cpu.GetHL())
+		cpu.decrementCycles() // TODO: hack attack
 	case in.InvalidInstruction:
 		panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 	}

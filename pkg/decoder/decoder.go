@@ -189,6 +189,9 @@ func Decode(il Iterator, handle func(in.Instruction)) {
 			Immediate := int8(il.Next()) + 2
 			Condition := in.GetCondition(op)
 			handle(in.JumpRelativeConditional{Immediate, Condition})
+		case op == in.JumpMemoryPattern:
+			// JP (HL). 0b1110 1001
+			handle(in.JumpMemory{})
 		case op == 0:
 			handle(in.EmptyInstruction{})
 		default:

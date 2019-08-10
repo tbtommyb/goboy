@@ -1436,6 +1436,20 @@ func TestJumpConditional(t *testing.T) {
 	}
 }
 
+func TestJumpMemory(t *testing.T) {
+	cpu := Init()
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.MoveImmediate{Dest: registers.H, Immediate: 0x12},
+		in.MoveImmediate{Dest: registers.L, Immediate: 0x34},
+		in.JumpMemory{},
+	}))
+	cpu.Run()
+
+	if actual := cpu.GetPC(); actual-1 != 0x1234 {
+		t.Errorf("Expected %x, got %x", 0x1234, actual-1)
+	}
+}
+
 func TestInstructionCycles(t *testing.T) {
 	testCases := []struct {
 		instructions []in.Instruction
@@ -1517,6 +1531,7 @@ func TestInstructionCycles(t *testing.T) {
 			in.Add{Source: registers.A},
 			in.JumpRelativeConditional{Condition: conditions.NZ, Immediate: 2},
 		}, expected: 3, message: "JR conditional not met"},
+		{instructions: []in.Instruction{in.JumpMemory{}}, expected: 1, message: "Jump memory"},
 	}
 
 	for _, test := range testCases {
