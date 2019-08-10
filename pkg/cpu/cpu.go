@@ -365,10 +365,14 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 		if cpu.conditionMet(i.Condition) {
 			cpu.setPC(cpu.GetPC() - 2 + uint16(i.Immediate))
 		}
-
 	case in.JumpMemory:
 		cpu.setPC(cpu.GetHL())
 		cpu.decrementCycles() // TODO: hack attack
+	case in.Call:
+		high, low := utils.SplitPair(cpu.GetPC())
+		cpu.pushStack(high)
+		cpu.pushStack(low)
+		cpu.setPC(i.Immediate)
 	case in.InvalidInstruction:
 		panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 	}

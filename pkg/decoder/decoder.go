@@ -192,6 +192,10 @@ func Decode(il Iterator, handle func(in.Instruction)) {
 		case op == in.JumpMemoryPattern:
 			// JP (HL). 0b1110 1001
 			handle(in.JumpMemory{})
+		case op == in.CallPattern:
+			// CALL nn. 0b1100 1101, n, n
+			Immediate := utils.ReverseMergePair(il.Next(), il.Next())
+			handle(in.Call{Immediate})
 		case op == 0:
 			handle(in.EmptyInstruction{})
 		default:

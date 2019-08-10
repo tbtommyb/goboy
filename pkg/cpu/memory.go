@@ -11,8 +11,9 @@ type Memory []byte
 const ProgramStartAddress = 0x150
 const StackStartAddress = 0xFF80
 
-func (m Memory) load(start int, data []byte) {
-	for i := 0; i < len(data); i++ {
+func (m Memory) load(start uint16, data []byte) {
+	var i uint16
+	for i = 0; i < uint16(len(data)); i++ {
 		m[start+i] = data[i]
 	}
 }
@@ -32,7 +33,7 @@ func (cpu *CPU) readMem(address uint16) byte {
 }
 
 func (cpu *CPU) LoadProgram(program []byte) {
-	cpu.memory.load(ProgramStartAddress, program)
+	cpu.memory.load(cpu.GetPC(), program)
 }
 
 func (cpu *CPU) WriteMem(address uint16, value byte) byte {
