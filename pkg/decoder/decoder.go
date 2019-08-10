@@ -158,6 +158,9 @@ func Decode(il Iterator, handle func(in.Instruction)) {
 			case operand&in.BitMask == in.BitPattern:
 				// BIT b r. 0b1100 1011, 01bb brrr
 				handle(in.Bit{Source: in.Source(operand), BitNumber: in.BitNumber(operand)})
+			case operand&in.SetMask == in.SetPattern:
+				// SET b r. 0b1100 1011, 11bb brrr
+				handle(in.Set{Source: in.Source(operand), BitNumber: in.BitNumber(operand)})
 			default:
 				// RLC r. 0b11000 1011, 0001 0rrr
 				// RL r. 0b11000 1011, 0001 0rrr

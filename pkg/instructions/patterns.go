@@ -105,3 +105,5 @@ const BitMask = 0xC0
 const BitPattern = 0x40
 const BitNumberShift = 3
 const BitNumberMask = 0x38
+const SetMask = 0xC0
+const SetPattern = 0xC0

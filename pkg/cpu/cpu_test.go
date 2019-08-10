@@ -1252,6 +1252,71 @@ func TestBitMemory(t *testing.T) {
 	}
 }
 
+func TestSet(t *testing.T) {
+	testCases := []struct {
+		name         string
+		instructions []in.Instruction
+		expected     byte
+	}{
+		{
+			name:     "SET",
+			expected: 0x84,
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.A, Immediate: 0x80},
+				in.Set{BitNumber: 2, Source: registers.A},
+			},
+		},
+		{
+			name:     "SET",
+			expected: 0xBB,
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.A, Immediate: 0x3B},
+				in.Set{BitNumber: 7, Source: registers.A},
+			},
+		},
+	}
+	for _, test := range testCases {
+		cpu := Init()
+		cpu.LoadProgram(encode(test.instructions))
+		cpu.Run()
+
+		if actual := cpu.Get(registers.A); actual != test.expected {
+			t.Errorf("Expected %x, got %x", test.expected, actual)
+		}
+	}
+}
+
+func TestSetMemory(t *testing.T) {
+	testCases := []struct {
+		name         string
+		instructions []in.Instruction
+		expected     byte
+		memory       byte
+	}{
+		{
+			name:     "SET",
+			memory:   0x00,
+			expected: 0x8,
+			instructions: []in.Instruction{
+				in.Set{BitNumber: 3, Source: registers.M},
+			},
+		},
+	}
+	for _, test := range testCases {
+		cpu := Init()
+		cpu.LoadProgram(encode(append([]in.Instruction{
+			in.MoveImmediate{Dest: registers.H, Immediate: 0x12},
+			in.MoveImmediate{Dest: registers.L, Immediate: 0x34},
+		}, test.instructions...)))
+		cpu.memory.load(0x1234, []byte{test.memory})
+		cpu.Run()
+
+		if actual := cpu.Get(registers.M); actual != test.expected {
+			t.Errorf("Expected %x, got %x", test.expected, actual)
+		}
+	}
+}
+
 func TestInstructionCycles(t *testing.T) {
 	testCases := []struct {
 		instructions []in.Instruction
@@ -1317,6 +1382,8 @@ func TestInstructionCycles(t *testing.T) {
 		{instructions: []in.Instruction{in.Swap{Source: registers.M}}, expected: 4, message: "Swap memory"},
 		{instructions: []in.Instruction{in.Bit{BitNumber: 2, Source: registers.C}}, expected: 2, message: "Bit"},
 		{instructions: []in.Instruction{in.Bit{BitNumber: 2, Source: registers.M}}, expected: 3, message: "Bit memory"},
+		{instructions: []in.Instruction{in.Set{BitNumber: 2, Source: registers.M}}, expected: 4, message: "Set memory"},
+		{instructions: []in.Instruction{in.Set{BitNumber: 0, Source: registers.A}}, expected: 2, message: "Set"},
 	}
 
 	for _, test := range testCases {

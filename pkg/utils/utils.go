@@ -8,11 +8,11 @@ func ReverseMergePair(low, high byte) uint16 {
 	return MergePair(high, low)
 }
 
-func SetBit(pos, value, flag byte) byte {
-	value ^= (-flag ^ value) & (1 << pos)
-	return value
+func SetBit(pos, input, bitValue byte) byte {
+	input ^= (-bitValue ^ input) & (1 << pos)
+	return input
 }
 
-func IsSet(pos, value byte) bool {
-	return value&(1<<pos) > 0
+func IsSet(pos, input byte) bool {
+	return input&(1<<pos) > 0
 }
