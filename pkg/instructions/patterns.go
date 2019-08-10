@@ -111,3 +111,5 @@ const SetPattern = 0xC0
 
 const ResetMask = 0xC0
 const ResetPattern = 0x80
+
+const JumpImmediatePattern = 0xC3

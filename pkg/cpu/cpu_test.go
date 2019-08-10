@@ -1341,6 +1341,33 @@ func TestSetMemory(t *testing.T) {
 	}
 }
 
+func TestJump(t *testing.T) {
+	testCases := []struct {
+		name         string
+		instructions []in.Instruction
+		expected     uint16
+	}{
+		{
+			name:     "JP immediate",
+			expected: 0x8000,
+			instructions: []in.Instruction{
+				in.JumpImmediate{Immediate: 0x8000},
+			},
+		},
+	}
+	for _, test := range testCases {
+		cpu := Init()
+		cpu.LoadProgram(encode(test.instructions))
+		cpu.Run()
+
+		// -1 becuase the Run loop goes to next instruction before failing
+		if actual := cpu.GetPC(); actual-1 != test.expected {
+			t.Errorf("Expected %x, got %x", test.expected, actual-1)
+		}
+	}
+
+}
+
 func TestInstructionCycles(t *testing.T) {
 	testCases := []struct {
 		instructions []in.Instruction
@@ -1410,6 +1437,7 @@ func TestInstructionCycles(t *testing.T) {
 		{instructions: []in.Instruction{in.Set{BitNumber: 0, Source: registers.A}}, expected: 2, message: "Set"},
 		{instructions: []in.Instruction{in.Reset{BitNumber: 0, Source: registers.A}}, expected: 2, message: "Reset"},
 		{instructions: []in.Instruction{in.Reset{BitNumber: 0, Source: registers.M}}, expected: 4, message: "Reset memory"},
+		{instructions: []in.Instruction{in.JumpImmediate{Immediate: 0x1234}}, expected: 4, message: "Jump immediate"},
 	}
 
 	for _, test := range testCases {

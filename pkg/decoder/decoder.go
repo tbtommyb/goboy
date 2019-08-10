@@ -171,6 +171,10 @@ func Decode(il Iterator, handle func(in.Instruction)) {
 				// RR r. 0b11000 1011, 0001 1rrr
 				handle(in.RotateOperand{Direction: in.GetDirection(operand), WithCopy: in.GetWithCopyRotation(operand), Source: in.Source(operand)})
 			}
+		case op == in.JumpImmediatePattern:
+			// JP nn. 0b1100 0011
+			Immediate := utils.ReverseMergePair(il.Next(), il.Next())
+			handle(in.JumpImmediate{Immediate})
 		case op == 0:
 			handle(in.EmptyInstruction{})
 		default:

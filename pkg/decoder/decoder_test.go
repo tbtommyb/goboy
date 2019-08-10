@@ -111,6 +111,7 @@ var testCases = []DoubleOpcodeTestCase{
 	{[]byte{0xCB, 0xC7}, in.Set{BitNumber: 0, Source: registers.A}},
 	{[]byte{0xCB, 0xBE}, in.Reset{BitNumber: 7, Source: registers.M}},
 	{[]byte{0xCB, 0x87}, in.Reset{BitNumber: 0, Source: registers.A}},
+	{[]byte{0xC3, 0x55, 0x44}, in.JumpImmediate{Immediate: 0x4455}},
 }
 
 func TestDecoder(t *testing.T) {

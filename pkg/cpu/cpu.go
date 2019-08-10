@@ -26,6 +26,11 @@ func (cpu *CPU) incrementPC() {
 	cpu.PC += 1
 }
 
+func (cpu *CPU) setPC(value uint16) {
+	cpu.incrementCycles()
+	cpu.PC = value
+}
+
 func (cpu *CPU) GetCycles() uint {
 	return cpu.cycles
 }
@@ -343,6 +348,8 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 		bit := i.BitNumber
 		result := utils.SetBit(bit, cpu.Get(i.Source), 0)
 		cpu.Set(i.Source, result)
+	case in.JumpImmediate:
+		cpu.setPC(i.Immediate)
 	case in.InvalidInstruction:
 		panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 	}
