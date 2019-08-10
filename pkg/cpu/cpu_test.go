@@ -1274,6 +1274,22 @@ func TestSet(t *testing.T) {
 				in.Set{BitNumber: 7, Source: registers.A},
 			},
 		},
+		{
+			name:     "RESET",
+			expected: 0x0,
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.A, Immediate: 0x80},
+				in.Reset{BitNumber: 7, Source: registers.A},
+			},
+		},
+		{
+			name:     "RESET",
+			expected: 0x39,
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.A, Immediate: 0x3B},
+				in.Reset{BitNumber: 1, Source: registers.A},
+			},
+		},
 	}
 	for _, test := range testCases {
 		cpu := Init()
@@ -1299,6 +1315,14 @@ func TestSetMemory(t *testing.T) {
 			expected: 0x8,
 			instructions: []in.Instruction{
 				in.Set{BitNumber: 3, Source: registers.M},
+			},
+		},
+		{
+			name:     "RESET",
+			memory:   0xFF,
+			expected: 0xF7,
+			instructions: []in.Instruction{
+				in.Reset{BitNumber: 3, Source: registers.M},
 			},
 		},
 	}
@@ -1384,6 +1408,8 @@ func TestInstructionCycles(t *testing.T) {
 		{instructions: []in.Instruction{in.Bit{BitNumber: 2, Source: registers.M}}, expected: 3, message: "Bit memory"},
 		{instructions: []in.Instruction{in.Set{BitNumber: 2, Source: registers.M}}, expected: 4, message: "Set memory"},
 		{instructions: []in.Instruction{in.Set{BitNumber: 0, Source: registers.A}}, expected: 2, message: "Set"},
+		{instructions: []in.Instruction{in.Reset{BitNumber: 0, Source: registers.A}}, expected: 2, message: "Reset"},
+		{instructions: []in.Instruction{in.Reset{BitNumber: 0, Source: registers.M}}, expected: 4, message: "Reset memory"},
 	}
 
 	for _, test := range testCases {

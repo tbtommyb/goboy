@@ -436,6 +436,15 @@ func (i Set) Opcode() []byte {
 	return []byte{Prefix, SetPattern | byte(i.Source) | byte(i.BitNumber<<BitNumberShift)}
 }
 
+type Reset struct {
+	Source    registers.Single
+	BitNumber byte
+}
+
+func (i Reset) Opcode() []byte {
+	return []byte{Prefix, ResetPattern | byte(i.Source) | byte(i.BitNumber<<BitNumberShift)}
+}
+
 func GetDirection(opcode byte) Direction {
 	if opcode&RotateDirectionMask > 0 {
 		return Right

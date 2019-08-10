@@ -339,6 +339,10 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 		bit := i.BitNumber
 		result := utils.SetBit(bit, cpu.Get(i.Source), 1)
 		cpu.Set(i.Source, result)
+	case in.Reset:
+		bit := i.BitNumber
+		result := utils.SetBit(bit, cpu.Get(i.Source), 0)
+		cpu.Set(i.Source, result)
 	case in.InvalidInstruction:
 		panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 	}
