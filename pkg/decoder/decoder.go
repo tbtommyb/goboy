@@ -180,6 +180,10 @@ func Decode(il Iterator, handle func(in.Instruction)) {
 			Immediate := utils.ReverseMergePair(il.Next(), il.Next())
 			Condition := in.GetCondition(op)
 			handle(in.JumpImmediateConditional{Immediate, Condition})
+		case op == in.JumpRelativePattern:
+			// JR, e. 0b0001 1000
+			Immediate := int8(il.Next()) + 2
+			handle(in.JumpRelative{Immediate})
 		case op == 0:
 			handle(in.EmptyInstruction{})
 		default:

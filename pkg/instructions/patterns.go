@@ -117,3 +117,4 @@ const JumpImmediateConditionalMask = 0xE7
 const JumpImmediateConditionalPattern = 0xC2
 const ConditionMask = 0x18
 const ConditionShift = 3
+const JumpRelativePattern = 0x18

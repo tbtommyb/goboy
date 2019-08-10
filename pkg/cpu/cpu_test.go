@@ -1355,6 +1355,13 @@ func TestJump(t *testing.T) {
 				in.JumpImmediate{Immediate: 0x8000},
 			},
 		},
+		{
+			name:     "JR",
+			expected: ProgramStartAddress + 12,
+			instructions: []in.Instruction{
+				in.JumpRelative{Immediate: 10},
+			},
+		},
 	}
 	for _, test := range testCases {
 		cpu := Init()
@@ -1496,6 +1503,7 @@ func TestInstructionCycles(t *testing.T) {
 			in.Add{Source: registers.A},
 			in.JumpImmediateConditional{Condition: conditions.NZ, Immediate: 0x1234},
 		}, expected: 4, message: "Jump conditional not met"},
+		{instructions: []in.Instruction{in.JumpRelative{Immediate: 2}}, expected: 3, message: "Jump relative"},
 	}
 
 	for _, test := range testCases {

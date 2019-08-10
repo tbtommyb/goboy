@@ -370,6 +370,8 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 				cpu.setPC(i.Immediate)
 			}
 		}
+	case in.JumpRelative:
+		cpu.setPC(cpu.GetPC() + uint16(i.Immediate))
 	case in.InvalidInstruction:
 		panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 	}

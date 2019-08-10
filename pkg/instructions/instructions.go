@@ -464,3 +464,11 @@ type JumpImmediateConditional struct {
 func (i JumpImmediateConditional) Opcode() []byte {
 	return []byte{JumpImmediateConditionalPattern | byte(i.Condition<<ConditionShift), byte(i.Immediate), byte(i.Immediate >> 8)}
 }
+
+type JumpRelative struct {
+	Immediate int8
+}
+
+func (i JumpRelative) Opcode() []byte {
+	return []byte{JumpRelativePattern, byte(i.Immediate - 2)}
+}
