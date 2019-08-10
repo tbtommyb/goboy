@@ -504,3 +504,15 @@ type CallConditional struct {
 func (i CallConditional) Opcode() []byte {
 	return []byte{CallConditionalPattern | byte(i.Condition<<ConditionShift), byte(i.Immediate), byte(i.Immediate >> 8)}
 }
+
+type Return struct{}
+
+func (i Return) Opcode() []byte {
+	return []byte{ReturnPattern}
+}
+
+type ReturnInterrupt struct{}
+
+func (i ReturnInterrupt) Opcode() []byte {
+	return []byte{ReturnInterruptPattern}
+}

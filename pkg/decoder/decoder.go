@@ -201,6 +201,12 @@ func Decode(il Iterator, handle func(in.Instruction)) {
 			Immediate := utils.ReverseMergePair(il.Next(), il.Next())
 			Condition := in.GetCondition(op)
 			handle(in.CallConditional{Immediate, Condition})
+		case op == in.ReturnPattern:
+			// RET. 0b1100 1001
+			handle(in.Return{})
+		case op == in.ReturnInterruptPattern:
+			// RETI. 0b1101 1001
+			handle(in.ReturnInterrupt{})
 		case op == 0:
 			handle(in.EmptyInstruction{})
 		default:

@@ -380,6 +380,14 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 			cpu.pushStack(low)
 			cpu.setPC(i.Immediate)
 		}
+	case in.Return:
+		low := cpu.popStack()
+		high := cpu.popStack()
+		cpu.setPC(utils.MergePair(high, low))
+	case in.ReturnInterrupt:
+		low := cpu.popStack()
+		high := cpu.popStack()
+		cpu.setPC(utils.MergePair(high, low))
 	case in.InvalidInstruction:
 		panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 	}

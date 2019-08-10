@@ -124,3 +124,6 @@ const JumpMemoryPattern = 0xE9
 const CallPattern = 0xCD
 const CallConditionalMask = 0xE7
 const CallConditionalPattern = 0xC4
+
+const ReturnPattern = 0xC9
+const ReturnInterruptPattern = 0xD9

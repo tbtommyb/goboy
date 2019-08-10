@@ -1491,6 +1491,37 @@ func TestCallConditional(t *testing.T) {
 	}
 }
 
+func TestReturn(t *testing.T) {
+	cpu := Init()
+
+	cpu.setPC(0x8000)
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.Call{Immediate: 0x9000},
+	}))
+	cpu.memory.load(0x9000, in.Return{}.Opcode())
+	cpu.Run()
+
+	if actual := cpu.GetPC(); actual-1 != 0x8003 {
+		t.Errorf("Expected %#X, got %#X", 0x8003, actual-1)
+	}
+}
+
+func TestReturnInterrupt(t *testing.T) {
+	// TODO: test resetting master interrupt once interrutps implemented
+	cpu := Init()
+
+	cpu.setPC(0x8000)
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.Call{Immediate: 0x9000},
+	}))
+	cpu.memory.load(0x9000, in.ReturnInterrupt{}.Opcode())
+	cpu.Run()
+
+	if actual := cpu.GetPC(); actual-1 != 0x8003 {
+		t.Errorf("Expected %#X, got %#X", 0x8003, actual-1)
+	}
+}
+
 func TestInstructionCycles(t *testing.T) {
 	testCases := []struct {
 		instructions []in.Instruction
@@ -1579,6 +1610,8 @@ func TestInstructionCycles(t *testing.T) {
 			in.Add{Source: registers.A},
 			in.CallConditional{Condition: conditions.NZ, Immediate: 0x1234},
 		}, expected: 4, message: "Call conditional not met"},
+		{instructions: []in.Instruction{in.Return{}}, expected: 4, message: "Return"},
+		{instructions: []in.Instruction{in.ReturnInterrupt{}}, expected: 4, message: "Return interrupt"},
 	}
 
 	for _, test := range testCases {
