@@ -495,3 +495,12 @@ type Call struct {
 func (i Call) Opcode() []byte {
 	return []byte{CallPattern, byte(i.Immediate), byte(i.Immediate >> 8)}
 }
+
+type CallConditional struct {
+	Immediate uint16
+	Condition conditions.Condition
+}
+
+func (i CallConditional) Opcode() []byte {
+	return []byte{CallConditionalPattern | byte(i.Condition<<ConditionShift), byte(i.Immediate), byte(i.Immediate >> 8)}
+}

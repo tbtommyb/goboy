@@ -196,6 +196,11 @@ func Decode(il Iterator, handle func(in.Instruction)) {
 			// CALL nn. 0b1100 1101, n, n
 			Immediate := utils.ReverseMergePair(il.Next(), il.Next())
 			handle(in.Call{Immediate})
+		case op&in.CallConditionalMask == in.CallConditionalPattern:
+			// CALL cc nn. 0b110c c100
+			Immediate := utils.ReverseMergePair(il.Next(), il.Next())
+			Condition := in.GetCondition(op)
+			handle(in.CallConditional{Immediate, Condition})
 		case op == 0:
 			handle(in.EmptyInstruction{})
 		default:
