@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/tbtommyb/goboy/pkg/conditions"
-	"github.com/tbtommyb/goboy/pkg/disassembler"
 	in "github.com/tbtommyb/goboy/pkg/instructions"
 	"github.com/tbtommyb/goboy/pkg/registers"
 )
@@ -120,7 +119,7 @@ var testCases = []DoubleOpcodeTestCase{
 
 func TestDecoder(t *testing.T) {
 	for _, testCase := range testCases {
-		il := disassembler.Disassembler{Instructions: testCase.opcodes}
+		il := in.List{Instructions: testCase.opcodes}
 		Decode(&il, func(actual in.Instruction) {
 			if actual != testCase.expected {
 				t.Errorf("Expected %#v, got %#v", testCase.expected, actual)
@@ -131,7 +130,7 @@ func TestDecoder(t *testing.T) {
 
 func TestOpcode(t *testing.T) {
 	for _, testCase := range testCases {
-		il := disassembler.Disassembler{Instructions: testCase.opcodes}
+		il := in.List{Instructions: testCase.opcodes}
 		Decode(&il, func(actual in.Instruction) {
 			result := actual.Opcode()
 			ok := compare(result, testCase.opcodes)

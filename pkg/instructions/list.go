@@ -1,16 +1,16 @@
-package disassembler
+package instructions
 
-type Disassembler struct {
+type List struct {
 	Instructions    []byte
 	currentPosition int
 }
 
-func (il *Disassembler) Load(input []byte) {
+func (il *List) Load(input []byte) {
 	il.Instructions = input
 	il.currentPosition = 0
 }
 
-func (il *Disassembler) Next() byte {
+func (il *List) Next() byte {
 	if il.currentPosition >= len(il.Instructions) {
 		return 0
 	}
