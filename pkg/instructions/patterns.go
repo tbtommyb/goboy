@@ -134,3 +134,5 @@ const RSTMask = 0xC7
 const RSTPattern = 0xC7
 const OperandMask = 0x38
 const OperandShift = 3
+
+const ComplementPattern = 0x2F

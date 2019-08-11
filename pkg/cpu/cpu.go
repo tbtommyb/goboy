@@ -394,6 +394,8 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 		cpu.pushStack(high)
 		cpu.pushStack(low)
 		cpu.setPC(uint16(i.Operand << in.OperandShift))
+	case in.Complement:
+		cpu.Set(registers.A, ^cpu.Get(registers.A))
 	case in.InvalidInstruction:
 		panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 	}

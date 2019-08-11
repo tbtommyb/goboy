@@ -532,3 +532,9 @@ type RST struct {
 func (i RST) Opcode() []byte {
 	return []byte{RSTPattern | byte(i.Operand<<3)}
 }
+
+type Complement struct{}
+
+func (i Complement) Opcode() []byte {
+	return []byte{ComplementPattern}
+}

@@ -1555,6 +1555,20 @@ func TestRST(t *testing.T) {
 	}
 }
 
+func TestComplement(t *testing.T) {
+	cpu := Init()
+
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.MoveImmediate{Dest: registers.A, Immediate: 0x35},
+		in.Complement{},
+	}))
+	cpu.Run()
+
+	if actual := cpu.Get(registers.A); actual != 0xCA {
+		t.Errorf("Expected %#X, got %#X", 0xCA, actual)
+	}
+}
+
 func TestInstructionCycles(t *testing.T) {
 	testCases := []struct {
 		instructions []in.Instruction
@@ -1650,6 +1664,7 @@ func TestInstructionCycles(t *testing.T) {
 			in.ReturnConditional{Condition: conditions.Z},
 		}, expected: 2, message: "Return conditional not met"},
 		{instructions: []in.Instruction{in.RST{Operand: 1}}, expected: 4, message: "RST"},
+		{instructions: []in.Instruction{in.Complement{}}, expected: 1, message: "Complement"},
 	}
 
 	for _, test := range testCases {
