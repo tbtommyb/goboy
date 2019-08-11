@@ -122,6 +122,7 @@ var testCases = []DoubleOpcodeTestCase{
 	{[]byte{0xCC, 0x34, 0x12}, in.CallConditional{Condition: conditions.Z, Immediate: 0x1234}},
 	{[]byte{0xC9}, in.Return{}},
 	{[]byte{0xD9}, in.ReturnInterrupt{}},
+	{[]byte{0xD8}, in.ReturnConditional{Condition: conditions.C}},
 }
 
 func TestDecoder(t *testing.T) {

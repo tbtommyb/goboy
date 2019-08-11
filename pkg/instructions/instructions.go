@@ -516,3 +516,11 @@ type ReturnInterrupt struct{}
 func (i ReturnInterrupt) Opcode() []byte {
 	return []byte{ReturnInterruptPattern}
 }
+
+type ReturnConditional struct {
+	Condition conditions.Condition
+}
+
+func (i ReturnConditional) Opcode() []byte {
+	return []byte{ReturnConditionalPattern | byte(i.Condition<<ConditionShift)}
+}

@@ -381,13 +381,14 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 			cpu.setPC(i.Immediate)
 		}
 	case in.Return:
-		low := cpu.popStack()
-		high := cpu.popStack()
-		cpu.setPC(utils.MergePair(high, low))
+		cpu.setPC(utils.ReverseMergePair(cpu.popStack(), cpu.popStack()))
 	case in.ReturnInterrupt:
-		low := cpu.popStack()
-		high := cpu.popStack()
-		cpu.setPC(utils.MergePair(high, low))
+		cpu.setPC(utils.ReverseMergePair(cpu.popStack(), cpu.popStack()))
+	case in.ReturnConditional:
+		if cpu.conditionMet(i.Condition) {
+			cpu.setPC(utils.ReverseMergePair(cpu.popStack(), cpu.popStack()))
+		}
+		cpu.fetchAndIncrement()
 	case in.InvalidInstruction:
 		panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 	}

@@ -207,6 +207,10 @@ func Decode(il Iterator, handle func(in.Instruction)) {
 		case op == in.ReturnInterruptPattern:
 			// RETI. 0b1101 1001
 			handle(in.ReturnInterrupt{})
+		case op&in.ReturnConditionalMask == in.ReturnConditionalPattern:
+			// RET cc nn. 0b110c c000
+			Condition := in.GetCondition(op)
+			handle(in.ReturnConditional{Condition})
 		case op == 0:
 			handle(in.EmptyInstruction{})
 		default:

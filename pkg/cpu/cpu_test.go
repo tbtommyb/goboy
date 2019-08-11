@@ -1522,6 +1522,22 @@ func TestReturnInterrupt(t *testing.T) {
 	}
 }
 
+func TestReturnConditional(t *testing.T) {
+	cpu := Init()
+
+	cpu.setPC(0x8000)
+	cpu.setFlags(FlagSet{Zero: true})
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.Call{Immediate: 0x9000},
+	}))
+	cpu.memory.load(0x9000, in.ReturnConditional{Condition: conditions.Z}.Opcode())
+	cpu.Run()
+
+	if actual := cpu.GetPC(); actual-1 != 0x8003 {
+		t.Errorf("Expected %#X, got %#X", 0x8003, actual-1)
+	}
+}
+
 func TestInstructionCycles(t *testing.T) {
 	testCases := []struct {
 		instructions []in.Instruction
@@ -1600,18 +1616,22 @@ func TestInstructionCycles(t *testing.T) {
 		{instructions: []in.Instruction{in.JumpRelative{Immediate: 2}}, expected: 3, message: "Jump relative"},
 		{instructions: []in.Instruction{in.JumpRelativeConditional{Condition: conditions.NC, Immediate: 2}}, expected: 3, message: "JR conditional met"},
 		{instructions: []in.Instruction{
-			in.Add{Source: registers.A},
-			in.JumpRelativeConditional{Condition: conditions.NZ, Immediate: 2},
-		}, expected: 3, message: "JR conditional not met"},
+			in.JumpRelativeConditional{Condition: conditions.Z, Immediate: 2},
+		}, expected: 2, message: "JR conditional not met"},
 		{instructions: []in.Instruction{in.JumpMemory{}}, expected: 1, message: "Jump memory"},
 		{instructions: []in.Instruction{in.Call{Immediate: 0x1234}}, expected: 6, message: "Call"},
 		{instructions: []in.Instruction{in.CallConditional{Condition: conditions.NC, Immediate: 0x1234}}, expected: 6, message: "Call conditional met"},
 		{instructions: []in.Instruction{
-			in.Add{Source: registers.A},
-			in.CallConditional{Condition: conditions.NZ, Immediate: 0x1234},
-		}, expected: 4, message: "Call conditional not met"},
+			in.CallConditional{Condition: conditions.Z, Immediate: 0x1234},
+		}, expected: 3, message: "Call conditional not met"},
 		{instructions: []in.Instruction{in.Return{}}, expected: 4, message: "Return"},
 		{instructions: []in.Instruction{in.ReturnInterrupt{}}, expected: 4, message: "Return interrupt"},
+		{instructions: []in.Instruction{
+			in.ReturnConditional{Condition: conditions.NC},
+		}, expected: 5, message: "Return conditional met"},
+		{instructions: []in.Instruction{
+			in.ReturnConditional{Condition: conditions.Z},
+		}, expected: 2, message: "Return conditional not met"},
 	}
 
 	for _, test := range testCases {

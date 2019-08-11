@@ -127,3 +127,5 @@ const CallConditionalPattern = 0xC4
 
 const ReturnPattern = 0xC9
 const ReturnInterruptPattern = 0xD9
+const ReturnConditionalMask = 0xE7
+const ReturnConditionalPattern = 0xC0
