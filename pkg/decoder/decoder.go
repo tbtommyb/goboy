@@ -217,6 +217,9 @@ func Decode(il Iterator, handle func(in.Instruction)) {
 		case op&in.RSTMask == in.RSTPattern:
 			// RST t. 0b11tt t111
 			handle(in.RST{Operand: in.GetOperand(op)})
+		case op == in.DAAPattern:
+			// DAA. 0b0010 0111
+			handle(in.DAA{})
 		case op == in.ComplementPattern:
 			// CPL. 0b0010 1111
 			handle(in.Complement{})

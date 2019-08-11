@@ -123,6 +123,7 @@ var testCases = []DoubleOpcodeTestCase{
 	{[]byte{0xD9}, in.ReturnInterrupt{}},
 	{[]byte{0xD8}, in.ReturnConditional{Condition: conditions.C}},
 	{[]byte{0xDF}, in.RST{Operand: 3}},
+	{[]byte{0x27}, in.DAA{}},
 	{[]byte{0x2F}, in.Complement{}},
 	{[]byte{0x3F}, in.CCF{}},
 	{[]byte{0x37}, in.SCF{}},

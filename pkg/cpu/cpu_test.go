@@ -1555,6 +1555,48 @@ func TestRST(t *testing.T) {
 	}
 }
 
+func TestDAA(t *testing.T) {
+	testCases := []struct {
+		name          string
+		instructions  []in.Instruction
+		expectedFlags FlagSet
+		expected      byte
+	}{
+		{
+			name: "DAA 1",
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.A, Immediate: 0x45},
+				in.MoveImmediate{Dest: registers.B, Immediate: 0x38},
+				in.Add{Source: registers.B},
+				in.DAA{},
+			},
+			expected:      0x83,
+			expectedFlags: FlagSet{FullCarry: false, HalfCarry: false},
+		},
+		{
+			name: "DAA 2",
+			instructions: []in.Instruction{
+				in.MoveImmediate{Dest: registers.A, Immediate: 0x83},
+				in.MoveImmediate{Dest: registers.B, Immediate: 0x38},
+				in.Subtract{Source: registers.B},
+				in.DAA{},
+			},
+			expected:      0x45,
+			expectedFlags: FlagSet{Negative: true},
+		},
+	}
+	for _, test := range testCases {
+		cpu := Init()
+		cpu.LoadProgram(encode(test.instructions))
+		cpu.Run()
+
+		if actual := cpu.Get(registers.A); actual != test.expected {
+			t.Errorf("Expected %x, got %x", test.expected, actual)
+		}
+		expectFlagSet(t, cpu, test.name, test.expectedFlags)
+	}
+}
+
 func TestComplement(t *testing.T) {
 	cpu := Init()
 
@@ -1724,6 +1766,7 @@ func TestInstructionCycles(t *testing.T) {
 			in.ReturnConditional{Condition: conditions.Z},
 		}, expected: 2, message: "Return conditional not met"},
 		{instructions: []in.Instruction{in.RST{Operand: 1}}, expected: 4, message: "RST"},
+		{instructions: []in.Instruction{in.DAA{}}, expected: 1, message: "DAA"},
 		{instructions: []in.Instruction{in.Complement{}}, expected: 1, message: "Complement"},
 		{instructions: []in.Instruction{in.Nop{}}, expected: 1, message: "Nop"},
 		{instructions: []in.Instruction{in.CCF{}}, expected: 1, message: "CCF"},

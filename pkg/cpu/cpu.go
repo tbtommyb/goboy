@@ -395,6 +395,30 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 		cpu.pushStack(high)
 		cpu.pushStack(low)
 		cpu.setPC(uint16(i.Operand << in.OperandShift))
+	case in.DAA:
+		if !cpu.isSet(Negative) {
+			if cpu.isSet(FullCarry) || cpu.Get(registers.A) > 0x99 {
+				cpu.Set(registers.A, cpu.Get(registers.A)+0x60)
+				cpu.setFlag(FullCarry, true)
+			}
+			if cpu.isSet(HalfCarry) || (cpu.Get(registers.A)&0x0f) > 0x9 {
+				cpu.Set(registers.A, cpu.Get(registers.A)+0x6)
+			}
+		} else {
+			if cpu.isSet(FullCarry) {
+				cpu.Set(registers.A, cpu.Get(registers.A)-0x60)
+				cpu.setFlag(FullCarry, true)
+			}
+			if cpu.isSet(HalfCarry) {
+				cpu.Set(registers.A, cpu.Get(registers.A)-0x6)
+			}
+		}
+		cpu.setFlags(FlagSet{
+			Zero:      cpu.Get(registers.A) == 0,
+			HalfCarry: false,
+			FullCarry: cpu.isSet(FullCarry),
+			Negative:  cpu.isSet(Negative),
+		})
 	case in.Complement:
 		cpu.Set(registers.A, ^cpu.Get(registers.A))
 		cpu.setFlags(FlagSet{

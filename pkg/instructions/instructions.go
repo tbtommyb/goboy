@@ -533,6 +533,12 @@ func (i RST) Opcode() []byte {
 	return []byte{RSTPattern | byte(i.Operand<<3)}
 }
 
+type DAA struct{}
+
+func (i DAA) Opcode() []byte {
+	return []byte{DAAPattern}
+}
+
 type Complement struct{}
 
 func (i Complement) Opcode() []byte {

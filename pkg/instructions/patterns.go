@@ -135,6 +135,8 @@ const RSTPattern = 0xC7
 const OperandMask = 0x38
 const OperandShift = 3
 
+const DAAPattern = 0x27
+
 const ComplementPattern = 0x2F
 const NopPattern = 0x0
 const CCFPattern = 0x3F
