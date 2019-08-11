@@ -562,3 +562,15 @@ type EnableInterrupt struct{}
 func (i EnableInterrupt) Opcode() []byte {
 	return []byte{EnableInterruptPattern}
 }
+
+type Halt struct{}
+
+func (i Halt) Opcode() []byte {
+	return []byte{HaltPattern}
+}
+
+type Stop struct{}
+
+func (i Stop) Opcode() []byte {
+	return []byte{StopPattern, NopPattern}
+}

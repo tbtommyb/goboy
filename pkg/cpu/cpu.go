@@ -423,6 +423,10 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 		cpu.disableInterrupts()
 	case in.Nop:
 		cpu.incrementCycles()
+	case in.Stop:
+		// TODO: implement
+	case in.Halt:
+		// TODO: implement
 	case in.InvalidInstruction:
 		panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 	}

@@ -1621,6 +1621,14 @@ func TestDisableInterrupt(t *testing.T) {
 	}
 }
 
+func TestHalt(t *testing.T) {
+	// TODO: need interrupts to implement
+}
+
+func TestStop(t *testing.T) {
+	// TODO: need interrupts to implement
+}
+
 func TestInstructionCycles(t *testing.T) {
 	testCases := []struct {
 		instructions []in.Instruction
@@ -1722,6 +1730,8 @@ func TestInstructionCycles(t *testing.T) {
 		{instructions: []in.Instruction{in.SCF{}}, expected: 1, message: "SCF"},
 		{instructions: []in.Instruction{in.DisableInterrupt{}}, expected: 1, message: "DI"},
 		{instructions: []in.Instruction{in.EnableInterrupt{}}, expected: 1, message: "EI"},
+		{instructions: []in.Instruction{in.Halt{}}, expected: 1, message: "Halt"},
+		{instructions: []in.Instruction{in.Stop{}}, expected: 1, message: "Stop"},
 	}
 
 	for _, test := range testCases {

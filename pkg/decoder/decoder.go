@@ -13,6 +13,9 @@ type Iterator interface {
 func Decode(il Iterator, handle func(in.Instruction)) {
 	for op := il.Next(); op != 0; op = il.Next() {
 		switch {
+		case op == in.HaltPattern:
+			// HALT. 0b0111 0110
+			handle(in.Halt{})
 		case op&in.MoveMask == in.MovePattern:
 			// LD D, S. 0b01dd dsss
 			handle(in.Move{Source: in.Source(op), Dest: in.Dest(op)})
@@ -232,6 +235,12 @@ func Decode(il Iterator, handle func(in.Instruction)) {
 		case op == in.NopPattern:
 			// NOP. 0b0000 0000
 			handle(in.Nop{})
+		case op == in.StopPattern:
+			// HALT. 0b00001 0000, 0b0000 0000
+			next := il.Next()
+			if next == in.NopPattern {
+				handle(in.Stop{})
+			}
 		default:
 			handle(in.InvalidInstruction{ErrorOpcode: op})
 		}

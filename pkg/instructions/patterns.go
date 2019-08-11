@@ -142,3 +142,6 @@ const SCFPattern = 0x37
 
 const DisableInterruptPattern = 0xF3
 const EnableInterruptPattern = 0xFB
+
+const HaltPattern = 0x76
+const StopPattern = 0x10
