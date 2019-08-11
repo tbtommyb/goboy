@@ -550,3 +550,15 @@ type SCF struct{}
 func (i SCF) Opcode() []byte {
 	return []byte{SCFPattern}
 }
+
+type DisableInterrupt struct{}
+
+func (i DisableInterrupt) Opcode() []byte {
+	return []byte{DisableInterruptPattern}
+}
+
+type EnableInterrupt struct{}
+
+func (i EnableInterrupt) Opcode() []byte {
+	return []byte{EnableInterruptPattern}
+}

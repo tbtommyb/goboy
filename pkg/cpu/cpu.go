@@ -16,6 +16,7 @@ type CPU struct {
 	SP, PC uint16
 	memory Memory
 	cycles uint
+	IME    bool
 }
 
 func (cpu *CPU) GetPC() uint16 {
@@ -416,6 +417,10 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 			HalfCarry: false,
 			Zero:      cpu.isSet(Zero),
 		})
+	case in.EnableInterrupt:
+		cpu.enableInterrupts()
+	case in.DisableInterrupt:
+		cpu.disableInterrupts()
 	case in.Nop:
 		cpu.incrementCycles()
 	case in.InvalidInstruction:
@@ -437,7 +442,7 @@ func Init() CPU {
 			registers.E: 0,
 			registers.H: 0,
 			registers.L: 0,
-		}, SP: StackStartAddress, PC: ProgramStartAddress,
+		}, SP: StackStartAddress, PC: ProgramStartAddress, IME: false,
 		memory: InitMemory(),
 	}
 }

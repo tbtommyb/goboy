@@ -139,3 +139,6 @@ const ComplementPattern = 0x2F
 const NopPattern = 0x0
 const CCFPattern = 0x3F
 const SCFPattern = 0x37
+
+const DisableInterruptPattern = 0xF3
+const EnableInterruptPattern = 0xFB

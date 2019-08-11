@@ -1597,6 +1597,30 @@ func TestSCF(t *testing.T) {
 	expectFlagSet(t, cpu, "SCF", FlagSet{FullCarry: true})
 }
 
+func TestEnableInterrupt(t *testing.T) {
+	cpu := Init()
+
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.EnableInterrupt{},
+	}))
+	cpu.Run()
+	if actual := cpu.interruptsEnabled(); !actual {
+		t.Errorf("Expected interrupts to be enabled")
+	}
+}
+
+func TestDisableInterrupt(t *testing.T) {
+	cpu := Init()
+
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.DisableInterrupt{},
+	}))
+	cpu.Run()
+	if actual := cpu.interruptsEnabled(); actual {
+		t.Errorf("Expected interrupts to be disabled")
+	}
+}
+
 func TestInstructionCycles(t *testing.T) {
 	testCases := []struct {
 		instructions []in.Instruction
@@ -1696,6 +1720,8 @@ func TestInstructionCycles(t *testing.T) {
 		{instructions: []in.Instruction{in.Nop{}}, expected: 1, message: "Nop"},
 		{instructions: []in.Instruction{in.CCF{}}, expected: 1, message: "CCF"},
 		{instructions: []in.Instruction{in.SCF{}}, expected: 1, message: "SCF"},
+		{instructions: []in.Instruction{in.DisableInterrupt{}}, expected: 1, message: "DI"},
+		{instructions: []in.Instruction{in.EnableInterrupt{}}, expected: 1, message: "EI"},
 	}
 
 	for _, test := range testCases {

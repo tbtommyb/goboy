@@ -126,6 +126,8 @@ var testCases = []DoubleOpcodeTestCase{
 	{[]byte{0x2F}, in.Complement{}},
 	{[]byte{0x3F}, in.CCF{}},
 	{[]byte{0x37}, in.SCF{}},
+	{[]byte{0xF3}, in.DisableInterrupt{}},
+	{[]byte{0xFB}, in.EnableInterrupt{}},
 }
 
 func TestDecoder(t *testing.T) {
