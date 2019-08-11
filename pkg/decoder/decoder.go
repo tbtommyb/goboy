@@ -220,6 +220,9 @@ func Decode(il Iterator, handle func(in.Instruction)) {
 		case op == in.CCFPattern:
 			// CCF. 0b0011 1111
 			handle(in.CCF{})
+		case op == in.SCFPattern:
+			// CCF. 0b0011 0111
+			handle(in.SCF{})
 		case op == in.NopPattern:
 			// NOP. 0b0000 0000
 			handle(in.Nop{})

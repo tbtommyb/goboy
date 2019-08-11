@@ -544,3 +544,9 @@ type CCF struct{}
 func (i CCF) Opcode() []byte {
 	return []byte{CCFPattern}
 }
+
+type SCF struct{}
+
+func (i SCF) Opcode() []byte {
+	return []byte{SCFPattern}
+}

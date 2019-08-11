@@ -1587,6 +1587,16 @@ func TestCCF(t *testing.T) {
 	expectFlagSet(t, cpu, "CCF", FlagSet{FullCarry: true})
 }
 
+func TestSCF(t *testing.T) {
+	cpu := Init()
+
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.SCF{},
+	}))
+	cpu.Run()
+	expectFlagSet(t, cpu, "SCF", FlagSet{FullCarry: true})
+}
+
 func TestInstructionCycles(t *testing.T) {
 	testCases := []struct {
 		instructions []in.Instruction
@@ -1685,6 +1695,7 @@ func TestInstructionCycles(t *testing.T) {
 		{instructions: []in.Instruction{in.Complement{}}, expected: 1, message: "Complement"},
 		{instructions: []in.Instruction{in.Nop{}}, expected: 1, message: "Nop"},
 		{instructions: []in.Instruction{in.CCF{}}, expected: 1, message: "CCF"},
+		{instructions: []in.Instruction{in.SCF{}}, expected: 1, message: "SCF"},
 	}
 
 	for _, test := range testCases {

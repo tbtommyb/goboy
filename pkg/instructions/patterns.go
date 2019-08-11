@@ -138,3 +138,4 @@ const OperandShift = 3
 const ComplementPattern = 0x2F
 const NopPattern = 0x0
 const CCFPattern = 0x3F
+const SCFPattern = 0x37

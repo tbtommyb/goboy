@@ -409,6 +409,13 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 			HalfCarry: false,
 			Zero:      cpu.isSet(Zero),
 		})
+	case in.SCF:
+		cpu.setFlags(FlagSet{
+			FullCarry: true,
+			Negative:  false,
+			HalfCarry: false,
+			Zero:      cpu.isSet(Zero),
+		})
 	case in.Nop:
 		cpu.incrementCycles()
 	case in.InvalidInstruction:
