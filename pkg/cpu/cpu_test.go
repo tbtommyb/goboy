@@ -1538,6 +1538,23 @@ func TestReturnConditional(t *testing.T) {
 	}
 }
 
+func TestRST(t *testing.T) {
+	cpu := Init()
+
+	cpu.setPC(0x8000)
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.RST{Operand: 1},
+	}))
+	cpu.Run()
+
+	if actual := cpu.GetPC(); actual-1 != 0x0008 {
+		t.Errorf("Expected %#X, got %#X", 0x0008, actual-1)
+	}
+	if actual := cpu.memory[cpu.GetSP() : cpu.GetSP()+2]; actual[0] != 0x1 || actual[1] != 0x80 {
+		t.Errorf("Expected %#X, got %#X%X", 0x8001, actual[1], actual[0])
+	}
+}
+
 func TestInstructionCycles(t *testing.T) {
 	testCases := []struct {
 		instructions []in.Instruction
@@ -1632,6 +1649,7 @@ func TestInstructionCycles(t *testing.T) {
 		{instructions: []in.Instruction{
 			in.ReturnConditional{Condition: conditions.Z},
 		}, expected: 2, message: "Return conditional not met"},
+		{instructions: []in.Instruction{in.RST{Operand: 1}}, expected: 4, message: "RST"},
 	}
 
 	for _, test := range testCases {

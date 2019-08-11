@@ -55,3 +55,7 @@ func DemuxPairs(opcode byte) registers.Pair {
 	}
 	return reg
 }
+
+func GetOperand(opcode byte) byte {
+	return opcode & OperandMask >> OperandShift
+}

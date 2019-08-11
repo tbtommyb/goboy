@@ -211,6 +211,9 @@ func Decode(il Iterator, handle func(in.Instruction)) {
 			// RET cc nn. 0b110c c000
 			Condition := in.GetCondition(op)
 			handle(in.ReturnConditional{Condition})
+		case op&in.RSTMask == in.RSTPattern:
+			// RST t. 0b11tt t111
+			handle(in.RST{Operand: in.GetOperand(op)})
 		case op == 0:
 			handle(in.EmptyInstruction{})
 		default:

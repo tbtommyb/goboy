@@ -129,3 +129,8 @@ const ReturnPattern = 0xC9
 const ReturnInterruptPattern = 0xD9
 const ReturnConditionalMask = 0xE7
 const ReturnConditionalPattern = 0xC0
+
+const RSTMask = 0xC7
+const RSTPattern = 0xC7
+const OperandMask = 0x38
+const OperandShift = 3

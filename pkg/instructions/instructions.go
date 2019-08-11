@@ -524,3 +524,11 @@ type ReturnConditional struct {
 func (i ReturnConditional) Opcode() []byte {
 	return []byte{ReturnConditionalPattern | byte(i.Condition<<ConditionShift)}
 }
+
+type RST struct {
+	Operand byte
+}
+
+func (i RST) Opcode() []byte {
+	return []byte{RSTPattern | byte(i.Operand<<3)}
+}

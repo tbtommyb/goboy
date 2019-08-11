@@ -388,7 +388,12 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 		if cpu.conditionMet(i.Condition) {
 			cpu.setPC(utils.ReverseMergePair(cpu.popStack(), cpu.popStack()))
 		}
-		cpu.fetchAndIncrement()
+		cpu.incrementCycles()
+	case in.RST:
+		high, low := utils.SplitPair(cpu.GetPC())
+		cpu.pushStack(high)
+		cpu.pushStack(low)
+		cpu.setPC(uint16(i.Operand << in.OperandShift))
 	case in.InvalidInstruction:
 		panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 	}
