@@ -1567,6 +1567,24 @@ func TestComplement(t *testing.T) {
 	if actual := cpu.Get(registers.A); actual != 0xCA {
 		t.Errorf("Expected %#X, got %#X", 0xCA, actual)
 	}
+	expectFlagSet(t, cpu, "complement", FlagSet{Negative: true, HalfCarry: true})
+}
+
+func TestCCF(t *testing.T) {
+	cpu := Init()
+
+	cpu.setFlag(FullCarry, true)
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.CCF{},
+	}))
+	cpu.Run()
+	expectFlagSet(t, cpu, "CCF", FlagSet{})
+
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.CCF{},
+	}))
+	cpu.Run()
+	expectFlagSet(t, cpu, "CCF", FlagSet{FullCarry: true})
 }
 
 func TestInstructionCycles(t *testing.T) {
@@ -1665,6 +1683,8 @@ func TestInstructionCycles(t *testing.T) {
 		}, expected: 2, message: "Return conditional not met"},
 		{instructions: []in.Instruction{in.RST{Operand: 1}}, expected: 4, message: "RST"},
 		{instructions: []in.Instruction{in.Complement{}}, expected: 1, message: "Complement"},
+		{instructions: []in.Instruction{in.Nop{}}, expected: 1, message: "Nop"},
+		{instructions: []in.Instruction{in.CCF{}}, expected: 1, message: "CCF"},
 	}
 
 	for _, test := range testCases {

@@ -396,6 +396,21 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 		cpu.setPC(uint16(i.Operand << in.OperandShift))
 	case in.Complement:
 		cpu.Set(registers.A, ^cpu.Get(registers.A))
+		cpu.setFlags(FlagSet{
+			Negative:  true,
+			HalfCarry: true,
+			Zero:      cpu.isSet(Zero),
+			FullCarry: cpu.isSet(FullCarry),
+		})
+	case in.CCF:
+		cpu.setFlags(FlagSet{
+			FullCarry: !cpu.isSet(FullCarry),
+			Negative:  false,
+			HalfCarry: false,
+			Zero:      cpu.isSet(Zero),
+		})
+	case in.Nop:
+		cpu.incrementCycles()
 	case in.InvalidInstruction:
 		panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
 	}

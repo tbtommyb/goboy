@@ -217,8 +217,12 @@ func Decode(il Iterator, handle func(in.Instruction)) {
 		case op == in.ComplementPattern:
 			// CPL. 0b0010 1111
 			handle(in.Complement{})
-		case op == 0:
-			handle(in.EmptyInstruction{})
+		case op == in.CCFPattern:
+			// CCF. 0b0011 1111
+			handle(in.CCF{})
+		case op == in.NopPattern:
+			// NOP. 0b0000 0000
+			handle(in.Nop{})
 		default:
 			handle(in.InvalidInstruction{ErrorOpcode: op})
 		}

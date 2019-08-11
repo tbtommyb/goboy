@@ -34,7 +34,7 @@ var testCases = []DoubleOpcodeTestCase{
 	{[]byte{0xE2}, in.StoreRelative{}},
 	{[]byte{0xE0, 0x11}, in.StoreRelativeImmediateN{Immediate: 0x11}},
 	{[]byte{0xEA, 0x11, 0x22}, in.StoreRelativeImmediateNN{Immediate: 0x1122}},
-	{[]byte{0x00}, in.EmptyInstruction{}},
+	{[]byte{0x00}, in.Nop{}},
 	{[]byte{0x77}, in.Move{Source: registers.A, Dest: registers.M}},
 	{[]byte{0x46}, in.Move{Source: registers.M, Dest: registers.B}},
 	{[]byte{0x47}, in.Move{Source: registers.A, Dest: registers.B}},
@@ -124,6 +124,7 @@ var testCases = []DoubleOpcodeTestCase{
 	{[]byte{0xD8}, in.ReturnConditional{Condition: conditions.C}},
 	{[]byte{0xDF}, in.RST{Operand: 3}},
 	{[]byte{0x2F}, in.Complement{}},
+	{[]byte{0x3F}, in.CCF{}},
 }
 
 func TestDecoder(t *testing.T) {

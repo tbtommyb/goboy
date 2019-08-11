@@ -20,9 +20,9 @@ type InvalidInstruction struct{ ErrorOpcode byte }
 
 func (i InvalidInstruction) Opcode() []byte { return []byte{i.ErrorOpcode} }
 
-type EmptyInstruction struct{}
+type Nop struct{}
 
-func (i EmptyInstruction) Opcode() []byte { return []byte{0} }
+func (i Nop) Opcode() []byte { return []byte{NopPattern} }
 
 type Move struct {
 	Source, Dest registers.Single
@@ -537,4 +537,10 @@ type Complement struct{}
 
 func (i Complement) Opcode() []byte {
 	return []byte{ComplementPattern}
+}
+
+type CCF struct{}
+
+func (i CCF) Opcode() []byte {
+	return []byte{CCFPattern}
 }
