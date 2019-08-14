@@ -79,7 +79,7 @@ type LoadRelativeImmediateNN struct {
 }
 
 func (i LoadRelativeImmediateNN) Opcode() []byte {
-	return []byte{LoadRelativeImmediateNNPattern, byte(i.Immediate >> 8), byte(i.Immediate)}
+	return []byte{LoadRelativeImmediateNNPattern, byte(i.Immediate), byte(i.Immediate >> 8)}
 }
 
 type StoreRelative struct {
@@ -102,7 +102,7 @@ type StoreRelativeImmediateNN struct {
 }
 
 func (i StoreRelativeImmediateNN) Opcode() []byte {
-	return []byte{StoreRelativeImmediateNNPattern, byte(i.Immediate >> 8), byte(i.Immediate)}
+	return []byte{StoreRelativeImmediateNNPattern, byte(i.Immediate), byte(i.Immediate >> 8)}
 }
 
 type LoadIncrement struct{}
@@ -348,48 +348,37 @@ type RotateInstruction interface {
 	IsWithCopy() bool
 }
 
-type RotateA struct {
-	Direction Direction
-	WithCopy  bool
-}
+type RLCA struct{}
 
-func (i RotateA) Opcode() []byte {
-	var copyBit byte = 1
-	if i.WithCopy {
-		copyBit = 0
-	}
-	return []byte{byte(RotateAPattern | byte(i.Direction<<RotateDirectionShift) | copyBit<<RotateCopyShift)}
-}
+func (i RLCA) Opcode() []byte { return []byte{RLCAPattern} }
 
-func (i RotateA) GetDirection() Direction {
-	return i.Direction
-}
+type RLA struct{}
 
-func (i RotateA) IsWithCopy() bool {
-	return i.WithCopy
-}
+func (i RLA) Opcode() []byte { return []byte{RLAPattern} }
 
-type RotateOperand struct {
-	Direction Direction
-	WithCopy  bool
-	Source    registers.Single
-}
+type RRCA struct{}
 
-func (i RotateOperand) Opcode() []byte {
-	var copyBit byte = 1
-	if i.WithCopy {
-		copyBit = 0
-	}
-	return []byte{Prefix, byte(i.Direction<<RotateDirectionShift) | byte(copyBit<<RotateCopyShift) | byte(i.Source)}
-}
+func (i RRCA) Opcode() []byte { return []byte{RRCAPattern} }
 
-func (i RotateOperand) GetDirection() Direction {
-	return i.Direction
-}
+type RRA struct{}
 
-func (i RotateOperand) IsWithCopy() bool {
-	return i.WithCopy
-}
+func (i RRA) Opcode() []byte { return []byte{RRAPattern} }
+
+type RLC struct{ Source registers.Single }
+
+func (i RLC) Opcode() []byte { return []byte{Prefix, byte(RLCPattern | i.Source)} }
+
+type RL struct{ Source registers.Single }
+
+func (i RL) Opcode() []byte { return []byte{Prefix, byte(RLPattern | i.Source)} }
+
+type RRC struct{ Source registers.Single }
+
+func (i RRC) Opcode() []byte { return []byte{Prefix, byte(RRCPattern | i.Source)} }
+
+type RR struct{ Source registers.Single }
+
+func (i RR) Opcode() []byte { return []byte{Prefix, byte(RRPattern | i.Source)} }
 
 type Shift struct {
 	Direction Direction

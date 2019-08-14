@@ -85,8 +85,16 @@ const DecrementPairMask = 0xCF
 const DecrementPairPattern = 0xB
 
 const Prefix = 0xCB
-const RotateMask = 0xE7
-const RotateAPattern = 0x7
+const RLCAPattern = 0x7
+const RLAPattern = 0x17
+const RRCAPattern = 0xF
+const RRAPattern = 0x1F
+const RotateMask = 0xF8
+const RLCPattern = 0x0
+const RLPattern = 0x10
+const RRCPattern = 0x8
+const RRPattern = 0x18
+
 const RotateDirectionMask = 0x8
 const RotateDirectionShift = 3
 const RotateCopyMask = 0x10

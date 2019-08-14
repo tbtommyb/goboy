@@ -20,5 +20,5 @@ const (
 	DE      = 0x1
 	HL      = 0x2
 	SP      = 0x3
-	AF      = 0x4
+	AF      = 0x4 // are these correct?
 )
