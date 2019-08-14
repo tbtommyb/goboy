@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/tbtommyb/goboy/pkg/decoder"
 	in "github.com/tbtommyb/goboy/pkg/instructions"
 )
 
@@ -24,6 +23,6 @@ func main() {
 	disassembler := in.List{}
 	disassembler.Load(data)
 
-	decoder.Decode(&disassembler, printOp)
+	// decoder.Decode(&disassembler, printOp)
 
 }

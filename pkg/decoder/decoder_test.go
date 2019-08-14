@@ -30,10 +30,10 @@ var testCases = []DoubleOpcodeTestCase{
 	{[]byte{0x36, 0x34}, in.MoveImmediate{Dest: registers.M, Immediate: 0x34}},
 	{[]byte{0xF2}, in.LoadRelative{}},
 	{[]byte{0xF0, 0x11}, in.LoadRelativeImmediateN{Immediate: 0x11}},
-	{[]byte{0xFA, 0x11, 0x22}, in.LoadRelativeImmediateNN{Immediate: 0x1122}},
+	{[]byte{0xFA, 0x22, 0x11}, in.LoadRelativeImmediateNN{Immediate: 0x1122}},
 	{[]byte{0xE2}, in.StoreRelative{}},
 	{[]byte{0xE0, 0x11}, in.StoreRelativeImmediateN{Immediate: 0x11}},
-	{[]byte{0xEA, 0x11, 0x22}, in.StoreRelativeImmediateNN{Immediate: 0x1122}},
+	{[]byte{0xEA, 0x22, 0x11}, in.StoreRelativeImmediateNN{Immediate: 0x1122}},
 	{[]byte{0x00}, in.Nop{}},
 	{[]byte{0x77}, in.Move{Source: registers.A, Dest: registers.M}},
 	{[]byte{0x46}, in.Move{Source: registers.M, Dest: registers.B}},
@@ -93,12 +93,18 @@ var testCases = []DoubleOpcodeTestCase{
 	{[]byte{0xE8, 0x5}, in.AddSP{Immediate: 0x5}},
 	{[]byte{0x33}, in.IncrementPair{Dest: registers.SP}},
 	{[]byte{0x3B}, in.DecrementPair{Dest: registers.SP}},
-	{[]byte{0x7}, in.RotateA{WithCopy: true, Direction: in.Left}},
-	{[]byte{0x17}, in.RotateA{Direction: in.Left}},
-	{[]byte{0xF}, in.RotateA{WithCopy: true, Direction: in.Right}},
-	{[]byte{0x1F}, in.RotateA{Direction: in.Right}},
-	{[]byte{0xCB, 0x9}, in.RotateOperand{WithCopy: true, Direction: in.Right, Source: registers.C}},
-	{[]byte{0xCB, 0x16}, in.RotateOperand{WithCopy: false, Direction: in.Left, Source: registers.M}},
+	{[]byte{0x7}, in.RLCA{}},
+	{[]byte{0x17}, in.RLA{}},
+	{[]byte{0xF}, in.RRCA{}},
+	{[]byte{0x1F}, in.RRA{}},
+	{[]byte{0xCB, 0x9}, in.RRC{Source: registers.C}},
+	{[]byte{0xCB, 0xE}, in.RRC{Source: registers.M}},
+	{[]byte{0xCB, 0x1}, in.RLC{Source: registers.C}},
+	{[]byte{0xCB, 0x6}, in.RLC{Source: registers.M}},
+	{[]byte{0xCB, 0x19}, in.RR{Source: registers.C}},
+	{[]byte{0xCB, 0x1E}, in.RR{Source: registers.M}},
+	{[]byte{0xCB, 0x11}, in.RL{Source: registers.C}},
+	{[]byte{0xCB, 0x16}, in.RL{Source: registers.M}},
 	{[]byte{0xCB, 0x29}, in.Shift{WithCopy: true, Direction: in.Right, Source: registers.C}},
 	{[]byte{0xCB, 0x3E}, in.Shift{Direction: in.Right, Source: registers.M}},
 	{[]byte{0xCB, 0x26}, in.Shift{Direction: in.Left, Source: registers.M}},
@@ -136,23 +142,21 @@ var testCases = []DoubleOpcodeTestCase{
 func TestDecoder(t *testing.T) {
 	for _, testCase := range testCases {
 		il := in.List{Instructions: testCase.opcodes}
-		Decode(&il, func(actual in.Instruction) {
-			if actual != testCase.expected {
-				t.Errorf("Expected %#v, got %#v", testCase.expected, actual)
-			}
-		})
+		actual := Decode(&il)
+		if actual != testCase.expected {
+			t.Errorf("Expected %#v, got %#v", testCase.expected, actual)
+		}
 	}
 }
 
 func TestOpcode(t *testing.T) {
 	for _, testCase := range testCases {
 		il := in.List{Instructions: testCase.opcodes}
-		Decode(&il, func(actual in.Instruction) {
-			result := actual.Opcode()
-			ok := compare(result, testCase.opcodes)
-			if !ok {
-				t.Errorf("Expected %#v, got %#v", testCase.opcodes, result)
-			}
-		})
+		actual := Decode(&il)
+		result := actual.Opcode()
+		ok := compare(result, testCase.opcodes)
+		if !ok {
+			t.Errorf("Expected %#v, got %#v", testCase.opcodes, result)
+		}
 	}
 }

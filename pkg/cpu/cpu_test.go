@@ -11,6 +11,7 @@ import (
 
 func encode(instructions []in.Instruction) []byte {
 	var opcodes []byte
+	instructions = append(instructions, in.Halt{})
 	for _, instruction := range instructions {
 		instrOpcodes := instruction.Opcode()
 		for _, instrOpcode := range instrOpcodes {
@@ -25,9 +26,9 @@ func TestIncrementPC(t *testing.T) {
 		instructions []in.Instruction
 		expected     uint16
 	}{
-		{instructions: []in.Instruction{}, expected: 1},
-		{instructions: []in.Instruction{in.Move{Source: registers.A, Dest: registers.B}}, expected: 2},
-		{instructions: []in.Instruction{in.Move{Source: registers.A, Dest: registers.B}, in.Move{Source: registers.B, Dest: registers.C}}, expected: 3},
+		{instructions: []in.Instruction{}, expected: 0},
+		{instructions: []in.Instruction{in.Move{Source: registers.A, Dest: registers.B}}, expected: 1},
+		{instructions: []in.Instruction{in.Move{Source: registers.A, Dest: registers.B}, in.Move{Source: registers.B, Dest: registers.C}}, expected: 2},
 	}
 
 	for _, test := range testCases {
@@ -36,9 +37,38 @@ func TestIncrementPC(t *testing.T) {
 		cpu.LoadProgram(encode(test.instructions))
 		cpu.Run()
 
-		if currentPC := cpu.GetPC(); currentPC-initialPC != test.expected {
-			t.Errorf("Incorrect PC value. Expected %d, got %d", test.expected, currentPC-initialPC)
+		// -1 to account for Halt
+		if currentPC := cpu.GetPC(); currentPC-initialPC-1 != test.expected {
+			t.Errorf("Incorrect PC value. Expected %d, got %d", test.expected, currentPC-initialPC-1)
 		}
+	}
+}
+
+func TestStack(t *testing.T) {
+	cpu := Init()
+
+	cpu.memory.load(0x2000, in.Halt{}.Opcode())
+	cpu.LoadProgram(encode([]in.Instruction{
+		in.LoadRegisterPairImmediate{Dest: registers.BC, Immediate: 0x1200},
+		in.Push{Source: registers.BC},
+		in.Pop{Dest: registers.AF},
+		in.Push{Source: registers.AF},
+		in.Pop{Dest: registers.DE},
+		in.Move{Dest: registers.A, Source: registers.C},
+		in.AndImmediate{Immediate: 0xF0},
+		in.Cmp{Source: registers.E},
+		in.JumpImmediateConditional{Condition: conditions.NZ, Immediate: 0x2000},
+		in.Increment{Dest: registers.B},
+		in.Increment{Dest: registers.C},
+		in.JumpImmediateConditional{Condition: conditions.NZ, Immediate: 0x103},
+	}))
+	cpu.Run()
+
+	if pc := cpu.GetPC(); pc-1 == 0x2000 {
+		t.Errorf("Test failed, invalid PC: %x\n", pc)
+	}
+	if actual := cpu.isSet(Zero); actual != true {
+		t.Errorf("Expected flag to be zero")
 	}
 }
 
@@ -62,7 +92,7 @@ func TestLoadProgram(t *testing.T) {
 	cpu.Run()
 
 	expectedOpcode := in.Move{Source: registers.B, Dest: registers.C}.Opcode()[0]
-	if actual := cpu.memory[ProgramStartAddress+1]; actual != expectedOpcode {
+	if actual := cpu.memory.get(ProgramStartAddress + 1); actual != expectedOpcode {
 		t.Errorf("Expected 0x88, got %x", actual)
 	}
 }
@@ -127,7 +157,7 @@ func TestStoreMemory(t *testing.T) {
 	}))
 	cpu.Run()
 
-	if actual := cpu.memory[0x1234]; actual != expected {
+	if actual := cpu.memory.get(0x1234); actual != expected {
 		t.Errorf("Expected %#X, got %#X", expected, actual)
 	}
 }
@@ -161,7 +191,7 @@ func TestStoreIndirect(t *testing.T) {
 	}))
 	cpu.Run()
 
-	if actual := cpu.memory[0x1234]; actual != expected {
+	if actual := cpu.memory.get(0x1234); actual != expected {
 		t.Errorf("Expected %#X, got %#X", expected, actual)
 	}
 }
@@ -316,7 +346,7 @@ func TestStoreIncrement(t *testing.T) {
 	}))
 	cpu.Run()
 
-	if actual := cpu.memory[0x1234]; actual != expected {
+	if actual := cpu.memory.get(0x1234); actual != expected {
 		t.Errorf("Expected %#X, got %#X", expected, actual)
 	}
 	if hl := cpu.GetHL(); hl != 0x1235 {
@@ -336,7 +366,7 @@ func TestStoreDecrement(t *testing.T) {
 	}))
 	cpu.Run()
 
-	if actual := cpu.memory[0x1234]; actual != expected {
+	if actual := cpu.memory.get(0x1234); actual != expected {
 		t.Errorf("Expected %#X, got %#X", expected, actual)
 	}
 	if hl := cpu.GetHL(); hl != 0x1233 {
@@ -398,12 +428,14 @@ func TestPush(t *testing.T) {
 		t.Errorf("SP incorrect: %#v\n", currentSP)
 	}
 
-	if actual := cpu.memory[currentSP : currentSP+2]; actual[0] != 0x36 || actual[1] != 0x12 {
-		t.Errorf("Expected %#X, got %#X%X", 0x1236, actual[0], actual[1])
+	high := cpu.memory.get(currentSP)
+	low := cpu.memory.get(currentSP + 1)
+	if high != 0x36 || low != 0x12 {
+		t.Errorf("Expected %#X, got %#X%X", 0x1236, high, low)
 	}
 }
 
-func TestPop(t *testing.T) {
+func TestPushPop(t *testing.T) {
 	cpu := Init()
 
 	startingSP := cpu.GetSP()
@@ -826,6 +858,7 @@ func TestCompareMemory(t *testing.T) {
 func TestAddPair(t *testing.T) {
 	cpu := Init()
 
+	cpu.setFlag(Zero, false)
 	cpu.LoadProgram(encode([]in.Instruction{
 		in.MoveImmediate{Dest: registers.H, Immediate: 0x8A},
 		in.MoveImmediate{Dest: registers.L, Immediate: 0x23},
@@ -838,13 +871,14 @@ func TestAddPair(t *testing.T) {
 	if actual := cpu.GetHL(); actual != 0x9028 {
 		t.Errorf("expected %#X, got %#X\n", 0x9028, actual)
 	}
-	expectFlagSet(t, cpu, "cmp memory", FlagSet{HalfCarry: true})
+	expectFlagSet(t, cpu, "add pair", FlagSet{HalfCarry: true})
 }
 
 // TODO: refactor into test cases
 func TestAddPairSecond(t *testing.T) {
 	cpu := Init()
 
+	cpu.setFlag(Zero, false)
 	cpu.LoadProgram(encode([]in.Instruction{
 		in.MoveImmediate{Dest: registers.H, Immediate: 0x8A},
 		in.MoveImmediate{Dest: registers.L, Immediate: 0x23},
@@ -857,7 +891,7 @@ func TestAddPairSecond(t *testing.T) {
 	if actual := cpu.GetHL(); actual != 0x1446 {
 		t.Errorf("expected %#X, got %#X\n", 0x1446, actual)
 	}
-	expectFlagSet(t, cpu, "cmp memory", FlagSet{HalfCarry: true, FullCarry: true})
+	expectFlagSet(t, cpu, "add pair second", FlagSet{HalfCarry: true, FullCarry: true})
 }
 
 func TestAddSP(t *testing.T) {
@@ -874,7 +908,7 @@ func TestAddSP(t *testing.T) {
 	if actual := cpu.GetSP(); actual != 0xFFFA {
 		t.Errorf("expected %#X, got %#X\n", 0xFFFA, actual)
 	}
-	expectFlagSet(t, cpu, "cmp memory", FlagSet{})
+	expectFlagSet(t, cpu, "add SP", FlagSet{})
 }
 
 func TestIncrementPair(t *testing.T) {
@@ -907,7 +941,7 @@ func TestDecrementPair(t *testing.T) {
 	}
 }
 
-func TestRotateA(t *testing.T) {
+func TestRotate(t *testing.T) {
 	testCases := []struct {
 		name          string
 		instructions  []in.Instruction
@@ -923,7 +957,7 @@ func TestRotateA(t *testing.T) {
 			expectedFlags: FlagSet{FullCarry: true},
 			instructions: []in.Instruction{
 				in.MoveImmediate{Dest: registers.A, Immediate: 0x85},
-				in.RotateA{WithCopy: true, Direction: in.Left},
+				in.RLCA{},
 			},
 		},
 		{
@@ -933,7 +967,7 @@ func TestRotateA(t *testing.T) {
 			expectedFlags: FlagSet{FullCarry: true},
 			instructions: []in.Instruction{
 				in.MoveImmediate{Dest: registers.A, Immediate: 0x95},
-				in.RotateA{Direction: in.Left},
+				in.RLA{},
 			},
 		},
 		{
@@ -943,7 +977,7 @@ func TestRotateA(t *testing.T) {
 			expectedFlags: FlagSet{FullCarry: true},
 			instructions: []in.Instruction{
 				in.MoveImmediate{Dest: registers.A, Immediate: 0x3B},
-				in.RotateA{WithCopy: true, Direction: in.Right},
+				in.RRCA{},
 			},
 		},
 		{
@@ -953,7 +987,7 @@ func TestRotateA(t *testing.T) {
 			expectedFlags: FlagSet{FullCarry: true},
 			instructions: []in.Instruction{
 				in.MoveImmediate{Dest: registers.A, Immediate: 0x81},
-				in.RotateA{Direction: in.Right},
+				in.RRA{},
 			},
 		},
 	}
@@ -987,7 +1021,7 @@ func TestRotateOperand(t *testing.T) {
 			expectedFlags: FlagSet{FullCarry: true},
 			instructions: []in.Instruction{
 				in.MoveImmediate{Dest: registers.A, Immediate: 0x85},
-				in.RotateOperand{Source: registers.A, WithCopy: true, Direction: in.Left},
+				in.RLC{Source: registers.A},
 			},
 		},
 		{
@@ -997,7 +1031,7 @@ func TestRotateOperand(t *testing.T) {
 			expectedFlags: FlagSet{FullCarry: true, Zero: true},
 			instructions: []in.Instruction{
 				in.MoveImmediate{Dest: registers.A, Immediate: 0x80},
-				in.RotateOperand{Source: registers.A, Direction: in.Left},
+				in.RL{Source: registers.A},
 			},
 		},
 		{
@@ -1007,7 +1041,7 @@ func TestRotateOperand(t *testing.T) {
 			expectedFlags: FlagSet{FullCarry: true},
 			instructions: []in.Instruction{
 				in.MoveImmediate{Dest: registers.A, Immediate: 0x1},
-				in.RotateOperand{Source: registers.A, Direction: in.Right, WithCopy: true},
+				in.RRC{Source: registers.A},
 			},
 		},
 		{
@@ -1017,7 +1051,7 @@ func TestRotateOperand(t *testing.T) {
 			expectedFlags: FlagSet{FullCarry: true, Zero: true},
 			instructions: []in.Instruction{
 				in.MoveImmediate{Dest: registers.A, Immediate: 0x1},
-				in.RotateOperand{Source: registers.A, Direction: in.Right},
+				in.RR{Source: registers.A},
 			},
 		},
 		{
@@ -1092,7 +1126,7 @@ func TestRotateOperandWithMemory(t *testing.T) {
 			inputFlags:    FlagSet{},
 			expectedFlags: FlagSet{Zero: true},
 			instructions: []in.Instruction{
-				in.RotateOperand{Source: registers.M, WithCopy: true, Direction: in.Left},
+				in.RLC{Source: registers.M},
 			},
 		},
 		{
@@ -1102,7 +1136,7 @@ func TestRotateOperandWithMemory(t *testing.T) {
 			inputFlags:    FlagSet{},
 			expectedFlags: FlagSet{},
 			instructions: []in.Instruction{
-				in.RotateOperand{Source: registers.M, Direction: in.Left},
+				in.RL{Source: registers.M},
 			},
 		},
 		{
@@ -1112,7 +1146,7 @@ func TestRotateOperandWithMemory(t *testing.T) {
 			inputFlags:    FlagSet{},
 			expectedFlags: FlagSet{Zero: true},
 			instructions: []in.Instruction{
-				in.RotateOperand{Source: registers.M, Direction: in.Right, WithCopy: true},
+				in.RRC{Source: registers.M},
 			},
 		},
 		{
@@ -1122,7 +1156,7 @@ func TestRotateOperandWithMemory(t *testing.T) {
 			inputFlags:    FlagSet{},
 			expectedFlags: FlagSet{},
 			instructions: []in.Instruction{
-				in.RotateOperand{Source: registers.M, Direction: in.Right},
+				in.RR{Source: registers.M},
 			},
 		},
 		{
@@ -1350,16 +1384,20 @@ func TestJump(t *testing.T) {
 	}{
 		{
 			name:     "JP immediate",
-			expected: 0x8000,
+			expected: 0x104,
 			instructions: []in.Instruction{
-				in.JumpImmediate{Immediate: 0x8000},
+				in.JumpImmediate{Immediate: ProgramStartAddress + 3},
+				in.Nop{},
 			},
 		},
 		{
 			name:     "JR",
-			expected: ProgramStartAddress + 10,
+			expected: 0x105,
 			instructions: []in.Instruction{
-				in.JumpRelative{Immediate: 10},
+				in.JumpRelative{Immediate: 4},
+				in.Nop{},
+				in.Nop{},
+				in.Nop{},
 			},
 		},
 	}
@@ -1368,7 +1406,7 @@ func TestJump(t *testing.T) {
 		cpu.LoadProgram(encode(test.instructions))
 		cpu.Run()
 
-		// -1 becuase the Run loop goes to next instruction before failing
+		// -1 becuase the Run loop goes to next instruction before failing???
 		if actual := cpu.GetPC(); actual-1 != test.expected {
 			t.Errorf("Expected %x, got %x", test.expected, actual-1)
 		}
@@ -1387,15 +1425,16 @@ func TestJumpConditional(t *testing.T) {
 			expected: ProgramStartAddress + 3,
 			flags:    FlagSet{Zero: true},
 			instructions: []in.Instruction{
-				in.JumpImmediateConditional{Condition: conditions.NZ, Immediate: 0x8000},
+				in.JumpImmediateConditional{Condition: conditions.NZ, Immediate: ProgramStartAddress + 4},
 			},
 		},
 		{
 			name:     "JP conditional Z",
-			expected: 0x8000,
+			expected: ProgramStartAddress + 4,
 			flags:    FlagSet{Zero: true},
 			instructions: []in.Instruction{
-				in.JumpImmediateConditional{Condition: conditions.Z, Immediate: 0x8000},
+				in.JumpImmediateConditional{Condition: conditions.Z, Immediate: ProgramStartAddress + 4},
+				in.Nop{},
 			},
 		},
 		{
@@ -1403,23 +1442,27 @@ func TestJumpConditional(t *testing.T) {
 			expected: ProgramStartAddress + 3,
 			flags:    FlagSet{Zero: true},
 			instructions: []in.Instruction{
-				in.JumpImmediateConditional{Condition: conditions.C, Immediate: 0x8000},
+				in.JumpImmediateConditional{Condition: conditions.C, Immediate: ProgramStartAddress + 4},
 			},
 		},
 		{
 			name:     "JP conditional NC",
-			expected: 0x8000,
+			expected: ProgramStartAddress + 4,
 			flags:    FlagSet{Zero: true},
 			instructions: []in.Instruction{
-				in.JumpImmediateConditional{Condition: conditions.NC, Immediate: 0x8000},
+				in.JumpImmediateConditional{Condition: conditions.NC, Immediate: ProgramStartAddress + 4},
+				in.Nop{},
 			},
 		},
 		{
 			name:     "JR conditional NC",
-			expected: ProgramStartAddress + 12,
+			expected: ProgramStartAddress + 5,
 			flags:    FlagSet{Zero: true},
 			instructions: []in.Instruction{
-				in.JumpRelativeConditional{Condition: conditions.Z, Immediate: 12},
+				in.JumpRelativeConditional{Condition: conditions.Z, Immediate: 5},
+				in.Nop{},
+				in.Nop{},
+				in.Nop{},
 			},
 		},
 	}
@@ -1439,22 +1482,21 @@ func TestJumpConditional(t *testing.T) {
 func TestJumpMemory(t *testing.T) {
 	cpu := Init()
 	cpu.LoadProgram(encode([]in.Instruction{
-		in.MoveImmediate{Dest: registers.H, Immediate: 0x12},
-		in.MoveImmediate{Dest: registers.L, Immediate: 0x34},
+		in.MoveImmediate{Dest: registers.H, Immediate: 0x1},
+		in.MoveImmediate{Dest: registers.L, Immediate: 0x5},
 		in.JumpMemory{},
 	}))
 	cpu.Run()
 
-	if actual := cpu.GetPC(); actual-1 != 0x1234 {
-		t.Errorf("Expected %x, got %x", 0x1234, actual-1)
+	if actual := cpu.GetPC(); actual-1 != 0x105 {
+		t.Errorf("Expected %x, got %x", 0x105, actual-1)
 	}
 }
 
 func TestCall(t *testing.T) {
 	cpu := Init()
 
-	cpu.setSP(0xFFFE)
-	cpu.setPC(0x8000)
+	cpu.memory.load(0x1234, in.Halt{}.Opcode())
 	cpu.LoadProgram(encode([]in.Instruction{
 		in.Call{Immediate: 0x1234},
 	}))
@@ -1466,43 +1508,45 @@ func TestCall(t *testing.T) {
 	if actual := cpu.GetSP(); actual != 0xFFFC {
 		t.Errorf("Expected %#X, got %#X", 0xFFFC, actual)
 	}
-	if actual := cpu.memory[0xFFFC:0xFFFE]; actual[0] != 0x3 || actual[1] != 0x80 {
-		t.Errorf("Expected %#X, got %#X%X", 0x8003, actual[1], actual[0])
+	low := cpu.popStack()
+	high := cpu.popStack()
+	if (uint16(high)<<8 | uint16(low)) != 0x103 {
+		t.Errorf("Expected %#X, got %#X%X", 0x103, high, low)
 	}
 }
 
 func TestCallConditional(t *testing.T) {
 	cpu := Init()
 
-	cpu.setPC(0x7FFC)
 	cpu.setFlags(FlagSet{Zero: true})
+	cpu.memory.load(0x1235, in.Halt{}.Opcode())
 	cpu.LoadProgram(encode([]in.Instruction{
 		in.CallConditional{Condition: conditions.NZ, Immediate: 0x1234},
-		in.Add{Source: registers.A}, // Padding
-		in.CallConditional{Condition: conditions.Z, Immediate: 0x1234},
+		in.CallConditional{Condition: conditions.Z, Immediate: 0x1235},
 	}))
 	cpu.Run()
 
-	if actual := cpu.GetPC(); actual-1 != 0x1234 {
-		t.Errorf("Expected %#X, got %#X", 0x1234, actual-1)
+	if actual := cpu.GetPC(); actual-1 != 0x1235 {
+		t.Errorf("Expected %#X, got %#X", 0x1235, actual-1)
 	}
-	if actual := cpu.memory[cpu.GetSP() : cpu.GetSP()+2]; actual[0] != 0x3 || actual[1] != 0x80 {
-		t.Errorf("Expected %#X, got %#X%X", 0x8003, actual[1], actual[0])
+	low := cpu.popStack()
+	high := cpu.popStack()
+	if (uint16(high)<<8 | uint16(low)) != 0x106 {
+		t.Errorf("Expected %#X, got %#X%X", 0x106, high, low)
 	}
 }
 
 func TestReturn(t *testing.T) {
 	cpu := Init()
 
-	cpu.setPC(0x8000)
+	cpu.memory.load(0x8000, in.Return{}.Opcode())
 	cpu.LoadProgram(encode([]in.Instruction{
-		in.Call{Immediate: 0x9000},
+		in.Call{Immediate: 0x8000},
 	}))
-	cpu.memory.load(0x9000, in.Return{}.Opcode())
 	cpu.Run()
 
-	if actual := cpu.GetPC(); actual-1 != 0x8003 {
-		t.Errorf("Expected %#X, got %#X", 0x8003, actual-1)
+	if actual := cpu.GetPC(); actual-1 != 0x103 {
+		t.Errorf("Expected %#X, got %#X", 0x103, actual-1)
 	}
 }
 
@@ -1510,15 +1554,14 @@ func TestReturnInterrupt(t *testing.T) {
 	// TODO: test resetting master interrupt once interrutps implemented
 	cpu := Init()
 
-	cpu.setPC(0x8000)
+	cpu.memory.load(0x9000, in.ReturnInterrupt{}.Opcode())
 	cpu.LoadProgram(encode([]in.Instruction{
 		in.Call{Immediate: 0x9000},
 	}))
-	cpu.memory.load(0x9000, in.ReturnInterrupt{}.Opcode())
 	cpu.Run()
 
-	if actual := cpu.GetPC(); actual-1 != 0x8003 {
-		t.Errorf("Expected %#X, got %#X", 0x8003, actual-1)
+	if actual := cpu.GetPC(); actual-1 != 0x103 {
+		t.Errorf("Expected %#X, got %#X", 0x103, actual-1)
 	}
 }
 
@@ -1539,20 +1582,47 @@ func TestReturnConditional(t *testing.T) {
 }
 
 func TestRST(t *testing.T) {
-	cpu := Init()
-
-	cpu.setPC(0x8000)
-	cpu.LoadProgram(encode([]in.Instruction{
-		in.RST{Operand: 1},
-	}))
-	cpu.Run()
-
-	if actual := cpu.GetPC(); actual-1 != 0x0008 {
-		t.Errorf("Expected %#X, got %#X", 0x0008, actual-1)
+	testCases := []struct {
+		address uint16
+		operand byte
+	}{
+		{
+			address: 0x0,
+			operand: 0,
+		},
+		{
+			address: 0x8,
+			operand: 1,
+		},
+		{
+			address: 0x10,
+			operand: 2,
+		},
+		{
+			address: 0x18,
+			operand: 3,
+		},
 	}
-	if actual := cpu.memory[cpu.GetSP() : cpu.GetSP()+2]; actual[0] != 0x1 || actual[1] != 0x80 {
-		t.Errorf("Expected %#X, got %#X%X", 0x8001, actual[1], actual[0])
+
+	for _, test := range testCases {
+		cpu := Init()
+		cpu.setPC(0x8000)
+		cpu.memory.load(test.address, in.Halt{}.Opcode())
+		cpu.LoadProgram(encode([]in.Instruction{
+			in.RST{Operand: test.operand},
+		}))
+		cpu.Run()
+
+		if actual := cpu.GetPC(); actual-1 != test.address {
+			t.Errorf("Expected %#X, got %#X", test.address, actual-1)
+		}
+		high := cpu.memory.get(cpu.GetSP())
+		low := cpu.memory.get(cpu.GetSP() + 1)
+		if high != 0x1 || low != 0x80 {
+			t.Errorf("Expected %#X, got %#X%X", 0x8001, high, low)
+		}
 	}
+
 }
 
 func TestDAA(t *testing.T) {
@@ -1600,6 +1670,7 @@ func TestDAA(t *testing.T) {
 func TestComplement(t *testing.T) {
 	cpu := Init()
 
+	cpu.setFlag(Zero, false)
 	cpu.LoadProgram(encode([]in.Instruction{
 		in.MoveImmediate{Dest: registers.A, Immediate: 0x35},
 		in.Complement{},
@@ -1613,25 +1684,35 @@ func TestComplement(t *testing.T) {
 }
 
 func TestCCF(t *testing.T) {
-	cpu := Init()
+	testCases := []struct {
+		initFlags     FlagSet
+		expectedFlags FlagSet
+	}{
+		{
+			initFlags:     FlagSet{FullCarry: true},
+			expectedFlags: FlagSet{},
+		},
+		{
+			initFlags:     FlagSet{},
+			expectedFlags: FlagSet{FullCarry: true},
+		},
+	}
 
-	cpu.setFlag(FullCarry, true)
-	cpu.LoadProgram(encode([]in.Instruction{
-		in.CCF{},
-	}))
-	cpu.Run()
-	expectFlagSet(t, cpu, "CCF", FlagSet{})
-
-	cpu.LoadProgram(encode([]in.Instruction{
-		in.CCF{},
-	}))
-	cpu.Run()
-	expectFlagSet(t, cpu, "CCF", FlagSet{FullCarry: true})
+	for _, test := range testCases {
+		cpu := Init()
+		cpu.setFlags(test.initFlags)
+		cpu.LoadProgram(encode([]in.Instruction{
+			in.CCF{},
+		}))
+		cpu.Run()
+		expectFlagSet(t, cpu, "CCF", test.expectedFlags)
+	}
 }
 
 func TestSCF(t *testing.T) {
 	cpu := Init()
 
+	cpu.setFlags(FlagSet{Zero: false, FullCarry: false})
 	cpu.LoadProgram(encode([]in.Instruction{
 		in.SCF{},
 	}))
@@ -1671,127 +1752,127 @@ func TestStop(t *testing.T) {
 	// TODO: need interrupts to implement
 }
 
-func TestInstructionCycles(t *testing.T) {
-	testCases := []struct {
-		instructions []in.Instruction
-		expected     uint
-		message      string
-	}{
-		{instructions: []in.Instruction{in.Move{Source: registers.A, Dest: registers.B}}, expected: 1, message: "in.Move"},
-		{instructions: []in.Instruction{in.MoveImmediate{Dest: registers.H, Immediate: 0x12}}, expected: 2, message: "in.Move Immediate"},
-		{instructions: []in.Instruction{in.Move{Dest: registers.M, Source: registers.A}}, expected: 2, message: "Move memory"},
-		{instructions: []in.Instruction{in.MoveImmediate{Dest: registers.H, Immediate: 0x12}, in.Move{Source: registers.A, Dest: registers.M}}, expected: 4, message: "Move Immediate and move"},
-		{instructions: []in.Instruction{in.MoveImmediate{Immediate: 0x12, Dest: registers.M}}, expected: 3, message: "Move Immediate memory"},
-		{instructions: []in.Instruction{in.LoadIndirect{Dest: registers.A, Source: registers.BC}}, expected: 2, message: "load Pair BC"},
-		{instructions: []in.Instruction{in.StoreIndirect{Dest: registers.BC, Source: registers.A}}, expected: 2, message: "Store Pair BC"},
-		{instructions: []in.Instruction{in.LoadRelative{}}, expected: 2, message: "load Relative"},
-		{instructions: []in.Instruction{in.StoreRelative{}}, expected: 2, message: "Store Relative"},
-		{instructions: []in.Instruction{in.LoadRelativeImmediateN{Immediate: 0x1}}, expected: 3, message: "load Relative N"},
-		{instructions: []in.Instruction{in.StoreRelativeImmediateN{Immediate: 0x1}}, expected: 3, message: "Store Relative N"},
-		{instructions: []in.Instruction{in.LoadRelativeImmediateNN{Immediate: 0x2}}, expected: 4, message: "load NN"},
-		{instructions: []in.Instruction{in.StoreRelativeImmediateNN{}}, expected: 4, message: "Store NN"},
-		{instructions: []in.Instruction{in.LoadIncrement{}}, expected: 2, message: "load increment"},
-		{instructions: []in.Instruction{in.LoadDecrement{}}, expected: 2, message: "load decrement"},
-		{instructions: []in.Instruction{in.StoreIncrement{}}, expected: 2, message: "Store increment"},
-		{instructions: []in.Instruction{in.StoreDecrement{}}, expected: 2, message: "Store decrement"},
-		{instructions: []in.Instruction{in.LoadRegisterPairImmediate{Dest: registers.BC, Immediate: 0x1234}}, expected: 3, message: "load register pair Immediate"},
-		{instructions: []in.Instruction{in.HLtoSP{}}, expected: 2, message: "HL to SP"},
-		{instructions: []in.Instruction{in.Push{Source: registers.BC}}, expected: 4, message: "Push"},
-		{instructions: []in.Instruction{in.Pop{Dest: registers.BC}}, expected: 3, message: "Pop"},
-		{instructions: []in.Instruction{in.LoadHLSP{Immediate: 20}}, expected: 3, message: "load HL SP"},
-		{instructions: []in.Instruction{in.StoreSP{Immediate: 0xDEAD}}, expected: 5, message: "Store SP"},
-		{instructions: []in.Instruction{in.Add{Source: registers.B}}, expected: 1, message: "Add"},
-		{instructions: []in.Instruction{in.Add{Source: registers.M}}, expected: 2, message: "Add from memory"},
-		{instructions: []in.Instruction{in.AddImmediate{Immediate: 0x12}}, expected: 2, message: "Add Immediate"},
-		{instructions: []in.Instruction{in.Subtract{Source: registers.B}}, expected: 1, message: "Subtract"},
-		{instructions: []in.Instruction{in.Subtract{Source: registers.M}}, expected: 2, message: "Subtract from memory"},
-		{instructions: []in.Instruction{in.SubtractImmediate{Immediate: 0x12}}, expected: 2, message: "Subtract Immediate"},
-		{instructions: []in.Instruction{in.And{Source: registers.B}}, expected: 1, message: "And"},
-		{instructions: []in.Instruction{in.And{Source: registers.M}}, expected: 2, message: "And from memory"},
-		{instructions: []in.Instruction{in.AndImmediate{Immediate: 0x12}}, expected: 2, message: "And Immediate"},
-		{instructions: []in.Instruction{in.Or{Source: registers.B}}, expected: 1, message: "Or"},
-		{instructions: []in.Instruction{in.Or{Source: registers.M}}, expected: 2, message: "Or from memory"},
-		{instructions: []in.Instruction{in.OrImmediate{Immediate: 0x12}}, expected: 2, message: "Or Immediate"},
-		{instructions: []in.Instruction{in.Xor{Source: registers.B}}, expected: 1, message: "Xor"},
-		{instructions: []in.Instruction{in.Xor{Source: registers.M}}, expected: 2, message: "Xor from memory"},
-		{instructions: []in.Instruction{in.XorImmediate{Immediate: 0x12}}, expected: 2, message: "Xor Immediate"},
-		{instructions: []in.Instruction{in.Cmp{Source: registers.B}}, expected: 1, message: "Cmp"},
-		{instructions: []in.Instruction{in.Cmp{Source: registers.M}}, expected: 2, message: "Cmp from memory"},
-		{instructions: []in.Instruction{in.CmpImmediate{Immediate: 0x12}}, expected: 2, message: "Cmp Immediate"},
-		{instructions: []in.Instruction{in.Increment{Dest: registers.A}}, expected: 1, message: "Inc"},
-		{instructions: []in.Instruction{in.Increment{Dest: registers.M}}, expected: 3, message: "Inc memory"},
-		{instructions: []in.Instruction{in.Decrement{Dest: registers.A}}, expected: 1, message: "Dec"},
-		{instructions: []in.Instruction{in.Decrement{Dest: registers.M}}, expected: 3, message: "Dec memory"},
-		{instructions: []in.Instruction{in.AddPair{Source: registers.HL}}, expected: 2, message: "Add pair"},
-		{instructions: []in.Instruction{in.AddSP{Immediate: 3}}, expected: 4, message: "Add SP"},
-		{instructions: []in.Instruction{in.IncrementPair{Dest: registers.DE}}, expected: 2, message: "Increment pair"},
-		{instructions: []in.Instruction{in.DecrementPair{Dest: registers.DE}}, expected: 2, message: "Decrement pair"},
-		{instructions: []in.Instruction{in.RotateA{WithCopy: true, Direction: in.Left}}, expected: 1, message: "RLCA"},
-		{instructions: []in.Instruction{in.RotateA{Direction: in.Right}}, expected: 1, message: "RRA"},
-		{instructions: []in.Instruction{in.RotateOperand{Direction: in.Left, WithCopy: true, Source: registers.A}}, expected: 2, message: "RLC"},
-		{instructions: []in.Instruction{in.RotateOperand{Direction: in.Left, WithCopy: true, Source: registers.M}}, expected: 4, message: "RLC"},
-		{instructions: []in.Instruction{in.Shift{Direction: in.Right, Source: registers.A}}, expected: 2, message: "SRL"},
-		{instructions: []in.Instruction{in.Shift{Direction: in.Right, Source: registers.M}}, expected: 4, message: "SRL"},
-		{instructions: []in.Instruction{in.Swap{Source: registers.B}}, expected: 2, message: "Swap register"},
-		{instructions: []in.Instruction{in.Swap{Source: registers.M}}, expected: 4, message: "Swap memory"},
-		{instructions: []in.Instruction{in.Bit{BitNumber: 2, Source: registers.C}}, expected: 2, message: "Bit"},
-		{instructions: []in.Instruction{in.Bit{BitNumber: 2, Source: registers.M}}, expected: 3, message: "Bit memory"},
-		{instructions: []in.Instruction{in.Set{BitNumber: 2, Source: registers.M}}, expected: 4, message: "Set memory"},
-		{instructions: []in.Instruction{in.Set{BitNumber: 0, Source: registers.A}}, expected: 2, message: "Set"},
-		{instructions: []in.Instruction{in.Reset{BitNumber: 0, Source: registers.A}}, expected: 2, message: "Reset"},
-		{instructions: []in.Instruction{in.Reset{BitNumber: 0, Source: registers.M}}, expected: 4, message: "Reset memory"},
-		{instructions: []in.Instruction{in.JumpImmediate{Immediate: 0x1234}}, expected: 4, message: "Jump immediate"},
-		{instructions: []in.Instruction{in.JumpImmediateConditional{Condition: conditions.NC, Immediate: 0x1234}}, expected: 4, message: "Jump conditional met"},
-		{instructions: []in.Instruction{
-			in.Add{Source: registers.A},
-			in.JumpImmediateConditional{Condition: conditions.NZ, Immediate: 0x1234},
-		}, expected: 4, message: "Jump conditional not met"},
-		{instructions: []in.Instruction{in.JumpRelative{Immediate: 2}}, expected: 3, message: "Jump relative"},
-		{instructions: []in.Instruction{in.JumpRelativeConditional{Condition: conditions.NC, Immediate: 2}}, expected: 3, message: "JR conditional met"},
-		{instructions: []in.Instruction{
-			in.JumpRelativeConditional{Condition: conditions.Z, Immediate: 2},
-		}, expected: 2, message: "JR conditional not met"},
-		{instructions: []in.Instruction{in.JumpMemory{}}, expected: 1, message: "Jump memory"},
-		{instructions: []in.Instruction{in.Call{Immediate: 0x1234}}, expected: 6, message: "Call"},
-		{instructions: []in.Instruction{in.CallConditional{Condition: conditions.NC, Immediate: 0x1234}}, expected: 6, message: "Call conditional met"},
-		{instructions: []in.Instruction{
-			in.CallConditional{Condition: conditions.Z, Immediate: 0x1234},
-		}, expected: 3, message: "Call conditional not met"},
-		{instructions: []in.Instruction{in.Return{}}, expected: 4, message: "Return"},
-		{instructions: []in.Instruction{in.ReturnInterrupt{}}, expected: 4, message: "Return interrupt"},
-		{instructions: []in.Instruction{
-			in.ReturnConditional{Condition: conditions.NC},
-		}, expected: 5, message: "Return conditional met"},
-		{instructions: []in.Instruction{
-			in.ReturnConditional{Condition: conditions.Z},
-		}, expected: 2, message: "Return conditional not met"},
-		{instructions: []in.Instruction{in.RST{Operand: 1}}, expected: 4, message: "RST"},
-		{instructions: []in.Instruction{in.DAA{}}, expected: 1, message: "DAA"},
-		{instructions: []in.Instruction{in.Complement{}}, expected: 1, message: "Complement"},
-		{instructions: []in.Instruction{in.Nop{}}, expected: 1, message: "Nop"},
-		{instructions: []in.Instruction{in.CCF{}}, expected: 1, message: "CCF"},
-		{instructions: []in.Instruction{in.SCF{}}, expected: 1, message: "SCF"},
-		{instructions: []in.Instruction{in.DisableInterrupt{}}, expected: 1, message: "DI"},
-		{instructions: []in.Instruction{in.EnableInterrupt{}}, expected: 1, message: "EI"},
-		{instructions: []in.Instruction{in.Halt{}}, expected: 1, message: "Halt"},
-		{instructions: []in.Instruction{in.Stop{}}, expected: 1, message: "Stop"},
-	}
+// func TestInstructionCycles(t *testing.T) {
+// 	testCases := []struct {
+// 		instructions []in.Instruction
+// 		expected     uint
+// 		message      string
+// 	}{
+// 		{instructions: []in.Instruction{in.Move{Source: registers.A, Dest: registers.B}}, expected: 1, message: "in.Move"},
+// 		{instructions: []in.Instruction{in.MoveImmediate{Dest: registers.H, Immediate: 0x12}}, expected: 2, message: "in.Move Immediate"},
+// 		{instructions: []in.Instruction{in.Move{Dest: registers.M, Source: registers.A}}, expected: 2, message: "Move memory"},
+// 		{instructions: []in.Instruction{in.MoveImmediate{Dest: registers.H, Immediate: 0x12}, in.Move{Source: registers.A, Dest: registers.M}}, expected: 4, message: "Move Immediate and move"},
+// 		{instructions: []in.Instruction{in.MoveImmediate{Immediate: 0x12, Dest: registers.M}}, expected: 3, message: "Move Immediate memory"},
+// 		{instructions: []in.Instruction{in.LoadIndirect{Dest: registers.A, Source: registers.BC}}, expected: 2, message: "load Pair BC"},
+// 		{instructions: []in.Instruction{in.StoreIndirect{Dest: registers.BC, Source: registers.A}}, expected: 2, message: "Store Pair BC"},
+// 		{instructions: []in.Instruction{in.LoadRelative{}}, expected: 2, message: "load Relative"},
+// 		{instructions: []in.Instruction{in.StoreRelative{}}, expected: 2, message: "Store Relative"},
+// 		{instructions: []in.Instruction{in.LoadRelativeImmediateN{Immediate: 0x1}}, expected: 3, message: "load Relative N"},
+// 		{instructions: []in.Instruction{in.StoreRelativeImmediateN{Immediate: 0x1}}, expected: 3, message: "Store Relative N"},
+// 		{instructions: []in.Instruction{in.LoadRelativeImmediateNN{Immediate: 0x2}}, expected: 4, message: "load NN"},
+// 		{instructions: []in.Instruction{in.StoreRelativeImmediateNN{}}, expected: 4, message: "Store NN"},
+// 		{instructions: []in.Instruction{in.LoadIncrement{}}, expected: 2, message: "load increment"},
+// 		{instructions: []in.Instruction{in.LoadDecrement{}}, expected: 2, message: "load decrement"},
+// 		{instructions: []in.Instruction{in.StoreIncrement{}}, expected: 2, message: "Store increment"},
+// 		{instructions: []in.Instruction{in.StoreDecrement{}}, expected: 2, message: "Store decrement"},
+// 		{instructions: []in.Instruction{in.LoadRegisterPairImmediate{Dest: registers.BC, Immediate: 0x1234}}, expected: 3, message: "load register pair Immediate"},
+// 		{instructions: []in.Instruction{in.HLtoSP{}}, expected: 2, message: "HL to SP"},
+// 		{instructions: []in.Instruction{in.Push{Source: registers.BC}}, expected: 4, message: "Push"},
+// 		{instructions: []in.Instruction{in.Pop{Dest: registers.BC}}, expected: 3, message: "Pop"},
+// 		{instructions: []in.Instruction{in.LoadHLSP{Immediate: 20}}, expected: 3, message: "load HL SP"},
+// 		{instructions: []in.Instruction{in.StoreSP{Immediate: 0xDEAD}}, expected: 5, message: "Store SP"},
+// 		{instructions: []in.Instruction{in.Add{Source: registers.B}}, expected: 1, message: "Add"},
+// 		{instructions: []in.Instruction{in.Add{Source: registers.M}}, expected: 2, message: "Add from memory"},
+// 		{instructions: []in.Instruction{in.AddImmediate{Immediate: 0x12}}, expected: 2, message: "Add Immediate"},
+// 		{instructions: []in.Instruction{in.Subtract{Source: registers.B}}, expected: 1, message: "Subtract"},
+// 		{instructions: []in.Instruction{in.Subtract{Source: registers.M}}, expected: 2, message: "Subtract from memory"},
+// 		{instructions: []in.Instruction{in.SubtractImmediate{Immediate: 0x12}}, expected: 2, message: "Subtract Immediate"},
+// 		{instructions: []in.Instruction{in.And{Source: registers.B}}, expected: 1, message: "And"},
+// 		{instructions: []in.Instruction{in.And{Source: registers.M}}, expected: 2, message: "And from memory"},
+// 		{instructions: []in.Instruction{in.AndImmediate{Immediate: 0x12}}, expected: 2, message: "And Immediate"},
+// 		{instructions: []in.Instruction{in.Or{Source: registers.B}}, expected: 1, message: "Or"},
+// 		{instructions: []in.Instruction{in.Or{Source: registers.M}}, expected: 2, message: "Or from memory"},
+// 		{instructions: []in.Instruction{in.OrImmediate{Immediate: 0x12}}, expected: 2, message: "Or Immediate"},
+// 		{instructions: []in.Instruction{in.Xor{Source: registers.B}}, expected: 1, message: "Xor"},
+// 		{instructions: []in.Instruction{in.Xor{Source: registers.M}}, expected: 2, message: "Xor from memory"},
+// 		{instructions: []in.Instruction{in.XorImmediate{Immediate: 0x12}}, expected: 2, message: "Xor Immediate"},
+// 		{instructions: []in.Instruction{in.Cmp{Source: registers.B}}, expected: 1, message: "Cmp"},
+// 		{instructions: []in.Instruction{in.Cmp{Source: registers.M}}, expected: 2, message: "Cmp from memory"},
+// 		{instructions: []in.Instruction{in.CmpImmediate{Immediate: 0x12}}, expected: 2, message: "Cmp Immediate"},
+// 		{instructions: []in.Instruction{in.Increment{Dest: registers.A}}, expected: 1, message: "Inc"},
+// 		{instructions: []in.Instruction{in.Increment{Dest: registers.M}}, expected: 3, message: "Inc memory"},
+// 		{instructions: []in.Instruction{in.Decrement{Dest: registers.A}}, expected: 1, message: "Dec"},
+// 		{instructions: []in.Instruction{in.Decrement{Dest: registers.M}}, expected: 3, message: "Dec memory"},
+// 		{instructions: []in.Instruction{in.AddPair{Source: registers.HL}}, expected: 2, message: "Add pair"},
+// 		{instructions: []in.Instruction{in.AddSP{Immediate: 3}}, expected: 4, message: "Add SP"},
+// 		{instructions: []in.Instruction{in.IncrementPair{Dest: registers.DE}}, expected: 2, message: "Increment pair"},
+// 		{instructions: []in.Instruction{in.DecrementPair{Dest: registers.DE}}, expected: 2, message: "Decrement pair"},
+// 		{instructions: []in.Instruction{in.RLCA{}}, expected: 1, message: "RLCA"},
+// 		{instructions: []in.Instruction{in.RRA{}}, expected: 1, message: "RRA"},
+// 		{instructions: []in.Instruction{in.RLC{Source: registers.A}}, expected: 2, message: "RLC"},
+// 		{instructions: []in.Instruction{in.RLC{Source: registers.M}}, expected: 4, message: "RLC"},
+// 		{instructions: []in.Instruction{in.Shift{Direction: in.Right, Source: registers.A}}, expected: 2, message: "SRL"},
+// 		{instructions: []in.Instruction{in.Shift{Direction: in.Right, Source: registers.M}}, expected: 4, message: "SRL"},
+// 		{instructions: []in.Instruction{in.Swap{Source: registers.B}}, expected: 2, message: "Swap register"},
+// 		{instructions: []in.Instruction{in.Swap{Source: registers.M}}, expected: 4, message: "Swap memory"},
+// 		{instructions: []in.Instruction{in.Bit{BitNumber: 2, Source: registers.C}}, expected: 2, message: "Bit"},
+// 		{instructions: []in.Instruction{in.Bit{BitNumber: 2, Source: registers.M}}, expected: 3, message: "Bit memory"},
+// 		{instructions: []in.Instruction{in.Set{BitNumber: 2, Source: registers.M}}, expected: 4, message: "Set memory"},
+// 		{instructions: []in.Instruction{in.Set{BitNumber: 0, Source: registers.A}}, expected: 2, message: "Set"},
+// 		{instructions: []in.Instruction{in.Reset{BitNumber: 0, Source: registers.A}}, expected: 2, message: "Reset"},
+// 		{instructions: []in.Instruction{in.Reset{BitNumber: 0, Source: registers.M}}, expected: 4, message: "Reset memory"},
+// 		{instructions: []in.Instruction{in.JumpImmediate{Immediate: 0x1234}}, expected: 4, message: "Jump immediate"},
+// 		{instructions: []in.Instruction{in.JumpImmediateConditional{Condition: conditions.NC, Immediate: 0x1234}}, expected: 4, message: "Jump conditional met"},
+// 		{instructions: []in.Instruction{
+// 			in.Add{Source: registers.A},
+// 			in.JumpImmediateConditional{Condition: conditions.NZ, Immediate: 0x1234},
+// 		}, expected: 4, message: "Jump conditional not met"},
+// 		{instructions: []in.Instruction{in.JumpRelative{Immediate: 2}}, expected: 3, message: "Jump relative"},
+// 		{instructions: []in.Instruction{in.JumpRelativeConditional{Condition: conditions.NC, Immediate: 2}}, expected: 3, message: "JR conditional met"},
+// 		{instructions: []in.Instruction{
+// 			in.JumpRelativeConditional{Condition: conditions.Z, Immediate: 2},
+// 		}, expected: 2, message: "JR conditional not met"},
+// 		{instructions: []in.Instruction{in.JumpMemory{}}, expected: 1, message: "Jump memory"},
+// 		{instructions: []in.Instruction{in.Call{Immediate: 0x1234}}, expected: 6, message: "Call"},
+// 		{instructions: []in.Instruction{in.CallConditional{Condition: conditions.NC, Immediate: 0x1234}}, expected: 6, message: "Call conditional met"},
+// 		{instructions: []in.Instruction{
+// 			in.CallConditional{Condition: conditions.Z, Immediate: 0x1234},
+// 		}, expected: 3, message: "Call conditional not met"},
+// 		{instructions: []in.Instruction{in.Return{}}, expected: 4, message: "Return"},
+// 		{instructions: []in.Instruction{in.ReturnInterrupt{}}, expected: 4, message: "Return interrupt"},
+// 		{instructions: []in.Instruction{
+// 			in.ReturnConditional{Condition: conditions.NC},
+// 		}, expected: 5, message: "Return conditional met"},
+// 		{instructions: []in.Instruction{
+// 			in.ReturnConditional{Condition: conditions.Z},
+// 		}, expected: 2, message: "Return conditional not met"},
+// 		{instructions: []in.Instruction{in.RST{Operand: 1}}, expected: 4, message: "RST"},
+// 		{instructions: []in.Instruction{in.DAA{}}, expected: 1, message: "DAA"},
+// 		{instructions: []in.Instruction{in.Complement{}}, expected: 1, message: "Complement"},
+// 		{instructions: []in.Instruction{in.Nop{}}, expected: 1, message: "Nop"},
+// 		{instructions: []in.Instruction{in.CCF{}}, expected: 1, message: "CCF"},
+// 		{instructions: []in.Instruction{in.SCF{}}, expected: 1, message: "SCF"},
+// 		{instructions: []in.Instruction{in.DisableInterrupt{}}, expected: 1, message: "DI"},
+// 		{instructions: []in.Instruction{in.EnableInterrupt{}}, expected: 1, message: "EI"},
+// 		{instructions: []in.Instruction{in.Halt{}}, expected: 1, message: "Halt"},
+// 		{instructions: []in.Instruction{in.Stop{}}, expected: 1, message: "Stop"},
+// 	}
 
-	for _, test := range testCases {
-		cpu := Init()
-		initialCycles := cpu.GetCycles()
-		cpu.LoadProgram(encode(test.instructions))
-		cpu.Run()
+// 	for _, test := range testCases {
+// 		cpu := Init()
+// 		initialCycles := cpu.GetCycles()
+// 		cpu.LoadProgram(encode(test.instructions))
+// 		cpu.Run()
 
-		// one more than the instruction cycle count because fetching the empty
-		// instruction that ends the Run() loop costs a cycle
-		if cycles := cpu.GetCycles(); cycles-initialCycles-1 != test.expected {
-			t.Errorf("%s: Incorrect cycles value. Expected %d, got %d", test.message, test.expected, cycles-initialCycles-1)
-		}
-	}
-}
+// 		// one more than the instruction cycle count because fetching the empty
+// 		// instruction that ends the Run() loop costs a cycle
+// 		if cycles := cpu.GetCycles(); cycles-initialCycles-1 != test.expected {
+// 			t.Errorf("%s: Incorrect cycles value. Expected %d, got %d", test.message, test.expected, cycles-initialCycles-1)
+// 		}
+// 	}
+// }
 
-func expectFlagSet(t *testing.T, cpu CPU, name string, fs FlagSet) {
+func expectFlagSet(t *testing.T, cpu *CPU, name string, fs FlagSet) {
 	var errs []string
 	if actual := cpu.isSet(Zero); actual != fs.Zero {
 		errs = append(errs, fmt.Sprintf("expected Zero to be %t, got %t", fs.Zero, actual))

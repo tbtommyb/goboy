@@ -14,9 +14,11 @@ type CPU struct {
 	r      registers.Registers
 	flags  byte
 	SP, PC uint16
-	memory Memory
+	memory *Memory
 	cycles uint
 	IME    bool
+	halt   bool
+	// Display *Display
 }
 
 func (cpu *CPU) GetPC() uint16 {
@@ -106,39 +108,12 @@ func xorOp(args ...byte) (byte, FlagSet) {
 
 func cmpOp(args ...byte) FlagSet {
 	a, b := args[0], args[1]
-	result := a ^ b
 	return FlagSet{
-		Zero:      result == 0,
+		Zero:      a == b,
 		Negative:  true,
 		HalfCarry: isSubHalfCarry(a, b, 0),
 		FullCarry: isSubFullCarry(a, b, 0),
 	}
-}
-
-func rotateOp(i in.RotateInstruction, value, flag byte) (byte, FlagSet) {
-	var result byte
-	var flags FlagSet
-	switch i.GetDirection() {
-	case in.Left:
-		result = bits.RotateLeft8(value, 1)
-		if !i.IsWithCopy() {
-			result = utils.SetBit(0, result, flag)
-		}
-		flags = FlagSet{
-			FullCarry: bits.LeadingZeros8(value) == 0,
-			Zero:      result == 0,
-		}
-	case in.Right:
-		result = bits.RotateLeft8(value, -1)
-		if !i.IsWithCopy() {
-			result = utils.SetBit(7, result, flag)
-		}
-		flags = FlagSet{
-			FullCarry: bits.TrailingZeros8(value) == 0,
-			Zero:      result == 0,
-		}
-	}
-	return result, flags
 }
 
 func shiftOp(i in.Shift, value, flag byte) (byte, FlagSet) {
@@ -172,6 +147,76 @@ func swapOp(value byte) (byte, FlagSet) {
 		Zero: result == 0,
 	}
 	return result, flags
+}
+
+func rotateLeftOp(value byte, withCarry bool) (byte, FlagSet) {
+	bit7 := value >> 7
+	value = value << 1
+	if withCarry {
+		value = value | 0x1
+	}
+
+	var fc bool
+	if bit7 != 0 {
+		fc = true
+	}
+	return value, FlagSet{
+		Negative:  false,
+		HalfCarry: false,
+		Zero:      value == 0,
+		FullCarry: fc,
+	}
+}
+
+func rotateLeftCarryOp(value byte) (byte, FlagSet) {
+	bit7 := value >> 7
+	value = (value << 1) | bit7
+
+	var fc bool
+	if bit7 != 0 {
+		fc = true
+	}
+	return value, FlagSet{
+		Negative:  false,
+		HalfCarry: false,
+		Zero:      value == 0,
+		FullCarry: fc,
+	}
+}
+
+func rotateRightOp(value byte, withCarry bool) (byte, FlagSet) {
+	var fc bool
+	if value&0x1 == 0x1 {
+		fc = true
+	}
+
+	value = value >> 1
+	if withCarry {
+		value = value | 0x80
+	}
+	return value, FlagSet{
+		Zero:      value == 0,
+		Negative:  false,
+		HalfCarry: false,
+		FullCarry: fc,
+	}
+}
+
+func rotateRightCarryOp(value byte) (byte, FlagSet) {
+	bit0 := value & 0x1
+	value = (value >> 1) | (bit0 << 7)
+
+	var fc bool
+	if bit0 != 0 {
+		fc = true
+	}
+
+	return value, FlagSet{
+		Negative:  false,
+		HalfCarry: false,
+		Zero:      value == 0,
+		FullCarry: fc,
+	}
 }
 
 func (cpu *CPU) perform(f func(...byte) (byte, FlagSet), args ...byte) {
@@ -249,7 +294,9 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 		cpu.perform(addOp, cpu.Get(registers.A), cpu.Get(i.Source), carry)
 	case in.AddImmediate:
 		carry := cpu.carryBit(i.WithCarry, FullCarry)
-		cpu.perform(addOp, cpu.Get(registers.A), i.Immediate, carry)
+		result, flags := addOp(cpu.Get(registers.A), i.Immediate, carry)
+		cpu.Set(registers.A, result)
+		cpu.setFlags(flags)
 	case in.Subtract:
 		carry := cpu.carryBit(i.WithCarry, FullCarry)
 		cpu.perform(subOp, cpu.Get(registers.A), cpu.Get(i.Source), carry)
@@ -282,8 +329,10 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 			Zero:      result == 0,
 			HalfCarry: isAddHalfCarry(a, 1, 0),
 			FullCarry: cpu.isSet(FullCarry),
+			Negative:  false,
 		})
 	case in.Decrement:
+
 		a := cpu.Get(i.Dest)
 		result := a - 1
 		cpu.Set(i.Dest, result)
@@ -322,14 +371,39 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 		a := utils.MergePair(cpu.GetPair(i.Dest))
 		cpu.SetPair(i.Dest, a-1)
 		cpu.incrementCycles()
-	case in.RotateA:
-		result, flagSet := rotateOp(i, cpu.Get(registers.A), cpu.getFlag(FullCarry))
-		cpu.Set(registers.A, result)
-		cpu.setFlags(flagSet)
-	case in.RotateOperand:
-		result, flagSet := rotateOp(i, cpu.Get(i.Source), cpu.getFlag(FullCarry))
-		cpu.Set(i.Source, result)
-		cpu.setFlags(flagSet)
+	case in.RL:
+		value, flags := rotateLeftOp(cpu.Get(i.Source), cpu.isSet(FullCarry))
+		cpu.Set(i.Source, value)
+		cpu.setFlags(flags)
+	case in.RLA:
+		value, flags := rotateLeftOp(cpu.Get(registers.A), cpu.isSet(FullCarry))
+		cpu.Set(registers.A, value)
+		flags.Zero = false // BLARGG
+		cpu.setFlags(flags)
+	case in.RLC:
+		value, flags := rotateLeftCarryOp(cpu.Get(i.Source))
+		cpu.Set(i.Source, value)
+		cpu.setFlags(flags)
+	case in.RLCA:
+		value, flags := rotateLeftCarryOp(cpu.Get(registers.A))
+		cpu.Set(registers.A, value)
+		cpu.setFlags(flags)
+	case in.RR:
+		value, flags := rotateRightOp(cpu.Get(i.Source), cpu.isSet(FullCarry))
+		cpu.Set(i.Source, value)
+		cpu.setFlags(flags)
+	case in.RRA:
+		value, flags := rotateRightOp(cpu.Get(registers.A), cpu.isSet(FullCarry))
+		cpu.Set(registers.A, value)
+		cpu.setFlags(flags)
+	case in.RRC:
+		value, flags := rotateRightCarryOp(cpu.Get(i.Source))
+		cpu.Set(i.Source, value)
+		cpu.setFlags(flags)
+	case in.RRCA:
+		value, flags := rotateRightCarryOp(cpu.Get(registers.A))
+		cpu.Set(registers.A, value)
+		cpu.setFlags(flags)
 	case in.Shift:
 		result, flagSet := shiftOp(i, cpu.Get(i.Source), cpu.getFlag(FullCarry))
 		cpu.Set(i.Source, result)
@@ -449,7 +523,9 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 		cpu.incrementCycles()
 	case in.Stop:
 		// TODO: implement
+		cpu.halt = true
 	case in.Halt:
+		cpu.halt = true
 		// TODO: implement
 	case in.InvalidInstruction:
 		panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
@@ -457,21 +533,26 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 }
 
 func (cpu *CPU) Run() {
-	decoder.Decode(cpu, cpu.Execute)
+	for !cpu.halt {
+		cpu.Execute(decoder.Decode(cpu))
+	}
+	return
 }
 
-func Init() CPU {
-	return CPU{
+func Init() *CPU {
+	return &CPU{
+		flags: 0x80,
 		r: registers.Registers{
-			registers.A: 0,
-			registers.B: 0,
-			registers.C: 0,
-			registers.D: 0,
-			registers.E: 0,
-			registers.H: 0,
-			registers.L: 0,
+			registers.A: 0x11,
+			registers.B: 0x0,
+			registers.C: 0x0,
+			registers.D: 0xFF,
+			registers.E: 0x56,
+			registers.H: 0x0,
+			registers.L: 0xD,
 		}, SP: StackStartAddress, PC: ProgramStartAddress, IME: false,
 		memory: InitMemory(),
+		// display: DisplayInit(),
 	}
 }
 

@@ -26,6 +26,8 @@ func (cpu *CPU) GetPair(r registers.Pair) (byte, byte) {
 		return cpu.Get(registers.H), cpu.Get(registers.L)
 	case registers.AF:
 		return cpu.Get(registers.A), cpu.GetFlags()
+	case registers.SP:
+		return utils.SplitPair(cpu.GetSP())
 	default:
 		panic(fmt.Sprintf("GetPair: Invalid register %x", r))
 	}
@@ -51,6 +53,8 @@ func (cpu *CPU) SetPair(r registers.Pair, val uint16) uint16 {
 		cpu.SetHL(val)
 	case registers.SP:
 		cpu.setSP(val)
+	case registers.AF:
+		cpu.SetAF(val)
 	}
 	return val
 }
@@ -83,4 +87,14 @@ func (cpu *CPU) SetHL(value uint16) uint16 {
 	cpu.Set(registers.H, byte(value>>8))
 	cpu.Set(registers.L, byte(value))
 	return value
+}
+
+func (cpu *CPU) SetAF(value uint16) uint16 {
+	cpu.Set(registers.A, byte(value>>8))
+	cpu.flags = byte(value & 0xf0)
+	return value
+}
+
+func (cpu *CPU) GetAF() uint16 {
+	return utils.MergePair(cpu.Get(registers.A), cpu.flags)
 }
