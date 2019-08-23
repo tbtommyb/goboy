@@ -1,6 +1,7 @@
 package cpu
 
 type Flag byte
+type LCDCFlag byte
 
 type FlagSet struct {
 	Zero, Negative, HalfCarry, FullCarry bool
@@ -11,6 +12,17 @@ const (
 	Negative       = 0x40
 	HalfCarry      = 0x20
 	FullCarry      = 0x10
+)
+
+const (
+	LCDDisplayEnable           LCDCFlag = 0x80
+	WindowTileMapDisplaySelect          = 0x40
+	WindowDisplayEnable                 = 0x20
+	DataSelect                          = 0x10
+	BGTileMapDisplaySelect              = 0x8
+	SpriteSize                          = 0x4
+	SpriteEnable                        = 0x2
+	DisplayPriority                     = 0x1
 )
 
 func isAddHalfCarry(a, b, carry byte) bool {
@@ -58,6 +70,10 @@ func (cpu *CPU) setFlag(flag Flag, value bool) {
 
 func (cpu *CPU) isSet(flag Flag) bool {
 	return (cpu.flags & byte(flag)) > 0
+}
+
+func (cpu *CPU) isLCDCSet(flag LCDCFlag) bool {
+	return (cpu.getLCDC() & byte(flag)) > 0
 }
 
 func (cpu *CPU) getFlag(flag Flag) byte {

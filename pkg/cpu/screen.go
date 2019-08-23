@@ -1,31 +1,15 @@
 package cpu
 
 const (
-	LY uint16 = 0xFF
+	MaxLY byte = 153
 )
 
-var GameBoyColorMap = []uint32{0xFFFFFFFF, 0xB6B6B6FF, 0x676767FF, 0x000000FF}
-
-func (cpu *CPU) GetScrollY() byte {
-	return cpu.memory.get(0xFF42)
-}
-
-func (cpu *CPU) GetScrollX() byte {
-	return cpu.memory.get(0xFF43)
-}
-
-func (cpu *CPU) GetLY() byte {
-	return cpu.memory.get(LY)
-}
-
-func (cpu *CPU) setLY(value byte) {
-	cpu.memory.set(LY, value)
-}
+var ColourMap = []uint32{0xFFFFFFFF, 0xB6B6B6FF, 0x676767FF, 0x000000FF}
 
 func (cpu *CPU) IncrementLY() {
 	currentScanline := cpu.GetLY()
 	currentScanline++
-	if currentScanline > 153 {
+	if currentScanline > MaxLY {
 		currentScanline = 0
 	}
 	cpu.setLY(currentScanline)
@@ -44,12 +28,12 @@ func (cpu *CPU) TileColour(x byte, y byte) uint32 {
 	pixLow := (cpu.memory.get(pixelByte+1) >> (7 - tileXOffset)) & 0x1
 	pixHigh := (cpu.memory.get(pixelByte) >> (7 - tileXOffset)) & 0x1
 	colorNumber := (pixHigh << 1) | pixLow
-	return GameBoyColorMap[colorNumber]
+	return ColourMap[colorNumber]
 }
 
 func (cpu *CPU) bgTileDataAddress(tileNumber uint8) uint16 {
-	tileAddress := uint16(0)
-	if ((cpu.memory.get(0xFF40) >> 4) & 0x1) == 0x1 {
+	var tileAddress uint16
+	if cpu.isLCDCSet(DataSelect) {
 		tileAddress = 0x8000
 	} else {
 		tileAddress = 0x8800
@@ -58,7 +42,7 @@ func (cpu *CPU) bgTileDataAddress(tileNumber uint8) uint16 {
 }
 
 func (cpu *CPU) bgTileMapStartAddress() uint16 {
-	if ((cpu.memory.get(0xFF40) >> 3) & 0x1) == 0x1 {
+	if cpu.isLCDCSet(BGTileMapDisplaySelect) {
 		return 0x9C00
 	}
 	return 0x9800
