@@ -2,6 +2,8 @@ package display
 
 import (
 	"image"
+
+	"github.com/tbtommyb/goboy/pkg/constants"
 )
 
 type Display struct {
@@ -56,7 +58,7 @@ func (d *Display) Pixels() []uint8 {
 
 func InitDisplay(di DisplayInterface) *Display {
 	return &Display{
-		buffer:       image.NewRGBA(image.Rect(0, 0, int(160), int(144))),
+		buffer:       image.NewRGBA(image.Rect(0, 0, constants.ScreenWidth, constants.ScreenHeight)),
 		sysInterface: di,
 	}
 }

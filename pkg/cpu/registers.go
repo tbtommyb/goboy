@@ -98,3 +98,23 @@ func (cpu *CPU) SetAF(value uint16) uint16 {
 func (cpu *CPU) GetAF() uint16 {
 	return utils.MergePair(cpu.Get(registers.A), cpu.flags)
 }
+
+func (cpu *CPU) getLCDC() byte {
+	return cpu.memory.get(0xFF40)
+}
+
+func (cpu *CPU) GetScrollY() byte {
+	return cpu.memory.get(0xFF42)
+}
+
+func (cpu *CPU) GetScrollX() byte {
+	return cpu.memory.get(0xFF43)
+}
+
+func (cpu *CPU) GetLY() byte {
+	return cpu.memory.get(0xFF44)
+}
+
+func (cpu *CPU) setLY(value byte) {
+	cpu.memory.set(0xFF44, value)
+}
