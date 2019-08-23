@@ -5,20 +5,21 @@ import (
 	"math/bits"
 
 	"github.com/tbtommyb/goboy/pkg/decoder"
+	"github.com/tbtommyb/goboy/pkg/display"
 	in "github.com/tbtommyb/goboy/pkg/instructions"
 	"github.com/tbtommyb/goboy/pkg/registers"
 	"github.com/tbtommyb/goboy/pkg/utils"
 )
 
 type CPU struct {
-	r      registers.Registers
-	flags  byte
-	SP, PC uint16
-	memory *Memory
-	cycles uint
-	IME    bool
-	halt   bool
-	// Display *Display
+	r       registers.Registers
+	flags   byte
+	SP, PC  uint16
+	memory  *Memory
+	cycles  uint
+	IME     bool
+	halt    bool
+	Display *display.Display
 }
 
 func (cpu *CPU) GetPC() uint16 {
@@ -539,8 +540,12 @@ func (cpu *CPU) Run() {
 	return
 }
 
+func (cpu *CPU) Step() {
+	cpu.Execute(decoder.Decode(cpu))
+}
+
 func Init() *CPU {
-	return &CPU{
+	cpu := &CPU{
 		flags: 0x80,
 		r: registers.Registers{
 			registers.A: 0x11,
@@ -552,8 +557,10 @@ func Init() *CPU {
 			registers.L: 0xD,
 		}, SP: StackStartAddress, PC: ProgramStartAddress, IME: false,
 		memory: InitMemory(),
-		// display: DisplayInit(),
 	}
+	display := display.InitDisplay(cpu)
+	cpu.Display = display
+	return cpu
 }
 
 func (cpu *CPU) Next() byte {
