@@ -544,7 +544,7 @@ func (cpu *CPU) Step() {
 }
 
 func Init() *CPU {
-	return &CPU{
+	cpu := &CPU{
 		flags: 0x80,
 		r: registers.Registers{
 			registers.A: 0x11,
@@ -555,9 +555,11 @@ func Init() *CPU {
 			registers.H: 0x0,
 			registers.L: 0xD,
 		}, SP: StackStartAddress, PC: ProgramStartAddress, IME: false,
-		memory:  InitMemory(),
-		Display: InitDisplay(),
+		memory: InitMemory(),
 	}
+	display := InitDisplay(cpu)
+	cpu.Display = display
+	return cpu
 }
 
 func (cpu *CPU) Next() byte {

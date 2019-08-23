@@ -26,6 +26,7 @@ func main() {
 	f := func(screen *ebiten.Image) error {
 		for i := 0; i < CYCLES_PER_FRAME; i++ {
 			cpu.Step()
+			cpu.Display.Update(24)
 		}
 		screen.ReplacePixels(cpu.Display.Pixels())
 		ebiten.SetWindowTitle("Goboy")
