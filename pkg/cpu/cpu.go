@@ -11,14 +11,14 @@ import (
 )
 
 type CPU struct {
-	r      registers.Registers
-	flags  byte
-	SP, PC uint16
-	memory *Memory
-	cycles uint
-	IME    bool
-	halt   bool
-	// Display *Display
+	r       registers.Registers
+	flags   byte
+	SP, PC  uint16
+	memory  *Memory
+	cycles  uint
+	IME     bool
+	halt    bool
+	Display *Display
 }
 
 func (cpu *CPU) GetPC() uint16 {
@@ -539,6 +539,10 @@ func (cpu *CPU) Run() {
 	return
 }
 
+func (cpu *CPU) Step() {
+	cpu.Execute(decoder.Decode(cpu))
+}
+
 func Init() *CPU {
 	return &CPU{
 		flags: 0x80,
@@ -551,8 +555,8 @@ func Init() *CPU {
 			registers.H: 0x0,
 			registers.L: 0xD,
 		}, SP: StackStartAddress, PC: ProgramStartAddress, IME: false,
-		memory: InitMemory(),
-		// display: DisplayInit(),
+		memory:  InitMemory(),
+		Display: InitDisplay(),
 	}
 }
 
