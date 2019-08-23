@@ -5,6 +5,7 @@ import (
 	"math/bits"
 
 	"github.com/tbtommyb/goboy/pkg/decoder"
+	"github.com/tbtommyb/goboy/pkg/display"
 	in "github.com/tbtommyb/goboy/pkg/instructions"
 	"github.com/tbtommyb/goboy/pkg/registers"
 	"github.com/tbtommyb/goboy/pkg/utils"
@@ -18,7 +19,7 @@ type CPU struct {
 	cycles  uint
 	IME     bool
 	halt    bool
-	Display *Display
+	Display *display.Display
 }
 
 func (cpu *CPU) GetPC() uint16 {
@@ -557,7 +558,7 @@ func Init() *CPU {
 		}, SP: StackStartAddress, PC: ProgramStartAddress, IME: false,
 		memory: InitMemory(),
 	}
-	display := InitDisplay(cpu)
+	display := display.InitDisplay(cpu)
 	cpu.Display = display
 	return cpu
 }
