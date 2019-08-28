@@ -12,12 +12,13 @@ type Display struct {
 	sysInterface    DisplayInterface
 }
 
+// TODO: change LY to scanline and keep LY as GB implementation detail?
 type DisplayInterface interface {
 	GetScrollX() byte
 	GetScrollY() byte
 	TileColour(x, y byte) uint32
-	GetLY() byte
-	IncrementLY()
+	GetScanline() byte
+	IncrementScanline()
 }
 
 func (d *Display) renderLine(ly uint8) {
@@ -42,14 +43,14 @@ func (d *Display) Update(cycles int) {
 		return
 	}
 
-	ly := d.sysInterface.GetLY()
+	ly := d.sysInterface.GetScanline()
 	if ly < 144 { // Can only render the first 144 rows - the rest are never rendered
 		d.renderLine(ly)
 	}
 
 	// Scanline ended here!
 	d.scanlineCounter -= 456 // Save the extra cycles
-	d.sysInterface.IncrementLY()
+	d.sysInterface.IncrementScanline()
 }
 
 func (d *Display) Pixels() []uint8 {

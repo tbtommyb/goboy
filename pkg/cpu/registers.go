@@ -111,7 +111,7 @@ func (cpu *CPU) GetScrollX() byte {
 	return cpu.memory.get(0xFF43)
 }
 
-func (cpu *CPU) GetLY() byte {
+func (cpu *CPU) getLY() byte {
 	return cpu.memory.get(0xFF44)
 }
 

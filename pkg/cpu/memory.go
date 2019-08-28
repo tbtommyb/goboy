@@ -42,8 +42,8 @@ func (m *Memory) set(address uint16, value byte) byte {
 	case address >= 0xFE00 && address <= 0xFE9F:
 		// sprites
 	case address >= 0xFEA0 && address <= 0xFEFF:
-		panic(fmt.Sprintf("Invalid write to %x\n", address))
 		// unusable
+		fmt.Printf("Invalid write to %x\n", address)
 	case address >= 0xFF00 && address <= 0xFF7F:
 		// memory mapped IO
 		if address == 0xFF01 {

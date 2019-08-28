@@ -6,7 +6,7 @@ const (
 
 var ColourMap = []uint32{0xFFFFFFFF, 0xB6B6B6FF, 0x676767FF, 0x000000FF}
 
-func (cpu *CPU) IncrementLY() {
+func (cpu *CPU) incrementLY() {
 	currentScanline := cpu.GetLY()
 	currentScanline++
 	if currentScanline > MaxLY {
@@ -46,4 +46,12 @@ func (cpu *CPU) bgTileMapStartAddress() uint16 {
 		return 0x9C00
 	}
 	return 0x9800
+}
+
+func (cpu *CPU) IncrementScanline() {
+	cpu.incrementLY()
+}
+
+func (cpu *CPU) GetScanline() byte {
+	return cpu.getLY()
 }
