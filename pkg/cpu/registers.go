@@ -7,6 +7,18 @@ import (
 	"github.com/tbtommyb/goboy/pkg/utils"
 )
 
+const LCDCAddress = 0xFF40
+const STATAddress = 0xFF41
+const ScrollYAddress = 0xFF42
+const ScrollXAddress = 0xFF43
+const LYAddress = 0xFF44
+const LYCAddress = 0xFF45
+const GBPAddress = 0xFF47
+const OBP0Address = 0xFF48
+const OBP1Address = 0xFF49
+const WindowYAddress = 0xFF4A
+const WindowXAddress = 0xFF4B
+
 func (cpu *CPU) Get(r registers.Single) byte {
 	switch r {
 	case registers.M:
@@ -100,21 +112,45 @@ func (cpu *CPU) GetAF() uint16 {
 }
 
 func (cpu *CPU) getLCDC() byte {
-	return cpu.memory.get(0xFF40)
+	return cpu.memory.get(LCDCAddress)
 }
 
-func (cpu *CPU) GetScrollY() byte {
-	return cpu.memory.get(0xFF42)
+func (cpu *CPU) getSTAT() byte {
+	return cpu.memory.get(STATAddress)
 }
 
-func (cpu *CPU) GetScrollX() byte {
-	return cpu.memory.get(0xFF43)
+func (cpu *CPU) setSTAT(status byte) {
+	cpu.memory.set(STATAddress, status)
+}
+
+func (cpu *CPU) getScrollY() byte {
+	return cpu.memory.get(ScrollYAddress)
+}
+
+func (cpu *CPU) getScrollX() byte {
+	return cpu.memory.get(ScrollXAddress)
+}
+
+func (cpu *CPU) GetWindowY() byte {
+	return cpu.memory.get(WindowYAddress)
+}
+
+func (cpu *CPU) GetWindowX() byte {
+	return cpu.memory.get(WindowXAddress)
 }
 
 func (cpu *CPU) getLY() byte {
-	return cpu.memory.get(0xFF44)
+	return cpu.memory.get(LYAddress)
 }
 
 func (cpu *CPU) setLY(value byte) {
-	cpu.memory.set(0xFF44, value)
+	cpu.memory.ioram[LYAddress-0xFF00] = value
+}
+
+func (cpu *CPU) getLYC() byte {
+	return cpu.memory.get(LYCAddress)
+}
+
+func (cpu *CPU) getGBP() byte {
+	return cpu.memory.get(GBPAddress)
 }

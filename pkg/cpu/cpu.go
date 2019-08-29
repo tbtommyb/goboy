@@ -20,6 +20,7 @@ type CPU struct {
 	IME     bool
 	halt    bool
 	Display *display.Display
+	gpu     *GPU
 }
 
 func (cpu *CPU) GetPC() uint16 {
@@ -555,11 +556,14 @@ func Init() *CPU {
 			registers.E: 0x56,
 			registers.H: 0x0,
 			registers.L: 0xD,
-		}, SP: StackStartAddress, PC: ProgramStartAddress, IME: false,
+		}, SP: StackStartAddress, PC: 0, IME: false,
 		memory: InitMemory(),
 	}
-	display := display.InitDisplay(cpu)
+	gpu := InitGPU(cpu)
+	display := display.InitDisplay(gpu)
+	gpu.display = display
 	cpu.Display = display
+	cpu.gpu = gpu
 	return cpu
 }
 
