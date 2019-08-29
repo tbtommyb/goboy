@@ -22,7 +22,7 @@ const (
 	BGTileMapDisplaySelect              = 0x8
 	SpriteSize                          = 0x4
 	SpriteEnable                        = 0x2
-	DisplayPriority                     = 0x1
+	WindowDisplayPriority               = 0x1
 )
 
 func isAddHalfCarry(a, b, carry byte) bool {

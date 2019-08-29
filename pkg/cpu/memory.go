@@ -7,13 +7,14 @@ import (
 )
 
 type Memory struct {
-	rom   [0x8000]byte
-	vram  [0x2000]byte
-	eram  [0x2000]byte
-	wram  [0x2000]byte
-	ioram [0x100]byte
-	hram  [0x7F]byte
-	flag  byte
+	rom      [0x8000]byte
+	vram     [0x2000]byte
+	eram     [0x2000]byte
+	wram     [0x2000]byte
+	ioram    [0x100]byte
+	hram     [0x7F]byte
+	flag     byte
+	statMode byte
 }
 
 const ProgramStartAddress = 0x100
@@ -49,6 +50,16 @@ func (m *Memory) set(address uint16, value byte) byte {
 		if address == 0xFF01 {
 			fmt.Printf("%c", value)
 		}
+		// Reset if game writes to LY
+		if address == LYAddress {
+			m.ioram[address-0xFF00] = 0
+			return 0
+		}
+		// DMA
+		if address == 0xFF46 {
+			m.performDMA(value)
+			return 0
+		}
 		m.ioram[address-0xFF00] = value
 	case address >= 0xFF80 && address <= 0xFFFE:
 		m.hram[address-0xFF80] = value
@@ -56,6 +67,14 @@ func (m *Memory) set(address uint16, value byte) byte {
 		m.flag = value
 	}
 	return value
+}
+
+func (m *Memory) performDMA(value byte) {
+	fmt.Printf("DMA\n")
+	address := value << 8
+	for i := 0; i < 0xA0; i++ {
+		m.set(uint16(0xFE00+i), m.get(uint16(int(address)+i)))
+	}
 }
 
 func (m *Memory) get(address uint16) byte {
@@ -99,8 +118,12 @@ func (cpu *CPU) LoadProgram(program []byte) {
 	cpu.memory.load(cpu.GetPC(), program)
 }
 
-func (cpu *CPU) LoadROM(program []byte) {
+func (cpu *CPU) LoadBIOS(program []byte) {
 	cpu.memory.load(0, program)
+}
+
+func (cpu *CPU) LoadROM(program []byte) {
+	cpu.memory.load(ProgramStartAddress, program)
 }
 
 func (cpu *CPU) WriteMem(address uint16, value byte) byte {
