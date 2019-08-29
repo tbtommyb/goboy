@@ -541,8 +541,10 @@ func (cpu *CPU) Run() {
 	return
 }
 
-func (cpu *CPU) Step() {
+func (cpu *CPU) Step() uint {
+	initialCycles := cpu.GetCycles()
 	cpu.Execute(decoder.Decode(cpu))
+	return 4 * (cpu.GetCycles() - initialCycles)
 }
 
 func Init() *CPU {

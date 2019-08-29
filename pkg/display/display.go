@@ -41,7 +41,7 @@ type DisplayInterface interface {
 // 	}
 // }
 
-func (d *Display) Update(cycles int) {
+func (d *Display) Update(cycles uint) {
 	d.sysInterface.SetLCDStatus(d.scanlineCounter)
 	// TODO: set LCD status
 	if !d.sysInterface.DisplayEnabled() {
@@ -49,7 +49,7 @@ func (d *Display) Update(cycles int) {
 		return
 	}
 
-	d.scanlineCounter -= cycles
+	d.scanlineCounter -= int(cycles)
 
 	if d.scanlineCounter > 0 {
 		return
