@@ -106,7 +106,7 @@ const ShiftCopyShift = 4
 const ShiftCopyMask = 0x18
 const ShiftCopyPattern = 0x8
 
-const SwapMask = 0x38
+const SwapMask = 0xF8
 const SwapPattern = 0x30
 
 const BitMask = 0xC0

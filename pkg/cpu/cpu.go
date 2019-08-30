@@ -172,14 +172,10 @@ func rotateLeftOp(value byte, withCarry bool) (byte, FlagSet) {
 }
 
 func rotateLeftCarryOp(value byte) (byte, FlagSet) {
-	bit7 := value >> 7
-	value = (value << 1) | bit7
+	result := (value << 1) | (value >> 7)
+	fc := (value >> 7) > 0
 
-	var fc bool
-	if bit7 != 0 {
-		fc = true
-	}
-	return value, FlagSet{
+	return result, FlagSet{
 		Negative:  false,
 		HalfCarry: false,
 		Zero:      value == 0,
@@ -206,15 +202,10 @@ func rotateRightOp(value byte, withCarry bool) (byte, FlagSet) {
 }
 
 func rotateRightCarryOp(value byte) (byte, FlagSet) {
-	bit0 := value & 0x1
-	value = (value >> 1) | (bit0 << 7)
+	result := (value << 7) | (value >> 1)
+	fc := value&0x1 > 0
 
-	var fc bool
-	if bit0 != 0 {
-		fc = true
-	}
-
-	return value, FlagSet{
+	return result, FlagSet{
 		Negative:  false,
 		HalfCarry: false,
 		Zero:      value == 0,
@@ -389,6 +380,7 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 		cpu.setFlags(flags)
 	case in.RLCA:
 		value, flags := rotateLeftCarryOp(cpu.Get(registers.A))
+		flags.Zero = false
 		cpu.Set(registers.A, value)
 		cpu.setFlags(flags)
 	case in.RR:
@@ -397,6 +389,7 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 		cpu.setFlags(flags)
 	case in.RRA:
 		value, flags := rotateRightOp(cpu.Get(registers.A), cpu.isSet(FullCarry))
+		flags.Zero = false
 		cpu.Set(registers.A, value)
 		cpu.setFlags(flags)
 	case in.RRC:
@@ -405,6 +398,7 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 		cpu.setFlags(flags)
 	case in.RRCA:
 		value, flags := rotateRightCarryOp(cpu.Get(registers.A))
+		flags.Zero = false
 		cpu.Set(registers.A, value)
 		cpu.setFlags(flags)
 	case in.Shift:
