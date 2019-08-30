@@ -13,7 +13,7 @@ const ScrollYAddress = 0xFF42
 const ScrollXAddress = 0xFF43
 const LYAddress = 0xFF44
 const LYCAddress = 0xFF45
-const GBPAddress = 0xFF47
+const BGPAddress = 0xFF47
 const OBP0Address = 0xFF48
 const OBP1Address = 0xFF49
 const WindowYAddress = 0xFF4A
@@ -115,6 +115,10 @@ func (cpu *CPU) getLCDC() byte {
 	return cpu.memory.get(LCDCAddress)
 }
 
+func (cpu *CPU) setLCDC(value byte) byte {
+	return cpu.memory.set(LCDCAddress, value)
+}
+
 func (cpu *CPU) getSTAT() byte {
 	return cpu.memory.get(STATAddress)
 }
@@ -127,8 +131,16 @@ func (cpu *CPU) getScrollY() byte {
 	return cpu.memory.get(ScrollYAddress)
 }
 
+func (cpu *CPU) setScrollY(value byte) byte {
+	return cpu.memory.set(ScrollYAddress, value)
+}
+
 func (cpu *CPU) getScrollX() byte {
 	return cpu.memory.get(ScrollXAddress)
+}
+
+func (cpu *CPU) setScrollX(value byte) byte {
+	return cpu.memory.set(ScrollXAddress, value)
 }
 
 func (cpu *CPU) GetWindowY() byte {
@@ -151,6 +163,18 @@ func (cpu *CPU) getLYC() byte {
 	return cpu.memory.get(LYCAddress)
 }
 
-func (cpu *CPU) getGBP() byte {
-	return cpu.memory.get(GBPAddress)
+func (cpu *CPU) getBGP() byte {
+	return cpu.memory.get(BGPAddress)
+}
+
+func (cpu *CPU) setBGP(value byte) byte {
+	return cpu.memory.set(BGPAddress, value)
+}
+
+func (cpu *CPU) setOBP0(value byte) byte {
+	return cpu.memory.set(OBP0Address, value)
+}
+
+func (cpu *CPU) setOBP1(value byte) byte {
+	return cpu.memory.set(OBP1Address, value)
 }

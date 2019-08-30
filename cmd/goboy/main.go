@@ -11,27 +11,53 @@ import (
 	"github.com/tbtommyb/goboy/pkg/cpu"
 )
 
-var CYCLES_PER_FRAME = 70224
+var GameboyClockSpeed = 4194300
+var EbitenFPS = 60
+var CyclesPerFrame = GameboyClockSpeed / EbitenFPS
 
 func main() {
-	biosPtr := flag.String("bios", "bios.rom", "BIOS path to read from")
-	romPtr := flag.String("file", "input.rom", "ROM path to read from")
+	var loadBIOS, testMode bool
+	var bios, test, rom []byte
+	var err error
+
+	biosPtr := flag.String("bios", "", "BIOS path to read from")
+	romPtr := flag.String("rom", "", "ROM path to read from")
+	testPtr := flag.String("test", "", "test file to run")
 	flag.Parse()
-	data, err := ioutil.ReadFile(*romPtr)
-	if err != nil {
-		log.Fatalf("File reading error %#v", err)
+
+	if *testPtr != "" {
+		test, err = ioutil.ReadFile(*testPtr)
+		if err != nil {
+			log.Fatalf("Error reading test ROM %#v", err)
+		}
+		testMode = true
 	}
-	bios, err := ioutil.ReadFile(*biosPtr)
-	if err != nil {
-		log.Fatalf("File reading error %#v", err)
+	if *biosPtr != "" {
+		bios, err = ioutil.ReadFile(*biosPtr)
+		if err != nil {
+			log.Fatalf("Error reading BIOS ROM %#v", err)
+		}
+		loadBIOS = true
+	}
+	if *romPtr != "" {
+		rom, err = ioutil.ReadFile(*romPtr)
+		if err != nil {
+			log.Fatalf("Error reading ROM %#v", err)
+		}
 	}
 
-	cpu := cpu.Init()
-	cpu.LoadBIOS(data)
-	cpu.LoadBIOS(bios)
+	cpu := cpu.Init(loadBIOS)
+	if testMode {
+		cpu.LoadROM(test)
+	} else {
+		cpu.LoadROM(rom)
+		if loadBIOS {
+			cpu.LoadBIOS(bios)
+		}
+	}
 
 	f := func(screen *ebiten.Image) error {
-		for i := 0; i < CYCLES_PER_FRAME; i++ {
+		for i := 0; i < CyclesPerFrame; i++ {
 			cycles := cpu.Step()
 			cpu.Display.Update(cycles)
 		}

@@ -44,7 +44,6 @@ func (m *Memory) set(address uint16, value byte) byte {
 		// sprites
 	case address >= 0xFEA0 && address <= 0xFEFF:
 		// unusable
-		fmt.Printf("Invalid write to %x\n", address)
 	case address >= 0xFF00 && address <= 0xFF7F:
 		// memory mapped IO
 		if address == 0xFF01 {
@@ -85,8 +84,8 @@ func (m *Memory) get(address uint16) byte {
 		// video ram
 		return m.vram[address-0x8000]
 	case address >= 0xA000 && address <= 0xBFFF:
-		return m.eram[address-0xA000]
 		// cart ram
+		return m.eram[address-0xA000]
 	case address >= 0xC000 && address <= 0xDFFF:
 		return m.wram[address-0xC000]
 	case address >= 0xE000 && address <= 0xFDFF:
@@ -96,7 +95,8 @@ func (m *Memory) get(address uint16) byte {
 		// sprites
 		return 0x00
 	case address >= 0xFEA0 && address <= 0xFEFF:
-		return 0x00
+		// unused space
+		return 0xFF
 	case address >= 0xFF00 && address <= 0xFF7F:
 		// memory mapped IO
 		return m.ioram[address-0xFF00]
@@ -114,6 +114,7 @@ func (cpu *CPU) readMem(address uint16) byte {
 	return cpu.memory.get(address)
 }
 
+// TODO: remove this
 func (cpu *CPU) LoadProgram(program []byte) {
 	cpu.memory.load(cpu.GetPC(), program)
 }
@@ -123,7 +124,7 @@ func (cpu *CPU) LoadBIOS(program []byte) {
 }
 
 func (cpu *CPU) LoadROM(program []byte) {
-	cpu.memory.load(ProgramStartAddress, program)
+	cpu.memory.load(0, program)
 }
 
 func (cpu *CPU) WriteMem(address uint16, value byte) byte {
