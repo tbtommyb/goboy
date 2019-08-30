@@ -286,8 +286,8 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 		cpu.SetHL(a + b)
 		cpu.incrementCycles() // TODO: remove need for this
 		cpu.setFlags(FlagSet{
-			HalfCarry: isAddHalfCarry16(a, b),
-			FullCarry: isAddFullCarry16(a, b),
+			HalfCarry: lowerByteHalfCarry(byte(a), byte(b)),
+			FullCarry: lowerByteFullCarry(byte(a), byte(b)),
 		})
 	case in.StoreSP:
 		cpu.WriteMem(i.Immediate, byte(cpu.GetSP()))
@@ -358,12 +358,12 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 		cpu.incrementCycles()
 	case in.AddSP:
 		a := cpu.GetSP()
-		b := i.Immediate
-		result := a + uint16(b)
+		b := uint16(i.Immediate)
+		result := a + b
 		cpu.setSP(result)
 		cpu.setFlags(FlagSet{
-			HalfCarry: isAddHalfCarry16(a, uint16(b)),
-			FullCarry: isAddFullCarry16(a, uint16(b)),
+			HalfCarry: lowerByteHalfCarry(byte(a), byte(b)),
+			FullCarry: lowerByteFullCarry(byte(a), byte(b)),
 		})
 		cpu.incrementCycles()
 	case in.IncrementPair:
