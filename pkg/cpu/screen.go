@@ -196,7 +196,7 @@ func (gpu *GPU) renderTiles() {
 		dataBitH := (dataByteH >> (7 - mapBitX)) & 0x1
 		colourBit := (dataBitH << 1) | dataBitL
 
-		palettedPixel := (gpu.cpu.getGBP() >> (colourBit * 2)) & 0x03
+		palettedPixel := (gpu.cpu.getBGP() >> (colourBit * 2)) & 0x03
 		r, g, b := gpu.applyCustomPalette(palettedPixel)
 
 		yIdx := int(gpu.cpu.getLY())*int(160) + int(pixel)

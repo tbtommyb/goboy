@@ -12,15 +12,16 @@ import (
 )
 
 type CPU struct {
-	r       registers.Registers
-	flags   byte
-	SP, PC  uint16
-	memory  *Memory
-	cycles  uint
-	IME     bool
-	halt    bool
-	Display *display.Display
-	gpu     *GPU
+	r        registers.Registers
+	flags    byte
+	SP, PC   uint16
+	memory   *Memory
+	cycles   uint
+	IME      bool
+	halt     bool
+	Display  *display.Display
+	gpu      *GPU
+	loadBIOS bool
 }
 
 func (cpu *CPU) GetPC() uint16 {
@@ -547,25 +548,20 @@ func (cpu *CPU) Step() uint {
 	return 4 * (cpu.GetCycles() - initialCycles)
 }
 
-func Init() *CPU {
+func Init(loadBIOS bool) *CPU {
 	cpu := &CPU{
-		flags: 0x80,
-		r: registers.Registers{
-			registers.A: 0x11,
-			registers.B: 0x0,
-			registers.C: 0x0,
-			registers.D: 0xFF,
-			registers.E: 0x56,
-			registers.H: 0x0,
-			registers.L: 0xD,
-		}, SP: StackStartAddress, PC: 0, IME: false,
-		memory: InitMemory(),
+		loadBIOS: loadBIOS,
+		r:        registers.Registers{},
+		memory:   InitMemory(),
 	}
 	gpu := InitGPU(cpu)
 	display := display.InitDisplay(gpu)
 	gpu.display = display
 	cpu.Display = display
 	cpu.gpu = gpu
+	if !cpu.loadBIOS {
+		cpu.emulateBootSequence()
+	}
 	return cpu
 }
 
@@ -581,4 +577,17 @@ func (cpu *CPU) fetchAndIncrement() byte {
 	cpu.incrementPC()
 	cpu.incrementCycles()
 	return value
+}
+
+func (cpu *CPU) emulateBootSequence() {
+	cpu.SetAF(0x01B0)
+	cpu.SetBC(0x0013)
+	cpu.SetDE(0x00D8)
+	cpu.SetHL(0x014D)
+	cpu.setSP(0xFFFE)
+	cpu.setLCDC(0x91)
+	cpu.setBGP(0xFC)
+	cpu.setOBP0(0xFF)
+	cpu.setOBP1(0xFF)
+	cpu.setPC(0x100)
 }
