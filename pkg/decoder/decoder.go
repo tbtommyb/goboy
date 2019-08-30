@@ -135,7 +135,7 @@ func Decode(il Iterator) in.Instruction {
 		instruction = in.AddPair{Source: in.Pair(op)}
 	case op == in.AddSPPattern:
 		// ADD SP, n. 0b1110 1000
-		instruction = in.AddSP{Immediate: il.Next()}
+		instruction = in.AddSP{Immediate: int8(il.Next())}
 	case op&in.IncrementPairMask == in.IncrementPairPattern:
 		// INC ss. 0b00ss 0011
 		instruction = in.IncrementPair{Dest: in.Pair(op)}

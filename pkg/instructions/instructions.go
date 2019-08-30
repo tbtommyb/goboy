@@ -320,11 +320,11 @@ func (i AddPair) Opcode() []byte {
 }
 
 type AddSP struct {
-	Immediate byte
+	Immediate int8
 }
 
 func (i AddSP) Opcode() []byte {
-	return []byte{AddSPPattern, i.Immediate}
+	return []byte{AddSPPattern, byte(i.Immediate)}
 }
 
 type IncrementPair struct {

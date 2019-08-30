@@ -33,6 +33,14 @@ func isAddFullCarry(a, b, carry byte) bool {
 	return uint16(a)+uint16(b)+uint16(carry) > 0xff
 }
 
+func lowerByteHalfCarry(a, b byte) bool {
+	return int(a&0xf)+int(b&0xf) >= 0x10
+}
+
+func lowerByteFullCarry(a, b byte) bool {
+	return int(a)+int(b) > 0xff
+}
+
 func isAddHalfCarry16(a, b uint16) bool {
 	return (a&0xfff)+(b&0xfff) > 0xfff
 }
