@@ -52,8 +52,12 @@ func (gpu *GPU) RenderLine() {
 		gpu.renderTiles()
 	}
 	if gpu.cpu.isLCDCSet(SpriteEnable) {
-		// gpu.renderSprites()
+		gpu.renderSprites()
 	}
+}
+
+func (gpu *GPU) RequestInterrupt(interrupt byte) {
+	gpu.cpu.requestInterrupt(interrupt)
 }
 
 func (gpu *GPU) bgTileDataAddress() (uint16, bool) {
@@ -143,6 +147,81 @@ func (gpu *GPU) renderTiles() {
 	}
 }
 
+func (gpu *GPU) renderSprites() {
+	use8x16 := gpu.cpu.isLCDCSet(SpriteSize)
+
+	for sprite := 0; sprite < 40; sprite++ {
+		index := byte(sprite * 4)
+		// TODO: remove 0xFE00 (sprite memory base)
+		yPos := gpu.cpu.memory.get(0xFE00+uint16(index)) - 16
+		xPos := gpu.cpu.memory.get(0xFE00+uint16(index)+1) - 8
+		tileLocation := gpu.cpu.memory.get(0xFE00 + uint16(index) + 2)
+		attributes := gpu.cpu.memory.get(0xFE00 + uint16(index) + 3)
+
+		yFlip := utils.IsSet(6, attributes)
+		xFlip := utils.IsSet(5, attributes)
+
+		scanline := int(gpu.cpu.getLY())
+
+		ySize := int(8)
+		if use8x16 {
+			ySize = 16
+		}
+
+		if (scanline >= int(yPos)) && (scanline < (int(yPos) + ySize)) {
+			line := int(scanline - int(yPos))
+
+			if yFlip {
+				line -= ySize
+				line *= -1
+			}
+
+			line *= 2
+			dataAddress := (0x8000 + uint16(tileLocation*16)) + uint16(line)
+			data1 := gpu.cpu.memory.get(dataAddress)
+			data2 := gpu.cpu.memory.get(dataAddress + 1)
+
+			for tilePixel := int(7); tilePixel >= 0; tilePixel-- {
+				colourBit := tilePixel
+				if xFlip {
+					colourBit -= 7
+					colourBit *= -1
+				}
+
+				var colourNum int
+				if utils.IsSet(byte(colourBit), data1) {
+					colourNum = 1
+				}
+				colourNum <<= 1
+				if utils.IsSet(byte(colourBit), data2) {
+					colourNum |= 1
+				}
+
+				palReg := gpu.cpu.getOBP0()
+				if utils.IsSet(4, attributes) {
+					palReg = gpu.cpu.getOBP1()
+				}
+
+				palettedPixel := (palReg >> uint((colourBit * 2))) & 0x03
+				r, g, b := gpu.applyCustomPalette(palettedPixel)
+
+				xPix := 0 - tilePixel
+				xPix += 7
+
+				pixel := xPos + byte(xPix)
+
+				yIdx := int(gpu.cpu.getLY())*int(160) + int(pixel)
+				gpu.display.Buffer.Pix[4*yIdx] = byte(r)
+				gpu.display.Buffer.Pix[4*yIdx+1] = byte(g)
+				gpu.display.Buffer.Pix[4*yIdx+2] = byte(b)
+				gpu.display.Buffer.Pix[4*yIdx+3] = 0xff
+
+			}
+		}
+
+	}
+}
+
 func (gpu *GPU) SetLCDStatus(scanlineCounter int) {
 	status := gpu.cpu.getSTAT()
 	if !gpu.cpu.isLCDCSet(LCDDisplayEnable) {
@@ -186,13 +265,13 @@ func (gpu *GPU) SetLCDStatus(scanlineCounter int) {
 	}
 
 	if requestInterrupt && (mode != currentMode) {
-		// request interrupt
+		gpu.cpu.requestInterrupt(1)
 	}
 
 	if gpu.cpu.getLY() == gpu.cpu.getLYC() {
 		status = utils.SetBit(2, status, 1)
 		if utils.IsSet(6, status) {
-			// request interrupt
+			gpu.cpu.requestInterrupt(1)
 
 		}
 	} else {
