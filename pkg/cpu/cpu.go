@@ -457,6 +457,7 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 		cpu.setPC(utils.ReverseMergePair(cpu.popStack(), cpu.popStack()))
 	case in.ReturnInterrupt:
 		cpu.setPC(utils.ReverseMergePair(cpu.popStack(), cpu.popStack()))
+		cpu.enableInterrupts()
 	case in.ReturnConditional:
 		if cpu.conditionMet(i.Condition) {
 			cpu.setPC(utils.ReverseMergePair(cpu.popStack(), cpu.popStack()))

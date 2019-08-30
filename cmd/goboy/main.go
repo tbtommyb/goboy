@@ -72,6 +72,7 @@ func main() {
 		for i := 0; i < CyclesPerFrame; i++ {
 			cycles := cpu.Step()
 			cpu.Display.Update(cycles)
+			cpu.CheckInterrupts()
 		}
 		// TODO: change to goroutines
 		for key, button := range keyMap {
