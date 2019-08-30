@@ -12,9 +12,8 @@ import (
 	"github.com/tbtommyb/goboy/pkg/cpu"
 )
 
-var GameboyClockSpeed = 4194300
 var EbitenFPS = 60
-var CyclesPerFrame = GameboyClockSpeed / EbitenFPS
+var CyclesPerFrame = cpu.GameboyClockSpeed / EbitenFPS
 
 var keyMap = map[ebiten.Key]cpu.Button{
 	ebiten.KeyZ:         cpu.ButtonA,
@@ -72,6 +71,7 @@ func main() {
 		for i := 0; i < CyclesPerFrame; i++ {
 			cycles := cpu.Step()
 			cpu.Display.Update(cycles)
+			cpu.UpdateTimers(cycles)
 			cpu.CheckInterrupts()
 		}
 		// TODO: change to goroutines
