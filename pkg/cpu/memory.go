@@ -72,7 +72,6 @@ func (m *Memory) set(address uint16, value byte) byte {
 }
 
 func (m *Memory) performDMA(value byte) {
-	fmt.Printf("DMA\n")
 	address := value << 8
 	for i := 0; i < 0xA0; i++ {
 		m.set(uint16(0xFE00+i), m.get(uint16(int(address)+i)))

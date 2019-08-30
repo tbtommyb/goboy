@@ -18,6 +18,7 @@ type DisplayInterface interface {
 	IncrementScanline() byte
 	ResetScanline()
 	RenderLine()
+	RequestInterrupt(byte)
 }
 
 func (d *Display) Update(cycles uint) {
@@ -37,7 +38,7 @@ func (d *Display) Update(cycles uint) {
 	d.scanlineCounter = 456
 
 	if scanline == 144 {
-		// TODO: trigger VBLANK
+		d.sysInterface.RequestInterrupt(0)
 	} else if scanline > 153 {
 		d.sysInterface.ResetScanline()
 	} else if scanline < 144 {

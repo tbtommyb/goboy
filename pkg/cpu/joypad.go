@@ -19,10 +19,9 @@ const (
 
 func (cpu *CPU) PressButton(button Button) {
 	cpu.joypad = utils.SetBit(byte(button), cpu.joypad, 0)
-	// Request the joypad interrupt
+	cpu.requestInterrupt(4)
 }
 
 func (cpu *CPU) ReleaseButton(button Button) {
 	cpu.joypad = utils.SetBit(byte(button), cpu.joypad, 1)
-	// Request the joypad interrupt
 }
