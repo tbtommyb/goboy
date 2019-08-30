@@ -7,6 +7,7 @@ import (
 	"log"
 
 	"github.com/hajimehoshi/ebiten"
+	"github.com/hajimehoshi/ebiten/inpututil"
 	"github.com/tbtommyb/goboy/pkg/constants"
 	"github.com/tbtommyb/goboy/pkg/cpu"
 )
@@ -14,6 +15,17 @@ import (
 var GameboyClockSpeed = 4194300
 var EbitenFPS = 60
 var CyclesPerFrame = GameboyClockSpeed / EbitenFPS
+
+var keyMap = map[ebiten.Key]cpu.Button{
+	ebiten.KeyZ:         cpu.ButtonA,
+	ebiten.KeyX:         cpu.ButtonB,
+	ebiten.KeyBackspace: cpu.ButtonSelect,
+	ebiten.KeyEnter:     cpu.ButtonStart,
+	ebiten.KeyRight:     cpu.ButtonRight,
+	ebiten.KeyLeft:      cpu.ButtonLeft,
+	ebiten.KeyUp:        cpu.ButtonUp,
+	ebiten.KeyDown:      cpu.ButtonDown,
+}
 
 func main() {
 	var loadBIOS, testMode bool
@@ -60,6 +72,15 @@ func main() {
 		for i := 0; i < CyclesPerFrame; i++ {
 			cycles := cpu.Step()
 			cpu.Display.Update(cycles)
+		}
+		// TODO: change to goroutines
+		for key, button := range keyMap {
+			if inpututil.IsKeyJustPressed(key) {
+				cpu.PressButton(button)
+			}
+			if inpututil.IsKeyJustReleased(key) {
+				cpu.ReleaseButton(button)
+			}
 		}
 		screen.ReplacePixels(cpu.Display.Pixels())
 		return nil

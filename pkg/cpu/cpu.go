@@ -22,6 +22,7 @@ type CPU struct {
 	Display  *display.Display
 	gpu      *GPU
 	loadBIOS bool
+	joypad   byte
 }
 
 func (cpu *CPU) GetPC() uint16 {
@@ -546,13 +547,14 @@ func Init(loadBIOS bool) *CPU {
 	cpu := &CPU{
 		loadBIOS: loadBIOS,
 		r:        registers.Registers{},
-		memory:   InitMemory(),
 	}
+	memory := InitMemory(cpu)
 	gpu := InitGPU(cpu)
 	display := display.InitDisplay(gpu)
 	gpu.display = display
 	cpu.Display = display
 	cpu.gpu = gpu
+	cpu.memory = memory
 	if !cpu.loadBIOS {
 		cpu.emulateBootSequence()
 	}
