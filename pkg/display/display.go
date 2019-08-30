@@ -12,38 +12,16 @@ type Display struct {
 	scanlineCounter int
 }
 
-// TODO: change LY to scanline and keep LY as GB implementation detail?
 type DisplayInterface interface {
-	GetScrollX() byte
-	GetScrollY() byte
-	// TileColour(x, y byte) uint32
-	GetScanline() byte
+	SetLCDStatus(scanlineCounter int)
+	DisplayEnabled() bool
 	IncrementScanline() byte
 	ResetScanline()
-	UpdateStatus(byte)
-	DisplayEnabled() bool
-	SetLCDStatus(scanlineCounter int)
 	RenderLine()
 }
 
-// func (d *Display) renderLine(ly uint8) {
-// 	tileY := ly + d.sysInterface.GetScrollY()
-
-// 	for lcdX := uint8(0); lcdX < 160; lcdX++ {
-// 		tileX := lcdX + d.sysInterface.GetScrollX()
-// 		color := d.sysInterface.TileColour(tileX, tileY)
-// 		pixel := int(ly)*int(160) + int(lcdX)
-
-// 		d.buffer.Pix[4*pixel] = uint8((color >> 24) & 0xFF)
-// 		d.buffer.Pix[4*pixel+1] = uint8((color >> 16) & 0xFF)
-// 		d.buffer.Pix[4*pixel+2] = uint8((color >> 8) & 0xFF)
-// 		d.buffer.Pix[4*pixel+3] = uint8(color & 0xFF)
-// 	}
-// }
-
 func (d *Display) Update(cycles uint) {
 	d.sysInterface.SetLCDStatus(d.scanlineCounter)
-	// TODO: set LCD status
 	if !d.sysInterface.DisplayEnabled() {
 		d.scanlineCounter = 456
 		return

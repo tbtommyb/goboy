@@ -143,11 +143,11 @@ func (cpu *CPU) setScrollX(value byte) byte {
 	return cpu.memory.set(ScrollXAddress, value)
 }
 
-func (cpu *CPU) GetWindowY() byte {
+func (cpu *CPU) getWindowY() byte {
 	return cpu.memory.get(WindowYAddress)
 }
 
-func (cpu *CPU) GetWindowX() byte {
+func (cpu *CPU) getWindowX() byte {
 	return cpu.memory.get(WindowXAddress)
 }
 
