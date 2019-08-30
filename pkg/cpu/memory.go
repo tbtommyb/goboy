@@ -50,19 +50,29 @@ func (m *Memory) set(address uint16, value byte) byte {
 	case address >= 0xFF00 && address <= 0xFF7F:
 		// memory mapped IO
 		if address == 0xFF01 {
-			fmt.Printf("%c", value)
-		}
-		// Reset if game writes to LY
-		if address == LYAddress {
+			// fmt.Printf("%c", value)
+		} else if address == LYAddress {
+			// Reset if game writes to LY
 			m.ioram[address-0xFF00] = 0
 			return 0
-		}
-		// DMA
-		if address == 0xFF46 {
+		} else if address == 0xFF46 {
+			// DMA
 			m.performDMA(value)
 			return 0
+		} else if address == TMCAddress {
+			currentFreq := m.cpu.getClockFreq()
+			m.ioram[address-0xFF00] = value
+			newFreq := m.cpu.getClockFreq()
+
+			if currentFreq != newFreq {
+				m.cpu.setClockFreq()
+			}
+			return 0
+		} else if address == 0xFF0A {
+			m.ioram[address-0xFF00] = 0
+		} else {
+			m.ioram[address-0xFF00] = value
 		}
-		m.ioram[address-0xFF00] = value
 	case address >= 0xFF80 && address <= 0xFFFE:
 		m.hram[address-0xFF80] = value
 	case address == 0xFFFF:

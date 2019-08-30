@@ -7,6 +7,9 @@ import (
 	"github.com/tbtommyb/goboy/pkg/utils"
 )
 
+const TIMAAddress = 0xFF05
+const TMAAddress = 0xFF06
+const TMCAddress = 0xFF07
 const LCDCAddress = 0xFF40
 const STATAddress = 0xFF41
 const ScrollYAddress = 0xFF42
@@ -186,4 +189,24 @@ func (cpu *CPU) setOBP1(value byte) byte {
 
 func (cpu *CPU) getOBP1() byte {
 	return cpu.memory.get(OBP1Address)
+}
+
+func (cpu *CPU) getTIMA() byte {
+	return cpu.memory.get(TIMAAddress)
+}
+
+func (cpu *CPU) setTIMA(value byte) byte {
+	return cpu.memory.set(TIMAAddress, value)
+}
+
+func (cpu *CPU) getTMA() byte {
+	return cpu.memory.get(TMAAddress)
+}
+
+func (cpu *CPU) getTMC() byte {
+	return cpu.memory.get(TMCAddress)
+}
+
+func (cpu *CPU) setTMC(value byte) byte {
+	return cpu.memory.set(TMCAddress, value)
 }

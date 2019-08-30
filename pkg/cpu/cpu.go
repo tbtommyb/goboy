@@ -11,18 +11,23 @@ import (
 	"github.com/tbtommyb/goboy/pkg/utils"
 )
 
+var GameboyClockSpeed = 4194300
+
 type CPU struct {
-	r        registers.Registers
-	flags    byte
-	SP, PC   uint16
-	memory   *Memory
-	cycles   uint
-	IME      bool
-	halt     bool
-	Display  *display.Display
-	gpu      *GPU
-	loadBIOS bool
-	joypad   byte
+	r               registers.Registers
+	flags           byte
+	SP, PC          uint16
+	memory          *Memory
+	cycles          uint
+	IME             bool
+	halt            bool
+	Display         *display.Display
+	gpu             *GPU
+	loadBIOS        bool
+	joypad          byte
+	timerCounter    int
+	dividerRegister uint
+	dividerCounter  uint
 }
 
 func (cpu *CPU) GetPC() uint16 {
