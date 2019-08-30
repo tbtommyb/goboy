@@ -7,14 +7,16 @@ import (
 )
 
 type Memory struct {
-	rom      [0x8000]byte
-	vram     [0x2000]byte
-	eram     [0x2000]byte
-	wram     [0x2000]byte
-	ioram    [0x100]byte
-	hram     [0x7F]byte
-	flag     byte
-	statMode byte
+	rom             [0x8000]byte
+	vram            [0x2000]byte
+	eram            [0x2000]byte
+	wram            [0x2000]byte
+	sram            [0x100]byte
+	ioram           [0x100]byte
+	hram            [0x7F]byte
+	interruptEnable byte
+	statMode        byte
+	cpu             *CPU
 }
 
 const ProgramStartAddress = 0x100
@@ -42,6 +44,7 @@ func (m *Memory) set(address uint16, value byte) byte {
 		// shadow wram
 	case address >= 0xFE00 && address <= 0xFE9F:
 		// sprites
+		m.sram[address-0xFE00] = value
 	case address >= 0xFEA0 && address <= 0xFEFF:
 		// unusable
 	case address >= 0xFF00 && address <= 0xFF7F:
@@ -63,9 +66,9 @@ func (m *Memory) set(address uint16, value byte) byte {
 	case address >= 0xFF80 && address <= 0xFFFE:
 		m.hram[address-0xFF80] = value
 	case address == 0xFFFF:
-		m.flag = value
+		m.interruptEnable = value
 	}
-	return value
+	return m.get(address)
 }
 
 func (m *Memory) performDMA(value byte) {
@@ -93,17 +96,25 @@ func (m *Memory) get(address uint16) byte {
 		return 0x00
 	case address >= 0xFE00 && address <= 0xFE9F:
 		// sprites
-		return 0x00
+		val := m.sram[address-0xFE00]
+		return val
 	case address >= 0xFEA0 && address <= 0xFEFF:
 		// unused space
 		return 0xFF
 	case address >= 0xFF00 && address <= 0xFF7F:
 		// memory mapped IO
+		// TODO: maybe map to memory instead
+		if address == JoypadRegisterAddress {
+			return m.cpu.joypad
+		}
 		return m.ioram[address-0xFF00]
 	case address >= 0xFF80 && address <= 0xFFFE:
+		// if address == 0xff85 {
+		// 	return 1
+		// }
 		return m.hram[address-0xFF80]
 	case address == 0xFFFF:
-		return m.flag
+		return m.interruptEnable
 	default:
 		panic(fmt.Sprintf("%x\n", address))
 	}
@@ -163,7 +174,7 @@ func (cpu *CPU) SetMem(r registers.Pair, val byte) byte {
 	return val
 }
 
-func InitMemory() *Memory {
+func InitMemory(cpu *CPU) *Memory {
 	return &Memory{
 		rom:   [0x8000]byte{},
 		vram:  [0x2000]byte{},
@@ -171,5 +182,6 @@ func InitMemory() *Memory {
 		wram:  [0x2000]byte{},
 		ioram: [0x100]byte{},
 		hram:  [0x7F]byte{},
+		cpu:   cpu,
 	}
 }

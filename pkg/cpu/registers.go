@@ -18,6 +18,7 @@ const OBP0Address = 0xFF48
 const OBP1Address = 0xFF49
 const WindowYAddress = 0xFF4A
 const WindowXAddress = 0xFF4B
+const JoypadRegisterAddress = 0xFF00
 
 func (cpu *CPU) Get(r registers.Single) byte {
 	switch r {
@@ -175,6 +176,14 @@ func (cpu *CPU) setOBP0(value byte) byte {
 	return cpu.memory.set(OBP0Address, value)
 }
 
+func (cpu *CPU) getOBP0() byte {
+	return cpu.memory.get(OBP0Address)
+}
+
 func (cpu *CPU) setOBP1(value byte) byte {
 	return cpu.memory.set(OBP1Address, value)
+}
+
+func (cpu *CPU) getOBP1() byte {
+	return cpu.memory.get(OBP1Address)
 }
