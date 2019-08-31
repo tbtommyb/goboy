@@ -546,13 +546,14 @@ func (cpu *CPU) Run() {
 func (cpu *CPU) Step() uint {
 	initialCycles := cpu.GetCycles()
 	cpu.Execute(decoder.Decode(cpu))
-	return 4 * (cpu.GetCycles() - initialCycles)
+	return (cpu.GetCycles() - initialCycles)
 }
 
 func Init(loadBIOS bool) *CPU {
 	cpu := &CPU{
 		loadBIOS: loadBIOS,
 		r:        registers.Registers{},
+		joypad:   0xf,
 	}
 	memory := InitMemory(cpu)
 	gpu := InitGPU(cpu)

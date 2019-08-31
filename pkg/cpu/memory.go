@@ -114,7 +114,7 @@ func (m *Memory) get(address uint16) byte {
 		// memory mapped IO
 		// TODO: maybe map to memory instead
 		if address == JoypadRegisterAddress {
-			return m.cpu.joypad
+			return m.cpu.getJoypadState()
 		}
 		return m.ioram[address-0xFF00]
 	case address >= 0xFF80 && address <= 0xFFFE:
