@@ -7,21 +7,57 @@ import (
 type Button byte
 
 const (
-	ButtonA      Button = 0
-	ButtonB             = 1
-	ButtonSelect        = 2
-	ButtonStart         = 3
-	ButtonRight         = 4
-	ButtonLeft          = 5
-	ButtonUp            = 6
-	ButtonDown          = 7
+	ButtonRight  Button = 0
+	ButtonLeft          = 1
+	ButtonUp            = 2
+	ButtonDown          = 3
+	ButtonA             = 4
+	ButtonB             = 5
+	ButtonSelect        = 6
+	ButtonStart         = 7
 )
 
 func (cpu *CPU) PressButton(button Button) {
+	previouslyUnset := utils.IsSet(byte(button), cpu.joypad)
+
 	cpu.joypad = utils.SetBit(byte(button), cpu.joypad, 0)
-	cpu.requestInterrupt(4)
+
+	notDirectional := true
+
+	if button > ButtonDown {
+		notDirectional = false
+	}
+
+	buttonReq := cpu.memory.ioram[0] // janky
+	requestInterrupt := false
+
+	if notDirectional && !utils.IsSet(5, buttonReq) {
+		requestInterrupt = true
+	} else if !notDirectional && !utils.IsSet(4, buttonReq) {
+		requestInterrupt = true
+	}
+
+	if requestInterrupt && !previouslyUnset {
+		cpu.requestInterrupt(4)
+	}
 }
 
 func (cpu *CPU) ReleaseButton(button Button) {
 	cpu.joypad = utils.SetBit(byte(button), cpu.joypad, 1)
+}
+
+func (cpu *CPU) getJoypadState() byte {
+	res := cpu.memory.ioram[0]
+	res ^= 0xFF
+
+	if !utils.IsSet(4, res) {
+		topJoypad := cpu.joypad >> 4
+		topJoypad |= 0xF0
+		res &= topJoypad
+	} else if !utils.IsSet(5, res) {
+		bottomJoypad := cpu.joypad & 0xF
+		bottomJoypad |= 0xF0
+		res &= bottomJoypad
+	}
+	return res
 }
