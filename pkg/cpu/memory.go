@@ -9,6 +9,7 @@ import (
 
 type Memory struct {
 	rom             []byte
+	bios            [0x100]byte
 	vram            [0x2000]byte
 	eram            [0x2000]byte
 	wram            [0x2000]byte
@@ -97,6 +98,12 @@ func (m *Memory) performDMA(address uint16) {
 }
 func (m *Memory) get(address uint16) byte {
 	switch {
+	case address < 0x100:
+		if m.cpu.loadBIOS {
+			return m.bios[address]
+		} else {
+			return m.rom[address]
+		}
 	case address < 0x4000:
 		return m.rom[address]
 	case address >= 0x4000 && address <= 0x7FFF:
@@ -239,7 +246,10 @@ func (cpu *CPU) readMem(address uint16) byte {
 // }
 
 func (cpu *CPU) LoadBIOS(program []byte) {
-	cpu.memory.load(0, program)
+	for i := 0; i < len(program); i++ {
+		cpu.memory.bios[+uint(i)] = program[i]
+	}
+	cpu.loadBIOS = true
 }
 
 func (cpu *CPU) LoadROM(program []byte) {
@@ -321,6 +331,7 @@ func (cpu *CPU) SetMem(r registers.Pair, val byte) byte {
 
 func InitMemory(cpu *CPU) *Memory {
 	return &Memory{
+		bios:           [0x100]byte{},
 		vram:           [0x2000]byte{},
 		eram:           [0x2000]byte{},
 		wram:           [0x2000]byte{},

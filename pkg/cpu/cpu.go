@@ -547,6 +547,9 @@ func (cpu *CPU) Run() {
 }
 
 func (cpu *CPU) Step() uint {
+	if cpu.GetPC() == 0x100 && cpu.loadBIOS {
+		cpu.loadBIOS = false
+	}
 	initialCycles := cpu.GetCycles()
 	cpu.Execute(decoder.Decode(cpu))
 	return (cpu.GetCycles() - initialCycles)
