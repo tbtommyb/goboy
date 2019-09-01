@@ -19,6 +19,7 @@ type DisplayInterface interface {
 	ResetScanline()
 	RenderLine()
 	RequestInterrupt(byte)
+	ParseSprites()
 }
 
 func (d *Display) Update(cycles uint) {
