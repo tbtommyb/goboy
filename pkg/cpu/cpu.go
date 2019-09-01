@@ -28,6 +28,9 @@ type CPU struct {
 	timerCounter    int
 	dividerRegister uint
 	dividerCounter  uint
+	mbc1            bool
+	mbc2            bool
+	currentROMBank  uint16
 }
 
 func (cpu *CPU) GetPC() uint16 {
@@ -551,9 +554,10 @@ func (cpu *CPU) Step() uint {
 
 func Init(loadBIOS bool) *CPU {
 	cpu := &CPU{
-		loadBIOS: loadBIOS,
-		r:        registers.Registers{},
-		joypad:   0xf,
+		loadBIOS:       loadBIOS,
+		r:              registers.Registers{},
+		joypad:         0xf,
+		currentROMBank: 1,
 	}
 	memory := InitMemory(cpu)
 	gpu := InitGPU(cpu)
