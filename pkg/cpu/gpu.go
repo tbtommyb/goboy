@@ -171,8 +171,8 @@ func (gpu *GPU) getSpritePixel(e *oamEntry, x, y byte) (byte, byte, byte, bool) 
 	}
 	mapBitY, mapBitX := tileY&0x07, tileX&0x07
 
-	dataByteL := gpu.cpu.memory.get(0x8000 + (uint16(mapBitY) << 1))
-	dataByteH := gpu.cpu.memory.get(0x8000 + (uint16(mapBitY) << 1) + 1)
+	dataByteL := gpu.cpu.memory.get(0x8000 + (uint16(tileNum) << 4) + (uint16(mapBitY) << 1))
+	dataByteH := gpu.cpu.memory.get(0x8000 + (uint16(tileNum) << 4) + (uint16(mapBitY) << 1) + 1)
 	dataBitL := (dataByteL >> (7 - mapBitX)) & 0x1
 	dataBitH := (dataByteH >> (7 - mapBitX)) & 0x1
 	colourBit := (dataBitH << 1) | dataBitL
@@ -181,7 +181,7 @@ func (gpu *GPU) getSpritePixel(e *oamEntry, x, y byte) (byte, byte, byte, bool) 
 		return 0, 0, 0, false
 	}
 	palReg := gpu.cpu.getOBP0()
-	if utils.IsSet(4, e.flagsByte) {
+	if e.palSelector() {
 		palReg = gpu.cpu.getOBP1()
 	}
 
@@ -219,8 +219,6 @@ func (gpu *GPU) parseOAMForScanline(scanline byte) {
 	for i := 0; len(gpu.oams) < 10 && i < 40; i++ {
 		addr := 0xFE00 + uint16(i*4)
 		spriteY := int16(gpu.cpu.memory.get(addr)) - 16
-		// fmt.Printf("addr: %x, val: %x\n", addr, gpu.cpu.memory.get(addr))
-		// fmt.Printf("%x, %x, %x\n", scanline, spriteY, height)
 		if yInSprite(scanline, spriteY, height) {
 			gpu.oams = append(gpu.oams, &oamEntry{
 				y:         spriteY,
