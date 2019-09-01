@@ -54,6 +54,9 @@ func (m *Memory) set(address uint16, value byte) {
 		} else if address == LYAddress {
 			// Reset if game writes to LY
 			m.ioram[address-0xFF00] = 0
+		} else if address == 0xFF04 {
+			// div
+			m.cpu.dividerRegister = uint(value)
 		} else if address == 0xFF46 {
 			// DMA
 			m.performDMA(uint16(value) << 8)
@@ -110,7 +113,10 @@ func (m *Memory) get(address uint16) byte {
 		// TODO: maybe map to memory instead
 		if address == JoypadRegisterAddress {
 			return m.cpu.getJoypadState()
+		} else if address == 0xFF04 {
+			return byte(m.cpu.dividerRegister)
 		}
+
 		return m.ioram[address-0xFF00]
 	case address >= 0xFF80 && address <= 0xFFFE:
 		// if address == 0xff85 {
