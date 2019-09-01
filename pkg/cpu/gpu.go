@@ -1,6 +1,8 @@
 package cpu
 
 import (
+	"sort"
+
 	"github.com/tbtommyb/goboy/pkg/display"
 	"github.com/tbtommyb/goboy/pkg/utils"
 )
@@ -13,6 +15,7 @@ type GPU struct {
 	mode    byte
 	cpu     *CPU
 	display *display.Display
+	oams    []*oamEntry
 }
 
 func InitGPU(cpu *CPU) *GPU {
@@ -48,15 +51,17 @@ func (gpu *GPU) ResetScanline() {
 }
 
 func (gpu *GPU) RenderLine() {
+	scanline := gpu.cpu.getLY()
 	if gpu.cpu.isLCDCSet(WindowDisplayPriority) {
 		gpu.renderTiles()
 	}
 	if gpu.cpu.isLCDCSet(SpriteEnable) {
-		gpu.renderSprites()
+		gpu.renderSprites(gpu.oams, scanline)
 	}
 }
 
 func (gpu *GPU) RequestInterrupt(interrupt byte) {
+	gpu.parseOAMForScanline(gpu.cpu.getLY())
 	gpu.cpu.requestInterrupt(interrupt)
 }
 
@@ -147,79 +152,119 @@ func (gpu *GPU) renderTiles() {
 	}
 }
 
-func (gpu *GPU) renderSprites() {
-	use8x16 := gpu.cpu.isLCDCSet(SpriteSize)
+func (gpu *GPU) getSpritePixel(e *oamEntry, x, y byte) (byte, byte, byte, bool) {
+	tileX := byte(int16(x) - e.x)
+	tileY := byte(int16(y) - e.y)
 
-	for sprite := 0; sprite < 40; sprite++ {
-		index := byte(sprite * 4)
-		// TODO: remove 0xFE00 (sprite memory base)
-		yPos := gpu.cpu.memory.get(0xFE00+uint16(index)) - 16
-		xPos := gpu.cpu.memory.get(0xFE00+uint16(index)+1) - 8
-		tileLocation := gpu.cpu.memory.get(0xFE00 + uint16(index) + 2)
-		attributes := gpu.cpu.memory.get(0xFE00 + uint16(index) + 3)
-
-		yFlip := utils.IsSet(6, attributes)
-		xFlip := utils.IsSet(5, attributes)
-
-		scanline := int(gpu.cpu.getLY())
-
-		ySize := int(8)
-		if use8x16 {
-			ySize = 16
-		}
-
-		if (scanline >= int(yPos)) && (scanline < (int(yPos) + ySize)) {
-			line := int(scanline - int(yPos))
-
-			if yFlip {
-				line -= ySize
-				line *= -1
-			}
-
-			line *= 2
-			dataAddress := (0x8000 + uint16(tileLocation*16)) + uint16(line)
-			data1 := gpu.cpu.memory.get(dataAddress)
-			data2 := gpu.cpu.memory.get(dataAddress + 1)
-
-			for tilePixel := int(7); tilePixel >= 0; tilePixel-- {
-				colourBit := tilePixel
-				if xFlip {
-					colourBit -= 7
-					colourBit *= -1
-				}
-
-				var colourNum int
-				if utils.IsSet(byte(colourBit), data1) {
-					colourNum = 1
-				}
-				colourNum <<= 1
-				if utils.IsSet(byte(colourBit), data2) {
-					colourNum |= 1
-				}
-
-				palReg := gpu.cpu.getOBP0()
-				if utils.IsSet(4, attributes) {
-					palReg = gpu.cpu.getOBP1()
-				}
-
-				palettedPixel := (palReg >> uint((colourBit * 2))) & 0x03
-				r, g, b := gpu.applyCustomPalette(palettedPixel)
-
-				xPix := 0 - tilePixel
-				xPix += 7
-
-				pixel := xPos + byte(xPix)
-
-				yIdx := int(gpu.cpu.getLY())*int(160) + int(pixel)
-				gpu.display.Buffer.Pix[4*yIdx] = byte(r)
-				gpu.display.Buffer.Pix[4*yIdx+1] = byte(g)
-				gpu.display.Buffer.Pix[4*yIdx+2] = byte(b)
-				gpu.display.Buffer.Pix[4*yIdx+3] = 0xff
-
-			}
-		}
-
+	if e.xFlip() {
+		tileX = 7 - tileX
 	}
+	if e.yFlip() {
+		tileY = e.height - 1 - tileY
+	}
+	tileNum := e.tileNum
+	if e.height == 16 {
+		tileNum &^= 0x01
+		if tileY >= 8 {
+			tileNum++
+		}
+	}
+	mapBitY, mapBitX := tileY&0x07, tileX&0x07
+
+	dataByteL := gpu.cpu.memory.get(0x8000 + (uint16(mapBitY) << 1))
+	dataByteH := gpu.cpu.memory.get(0x8000 + (uint16(mapBitY) << 1) + 1)
+	dataBitL := (dataByteL >> (7 - mapBitX)) & 0x1
+	dataBitH := (dataByteH >> (7 - mapBitX)) & 0x1
+	colourBit := (dataBitH << 1) | dataBitL
+
+	if colourBit == 0 {
+		return 0, 0, 0, false
+	}
+	palReg := gpu.cpu.getOBP0()
+	if utils.IsSet(4, e.flagsByte) {
+		palReg = gpu.cpu.getOBP1()
+	}
+
+	palettedPixel := (palReg >> uint((colourBit * 2))) & 0x03
+	r, g, b := gpu.applyCustomPalette(palettedPixel)
+	return r, g, b, true
+}
+
+type oamEntry struct {
+	y         int16
+	x         int16
+	height    byte
+	tileNum   byte
+	flagsByte byte
+}
+
+func (e *oamEntry) behindBG() bool    { return e.flagsByte&0x80 != 0 }
+func (e *oamEntry) yFlip() bool       { return e.flagsByte&0x40 != 0 }
+func (e *oamEntry) xFlip() bool       { return e.flagsByte&0x20 != 0 }
+func (e *oamEntry) palSelector() bool { return e.flagsByte&0x10 != 0 }
+
+func yInSprite(y byte, spriteY int16, height int) bool {
+	return int16(y) >= spriteY && int16(y) < spriteY+int16(height)
+}
+
+func (gpu *GPU) ParseSprites() {
+	gpu.parseOAMForScanline(gpu.cpu.getLY())
+}
+
+func (gpu *GPU) parseOAMForScanline(scanline byte) {
+	height := 8
+
+	gpu.oams = gpu.oams[:0]
+	// search all sprites, limit total found to 10 per scanline
+	for i := 0; len(gpu.oams) < 10 && i < 40; i++ {
+		addr := 0xFE00 + uint16(i*4)
+		spriteY := int16(gpu.cpu.memory.get(addr)) - 16
+		// fmt.Printf("addr: %x, val: %x\n", addr, gpu.cpu.memory.get(addr))
+		// fmt.Printf("%x, %x, %x\n", scanline, spriteY, height)
+		if yInSprite(scanline, spriteY, height) {
+			gpu.oams = append(gpu.oams, &oamEntry{
+				y:         spriteY,
+				x:         int16(gpu.cpu.memory.get(addr+1)) - 8,
+				height:    byte(height),
+				tileNum:   gpu.cpu.memory.get(addr + 2),
+				flagsByte: gpu.cpu.memory.get(addr + 3),
+			})
+		}
+	}
+
+	sort.Stable(sortableOAM(gpu.oams))
+}
+
+type sortableOAM []*oamEntry
+
+func (s sortableOAM) Less(i, j int) bool { return s[i].x < s[j].x }
+func (s sortableOAM) Len() int           { return len(s) }
+func (s sortableOAM) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+
+func (gpu *GPU) renderSprites(oams []*oamEntry, scanline byte) {
+	for _, e := range oams {
+		startX := byte(0)
+		if e.x > 0 {
+			startX = byte(e.x)
+		}
+		endX := byte(e.x + 8)
+
+		for x := startX; x < endX && x < 160; x++ {
+			// TODO: hide sprite?
+			if r, g, b, a := gpu.getSpritePixel(e, byte(x), byte(scanline)); a {
+				gpu.setFramebufferPixel(x, scanline, r, g, b)
+			}
+		}
+	}
+}
+
+func (gpu *GPU) setFramebufferPixel(xByte, yByte, r, g, b byte) {
+	x, y := int(xByte), int(yByte)
+	yIdx := y * 160 * 4
+	gpu.display.Buffer.Pix[yIdx+x*4] = byte(r)
+	gpu.display.Buffer.Pix[yIdx+x*4+1] = byte(g)
+	gpu.display.Buffer.Pix[yIdx+x*4+2] = byte(b)
+	gpu.display.Buffer.Pix[yIdx+x*4+3] = 0xff
 }
 
 func (gpu *GPU) SetLCDStatus(scanlineCounter int) {
@@ -252,6 +297,9 @@ func (gpu *GPU) SetLCDStatus(scanlineCounter int) {
 			status = utils.SetBit(1, status, 1)
 			status = utils.SetBit(0, status, 0)
 			requestInterrupt = utils.IsSet(5, status)
+			if scanlineCounter == mode2bounds {
+				gpu.parseOAMForScanline(currentLine)
+			}
 		} else if scanlineCounter >= mode3bounds {
 			mode = 3
 			status = utils.SetBit(1, status, 1)

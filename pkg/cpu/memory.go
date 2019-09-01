@@ -29,7 +29,7 @@ func (m *Memory) load(start uint16, data []byte) {
 	}
 }
 
-func (m *Memory) set(address uint16, value byte) byte {
+func (m *Memory) set(address uint16, value byte) {
 	switch {
 	case address < 0x8000:
 		m.rom[address] = value
@@ -54,11 +54,9 @@ func (m *Memory) set(address uint16, value byte) byte {
 		} else if address == LYAddress {
 			// Reset if game writes to LY
 			m.ioram[address-0xFF00] = 0
-			return 0
 		} else if address == 0xFF46 {
 			// DMA
-			m.performDMA(value)
-			return 0
+			m.performDMA(uint16(value) << 8)
 		} else if address == TMCAddress {
 			currentFreq := m.cpu.getClockFreq()
 			m.ioram[address-0xFF00] = value
@@ -67,7 +65,6 @@ func (m *Memory) set(address uint16, value byte) byte {
 			if currentFreq != newFreq {
 				m.cpu.setClockFreq()
 			}
-			return 0
 		} else if address == 0xFF0A {
 			m.ioram[address-0xFF00] = 0
 		} else {
@@ -78,13 +75,11 @@ func (m *Memory) set(address uint16, value byte) byte {
 	case address == 0xFFFF:
 		m.interruptEnable = value
 	}
-	return m.get(address)
 }
 
-func (m *Memory) performDMA(value byte) {
-	address := value << 8
-	for i := 0; i < 0xA0; i++ {
-		m.set(uint16(0xFE00+i), m.get(uint16(int(address)+i)))
+func (m *Memory) performDMA(address uint16) {
+	for i := uint16(0); i < 0xA0; i++ {
+		m.set(0xFE00+i, m.get(address+i))
 	}
 }
 
@@ -147,9 +142,9 @@ func (cpu *CPU) LoadROM(program []byte) {
 	cpu.memory.load(0, program)
 }
 
-func (cpu *CPU) WriteMem(address uint16, value byte) byte {
+func (cpu *CPU) WriteMem(address uint16, value byte) {
 	cpu.incrementCycles()
-	return cpu.memory.set(address, value)
+	cpu.memory.set(address, value)
 }
 
 func (cpu *CPU) GetMem(r registers.Pair) byte {

@@ -119,8 +119,8 @@ func (cpu *CPU) getLCDC() byte {
 	return cpu.memory.get(LCDCAddress)
 }
 
-func (cpu *CPU) setLCDC(value byte) byte {
-	return cpu.memory.set(LCDCAddress, value)
+func (cpu *CPU) setLCDC(value byte) {
+	cpu.memory.set(LCDCAddress, value)
 }
 
 func (cpu *CPU) getSTAT() byte {
@@ -135,16 +135,16 @@ func (cpu *CPU) getScrollY() byte {
 	return cpu.memory.get(ScrollYAddress)
 }
 
-func (cpu *CPU) setScrollY(value byte) byte {
-	return cpu.memory.set(ScrollYAddress, value)
+func (cpu *CPU) setScrollY(value byte) {
+	cpu.memory.set(ScrollYAddress, value)
 }
 
 func (cpu *CPU) getScrollX() byte {
 	return cpu.memory.get(ScrollXAddress)
 }
 
-func (cpu *CPU) setScrollX(value byte) byte {
-	return cpu.memory.set(ScrollXAddress, value)
+func (cpu *CPU) setScrollX(value byte) {
+	cpu.memory.set(ScrollXAddress, value)
 }
 
 func (cpu *CPU) getWindowY() byte {
@@ -171,20 +171,20 @@ func (cpu *CPU) getBGP() byte {
 	return cpu.memory.get(BGPAddress)
 }
 
-func (cpu *CPU) setBGP(value byte) byte {
-	return cpu.memory.set(BGPAddress, value)
+func (cpu *CPU) setBGP(value byte) {
+	cpu.memory.set(BGPAddress, value)
 }
 
-func (cpu *CPU) setOBP0(value byte) byte {
-	return cpu.memory.set(OBP0Address, value)
+func (cpu *CPU) setOBP0(value byte) {
+	cpu.memory.set(OBP0Address, value)
 }
 
 func (cpu *CPU) getOBP0() byte {
 	return cpu.memory.get(OBP0Address)
 }
 
-func (cpu *CPU) setOBP1(value byte) byte {
-	return cpu.memory.set(OBP1Address, value)
+func (cpu *CPU) setOBP1(value byte) {
+	cpu.memory.set(OBP1Address, value)
 }
 
 func (cpu *CPU) getOBP1() byte {
@@ -195,8 +195,8 @@ func (cpu *CPU) getTIMA() byte {
 	return cpu.memory.get(TIMAAddress)
 }
 
-func (cpu *CPU) setTIMA(value byte) byte {
-	return cpu.memory.set(TIMAAddress, value)
+func (cpu *CPU) setTIMA(value byte) {
+	cpu.memory.set(TIMAAddress, value)
 }
 
 func (cpu *CPU) getTMA() byte {
@@ -207,6 +207,6 @@ func (cpu *CPU) getTMC() byte {
 	return cpu.memory.get(TMCAddress)
 }
 
-func (cpu *CPU) setTMC(value byte) byte {
-	return cpu.memory.set(TMCAddress, value)
+func (cpu *CPU) setTMC(value byte) {
+	cpu.memory.set(TMCAddress, value)
 }
