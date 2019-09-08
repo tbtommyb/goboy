@@ -10,8 +10,17 @@ const (
 	MaxLY byte = 153
 )
 
+type Mode byte
+
+const (
+	AccessEnabledMode Mode = 0
+	VBlankMode             = 1
+	SearchingOAMMode       = 2
+	TransferringMode       = 3
+)
+
 type GPU struct {
-	mode            byte
+	mode            Mode
 	cpu             *CPU
 	display         DisplayInterface
 	scanlineCounter int
@@ -24,7 +33,7 @@ type DisplayInterface interface {
 
 func InitGPU(cpu *CPU) *GPU {
 	return &GPU{
-		mode: 2,
+		mode: SearchingOAMMode,
 		cpu:  cpu,
 	}
 }
@@ -284,13 +293,13 @@ func (gpu *GPU) setLCDStatus(scanlineCounter int) {
 	}
 
 	currentLine := gpu.cpu.getLY()
-	currentMode := status & 0x3
-	mode := byte(0)
+	currentMode := Mode(status & 0x3)
+	mode := AccessEnabledMode
 	requestInterrupt := false
 
 	if currentLine >= 144 {
 		// In VBLANK
-		mode = 1
+		mode = VBlankMode
 		status = utils.SetBit(0, status, 1)
 		status = utils.SetBit(1, status, 0)
 		requestInterrupt = utils.IsSet(4, status)
@@ -299,7 +308,7 @@ func (gpu *GPU) setLCDStatus(scanlineCounter int) {
 		mode3bounds := mode2bounds - 72
 
 		if scanlineCounter >= mode2bounds {
-			mode = 2
+			mode = SearchingOAMMode
 			status = utils.SetBit(1, status, 1)
 			status = utils.SetBit(0, status, 0)
 			requestInterrupt = utils.IsSet(5, status)
@@ -307,11 +316,11 @@ func (gpu *GPU) setLCDStatus(scanlineCounter int) {
 				gpu.parseOAMForScanline(currentLine)
 			}
 		} else if scanlineCounter >= mode3bounds {
-			mode = 3
+			mode = TransferringMode
 			status = utils.SetBit(1, status, 1)
 			status = utils.SetBit(0, status, 1)
 		} else {
-			mode = 0
+			mode = AccessEnabledMode
 			status = utils.SetBit(1, status, 0)
 			status = utils.SetBit(0, status, 0)
 			requestInterrupt = utils.IsSet(3, status)
