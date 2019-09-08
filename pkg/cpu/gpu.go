@@ -7,7 +7,9 @@ import (
 )
 
 const (
-	MaxLY byte = 153
+	MaxScanline        byte = 153
+	MaxVisibleScanline      = 144
+	CyclesPerScanline  int  = 456
 )
 
 type Mode byte
@@ -20,11 +22,11 @@ const (
 )
 
 type GPU struct {
-	mode            Mode
-	cpu             *CPU
-	display         DisplayInterface
-	scanlineCounter int
-	oams            []*oamEntry
+	mode          Mode
+	cpu           *CPU
+	display       DisplayInterface
+	cyclesCounter int
+	oams          []*oamEntry
 }
 
 type DisplayInterface interface {
@@ -46,34 +48,38 @@ var standardPalette = [][]byte{
 }
 
 func (gpu *GPU) update(cycles uint) {
-	gpu.setLCDStatus(gpu.scanlineCounter)
+	gpu.setLCDStatus(gpu.cyclesCounter)
 	if !gpu.cpu.isLCDCSet(LCDDisplayEnable) {
-		gpu.scanlineCounter = 456
+		gpu.cyclesCounter = CyclesPerScanline
 		return
 	}
 
-	gpu.scanlineCounter -= int(cycles)
+	gpu.cyclesCounter -= int(cycles)
 
-	if gpu.scanlineCounter > 0 {
+	if gpu.cyclesCounter > 0 {
 		return
 	}
 
 	scanline := gpu.incrementScanline()
-	gpu.scanlineCounter = 456
+	gpu.cyclesCounter = CyclesPerScanline
 
-	if scanline == 144 {
+	if scanline == MaxVisibleScanline {
 		gpu.requestInterrupt(0)
-	} else if scanline > 153 {
-		gpu.cpu.setLY(0)
-	} else if scanline < 144 {
+	} else if scanline > MaxScanline {
+		gpu.resetScanline()
+	} else if scanline < MaxVisibleScanline {
 		gpu.renderLine()
 	}
+}
+
+func (gpu *GPU) resetScanline() {
+	gpu.cpu.setLY(0)
 }
 
 func (gpu *GPU) incrementScanline() byte {
 	currentScanline := gpu.cpu.getLY()
 	currentScanline++
-	if currentScanline > MaxLY {
+	if currentScanline > MaxScanline {
 		currentScanline = 0
 	}
 	gpu.cpu.setLY(currentScanline)
@@ -91,6 +97,7 @@ func (gpu *GPU) renderLine() {
 }
 
 func (gpu *GPU) requestInterrupt(interrupt byte) {
+	// TODO: why this here?
 	gpu.parseOAMForScanline(gpu.cpu.getLY())
 	gpu.cpu.requestInterrupt(interrupt)
 }
@@ -297,7 +304,7 @@ func (gpu *GPU) setLCDStatus(scanlineCounter int) {
 	mode := AccessEnabledMode
 	requestInterrupt := false
 
-	if currentLine >= 144 {
+	if currentLine >= MaxVisibleScanline {
 		// In VBLANK
 		mode = VBlankMode
 		status = utils.SetBit(0, status, 1)
