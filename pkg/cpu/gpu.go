@@ -3,12 +3,22 @@ package cpu
 import (
 	"sort"
 
+	"github.com/tbtommyb/goboy/pkg/constants"
 	"github.com/tbtommyb/goboy/pkg/utils"
 )
 
 const (
 	MaxScanline        byte = 153
 	MaxVisibleScanline      = 144
+	ScrollXOffset           = 7
+	CharCodeMask            = 7
+	CharCodeShift           = 1
+	CharCodeSize            = 16
+	TilePixelSize           = 8
+	TileRowSize             = 32
+	ColourSize              = 2
+	ColourMask              = 3
+	ObjCount                = 128
 	CyclesPerScanline  int  = 456
 )
 
@@ -41,10 +51,10 @@ func InitGPU(cpu *CPU) *GPU {
 }
 
 var standardPalette = [][]byte{
-	{0x00, 0x00, 0x00},
-	{0x55, 0x55, 0x55},
-	{0xaa, 0xaa, 0xaa},
 	{0xff, 0xff, 0xff},
+	{0xaa, 0xaa, 0xaa},
+	{0x55, 0x55, 0x55},
+	{0x00, 0x00, 0x00},
 }
 
 func (gpu *GPU) update(cycles uint) {
@@ -110,79 +120,93 @@ func (gpu *GPU) bgTileDataAddress() (uint16, bool) {
 	}
 }
 
-func (gpu *GPU) bgTileMapStartAddress(flag LCDCFlag) uint16 {
-	if gpu.cpu.isLCDCSet(BGTileMapDisplaySelect) {
+func (gpu *GPU) bgTileMapStartAddress(usingWindow bool) uint16 {
+	flag := LCDCFlag(BGTileMapDisplaySelect)
+	if usingWindow {
+		flag = WindowTileMapDisplaySelect
+	}
+	if gpu.cpu.isLCDCSet(flag) {
 		return 0x9C00
 	}
 	return 0x9800
 }
 
 func (gpu *GPU) applyCustomPalette(val byte) (byte, byte, byte) {
-	outVal := standardPalette[3-val]
+	outVal := standardPalette[val]
 	return outVal[0], outVal[1], outVal[2]
+}
+
+func (gpu *GPU) getTileNum(startAddress uint16, xPos, yPos byte) uint16 {
+	tileNumX, tileNumY := uint16(xPos/TilePixelSize), uint16(yPos/TilePixelSize)
+	tileAddress := uint16(startAddress + tileNumY*TileRowSize + tileNumX)
+	return uint16(gpu.cpu.memory.get(tileAddress))
 }
 
 func (gpu *GPU) renderTiles() {
 	scrollX := gpu.cpu.getScrollX()
 	scrollY := gpu.cpu.getScrollY()
-	windowX := gpu.cpu.getWindowX() - 7 // TODO: explain
+	windowX := gpu.cpu.getWindowX() - ScrollXOffset
 	windowY := gpu.cpu.getWindowY()
+	scanline := gpu.cpu.getLY()
 
 	var usingWindow bool
 	if gpu.cpu.isLCDCSet(WindowDisplayEnable) {
-		if windowY <= gpu.cpu.getLY() {
+		if windowY <= scanline {
 			usingWindow = true
 		}
 	}
 
 	tileDataAddress, unsig := gpu.bgTileDataAddress()
+	startAddress := gpu.bgTileMapStartAddress(usingWindow)
 
-	var backgroundMemory uint16
+	yPos := byte(scrollY + scanline)
 	if usingWindow {
-		backgroundMemory = gpu.bgTileMapStartAddress(WindowTileMapDisplaySelect)
-	} else {
-		backgroundMemory = gpu.bgTileMapStartAddress(BGTileMapDisplaySelect)
+		yPos = scanline - windowY
 	}
 
-	var yPos byte
-	if usingWindow {
-		yPos = gpu.cpu.getLY() - windowY
-	} else {
-		yPos = scrollY + gpu.cpu.getLY()
-	}
-
-	for pixel := byte(0); pixel < 160; pixel++ {
-		xPos := byte(pixel + scrollX)
-		if usingWindow {
-			if pixel >= windowX {
-				xPos = pixel - windowX
-			}
-		}
-		tileNumY, tileNumX := uint16(yPos>>3), uint16(xPos>>3)
-
-		tileAddress := uint16(backgroundMemory + tileNumY*32 + tileNumX)
-		tileNum := uint16(gpu.cpu.memory.get(tileAddress))
-
-		var tileLocation uint16
-		if unsig {
-			tileLocation = tileDataAddress + tileNum*16
-		} else {
-			tileLocation = tileDataAddress + uint16((int(tileNum)+128)*16)
+	for pixel := byte(0); pixel < byte(constants.ScreenWidth); pixel++ {
+		xPos := byte(scrollX + pixel)
+		if usingWindow && pixel >= windowX {
+			xPos = pixel - windowX
 		}
 
-		mapBitY, mapBitX := yPos&0x07, xPos&0x07
+		tileNum := gpu.getTileNum(startAddress, xPos, yPos)
+		tileLocation := getTileLocation(unsig, tileDataAddress, tileNum)
 
-		dataByteL := gpu.cpu.memory.get(tileLocation + (uint16(mapBitY) << 1))
-		dataByteH := gpu.cpu.memory.get(tileLocation + (uint16(mapBitY) << 1) + 1)
-		dataBitL := (dataByteL >> (7 - mapBitX)) & 0x1
-		dataBitH := (dataByteH >> (7 - mapBitX)) & 0x1
-		colourBit := (dataBitH << 1) | dataBitL
+		charCode := yPos & CharCodeMask
+		low, high := gpu.fetchCharCodeBytes(tileLocation, uint16(charCode))
+		colour := gpu.fetchBitPair(xPos, low, high)
+		r, g, b := gpu.applyBGPalette(colour)
 
-		palettedPixel := (gpu.cpu.getBGP() >> (colourBit * 2)) & 0x03
-		r, g, b := gpu.applyCustomPalette(palettedPixel)
-
-		gpu.display.WritePixel(pixel, gpu.cpu.getLY(), r, g, b, 0xff)
+		gpu.display.WritePixel(pixel, scanline, r, g, b, 0xff)
 	}
+}
+
+func getTileLocation(unsigned bool, baseAddress, tileNum uint16) uint16 {
+	if unsigned {
+		return baseAddress + (tileNum * CharCodeSize)
+	} else {
+		return baseAddress + uint16((int(tileNum)+ObjCount)*CharCodeSize)
+	}
+}
+
+func (gpu *GPU) fetchCharCodeBytes(baseAddress, tileOffset uint16) (byte, byte) {
+	charCodeAddress := baseAddress + (uint16(tileOffset) << 1)
+	low := gpu.cpu.memory.get(charCodeAddress)
+	high := gpu.cpu.memory.get(charCodeAddress + 1)
+	return low, high
+}
+
+func (gpu *GPU) applyBGPalette(colour byte) (byte, byte, byte) {
+	customColour := (gpu.cpu.getBGP() >> (colour * ColourSize)) & ColourMask
+	return gpu.applyCustomPalette(customColour)
+}
+
+func (gpu *GPU) fetchBitPair(xPos, low, high byte) byte {
+	bitOffset := xPos & CharCodeMask
+	bitL := (low >> (7 - bitOffset)) & 0x1
+	bitH := (high >> (7 - bitOffset)) & 0x1
+	return (bitH << 1) | bitL
 }
 
 func (gpu *GPU) getSpritePixel(e *oamEntry, x, y byte) (byte, byte, byte, bool) {
