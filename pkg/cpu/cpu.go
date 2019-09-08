@@ -564,15 +564,20 @@ func Init(loadBIOS bool) *CPU {
 	}
 	memory := InitMemory(cpu)
 	gpu := InitGPU(cpu)
-	display := display.InitDisplay(gpu)
-	gpu.display = display
-	cpu.Display = display
 	cpu.gpu = gpu
 	cpu.memory = memory
 	if !cpu.loadBIOS {
 		cpu.emulateBootSequence()
 	}
 	return cpu
+}
+
+func (cpu *CPU) AttachDisplay(d DisplayInterface) {
+	cpu.gpu.display = d
+}
+
+func (cpu *CPU) UpdateDisplay(cycles uint) {
+	cpu.gpu.update(cycles)
 }
 
 func (cpu *CPU) Next() byte {
