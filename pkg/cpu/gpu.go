@@ -3,7 +3,6 @@ package cpu
 import (
 	"sort"
 
-	"github.com/tbtommyb/goboy/pkg/display"
 	"github.com/tbtommyb/goboy/pkg/utils"
 )
 
@@ -12,10 +11,15 @@ const (
 )
 
 type GPU struct {
-	mode    byte
-	cpu     *CPU
-	display *display.Display
-	oams    []*oamEntry
+	mode            byte
+	cpu             *CPU
+	display         DisplayInterface
+	scanlineCounter int
+	oams            []*oamEntry
+}
+
+type DisplayInterface interface {
+	WritePixel(x, y, r, g, b, a byte)
 }
 
 func InitGPU(cpu *CPU) *GPU {
@@ -32,11 +36,32 @@ var standardPalette = [][]byte{
 	{0xff, 0xff, 0xff},
 }
 
-func (gpu *GPU) DisplayEnabled() bool {
-	return gpu.cpu.isLCDCSet(LCDDisplayEnable)
+func (gpu *GPU) update(cycles uint) {
+	gpu.setLCDStatus(gpu.scanlineCounter)
+	if !gpu.cpu.isLCDCSet(LCDDisplayEnable) {
+		gpu.scanlineCounter = 456
+		return
+	}
+
+	gpu.scanlineCounter -= int(cycles)
+
+	if gpu.scanlineCounter > 0 {
+		return
+	}
+
+	scanline := gpu.incrementScanline()
+	gpu.scanlineCounter = 456
+
+	if scanline == 144 {
+		gpu.requestInterrupt(0)
+	} else if scanline > 153 {
+		gpu.cpu.setLY(0)
+	} else if scanline < 144 {
+		gpu.renderLine()
+	}
 }
 
-func (gpu *GPU) IncrementScanline() byte {
+func (gpu *GPU) incrementScanline() byte {
 	currentScanline := gpu.cpu.getLY()
 	currentScanline++
 	if currentScanline > MaxLY {
@@ -46,11 +71,7 @@ func (gpu *GPU) IncrementScanline() byte {
 	return currentScanline
 }
 
-func (gpu *GPU) ResetScanline() {
-	gpu.cpu.setLY(0)
-}
-
-func (gpu *GPU) RenderLine() {
+func (gpu *GPU) renderLine() {
 	scanline := gpu.cpu.getLY()
 	if gpu.cpu.isLCDCSet(WindowDisplayPriority) {
 		gpu.renderTiles()
@@ -60,7 +81,7 @@ func (gpu *GPU) RenderLine() {
 	}
 }
 
-func (gpu *GPU) RequestInterrupt(interrupt byte) {
+func (gpu *GPU) requestInterrupt(interrupt byte) {
 	gpu.parseOAMForScanline(gpu.cpu.getLY())
 	gpu.cpu.requestInterrupt(interrupt)
 }
@@ -144,11 +165,7 @@ func (gpu *GPU) renderTiles() {
 		palettedPixel := (gpu.cpu.getBGP() >> (colourBit * 2)) & 0x03
 		r, g, b := gpu.applyCustomPalette(palettedPixel)
 
-		yIdx := int(gpu.cpu.getLY())*int(160) + int(pixel)
-		gpu.display.Buffer.Pix[4*yIdx] = byte(r)
-		gpu.display.Buffer.Pix[4*yIdx+1] = byte(g)
-		gpu.display.Buffer.Pix[4*yIdx+2] = byte(b)
-		gpu.display.Buffer.Pix[4*yIdx+3] = 0xff
+		gpu.display.WritePixel(pixel, gpu.cpu.getLY(), r, g, b, 0xff)
 	}
 }
 
@@ -250,25 +267,16 @@ func (gpu *GPU) renderSprites(oams []*oamEntry, scanline byte) {
 		for x := startX; x < endX && x < 160; x++ {
 			// TODO: hide sprite?
 			if r, g, b, a := gpu.getSpritePixel(e, byte(x), byte(scanline)); a {
-				gpu.setFramebufferPixel(x, scanline, r, g, b)
+				gpu.display.WritePixel(x, scanline, r, g, b, 0xff)
 			}
 		}
 	}
 }
 
-func (gpu *GPU) setFramebufferPixel(xByte, yByte, r, g, b byte) {
-	x, y := int(xByte), int(yByte)
-	yIdx := y * 160 * 4
-	gpu.display.Buffer.Pix[yIdx+x*4] = byte(r)
-	gpu.display.Buffer.Pix[yIdx+x*4+1] = byte(g)
-	gpu.display.Buffer.Pix[yIdx+x*4+2] = byte(b)
-	gpu.display.Buffer.Pix[yIdx+x*4+3] = 0xff
-}
-
-func (gpu *GPU) SetLCDStatus(scanlineCounter int) {
+func (gpu *GPU) setLCDStatus(scanlineCounter int) {
 	status := gpu.cpu.getSTAT()
 	if !gpu.cpu.isLCDCSet(LCDDisplayEnable) {
-		gpu.ResetScanline()
+		gpu.cpu.setLY(0)
 		status &= 252 // TODO improve this
 		status = utils.SetBit(0, status, 1)
 		gpu.cpu.setSTAT(status)
