@@ -11,7 +11,7 @@ import (
 	"github.com/tbtommyb/goboy/pkg/utils"
 )
 
-var GameboyClockSpeed = 4194300
+var GameboyClockSpeed = 4194300 / 2
 
 type CPU struct {
 	r               registers.Registers

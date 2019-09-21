@@ -2,6 +2,7 @@ package cpu
 
 type Flag byte
 type LCDCFlag byte
+type LCDStatusFlag byte
 
 type FlagSet struct {
 	Zero, Negative, HalfCarry, FullCarry bool
@@ -23,6 +24,14 @@ const (
 	SpriteSize                          = 0x4
 	SpriteEnable                        = 0x2
 	WindowDisplayPriority               = 0x1
+)
+
+const (
+	MatchFlag              LCDStatusFlag = 2
+	AccessEnabledInterrupt               = 3
+	VBlankInterrupt                      = 4
+	OAMInterrupt                         = 5
+	MatchInterrupt                       = 6
 )
 
 func isAddHalfCarry(a, b, carry byte) bool {
