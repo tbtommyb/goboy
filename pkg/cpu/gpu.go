@@ -8,18 +8,24 @@ import (
 )
 
 const (
-	MaxScanline        byte = 153
-	MaxVisibleScanline      = 144
-	ScrollXOffset           = 7
-	CharCodeMask            = 7
-	CharCodeShift           = 1
-	CharCodeSize            = 16
-	TilePixelSize           = 8
-	TileRowSize             = 32
-	ColourSize              = 2
-	ColourMask              = 3
-	ObjCount                = 128
-	CyclesPerScanline  int  = 456
+	MaxScanline                byte = 153
+	MaxVisibleScanline              = 144
+	ModeMask                        = 3
+	ScrollXOffset                   = 7
+	CharCodeMask                    = 7
+	CharCodeShift                   = 1
+	CharCodeSize                    = 16
+	TilePixelSize                   = 8
+	TileRowSize                     = 32
+	ColourSize                      = 2
+	ColourMask                      = 3
+	SpriteDataSize                  = 16
+	SpritePixelSize                 = 8
+	ObjCount                        = 128
+	SearchingOAMModeCycleBound      = 376
+	TransferringModeCycleBound      = 302
+	StatusModeResetMask             = 0xFC
+	CyclesPerScanline          int  = 456
 )
 
 type Mode byte
@@ -209,6 +215,23 @@ func (gpu *GPU) fetchBitPair(xPos, low, high byte) byte {
 	return (bitH << 1) | bitL
 }
 
+func (gpu *GPU) renderSprites(oams []*oamEntry, scanline byte) {
+	for _, e := range oams {
+		startX := byte(0)
+		if e.x > 0 {
+			startX = byte(e.x)
+		}
+		endX := byte(e.x + SpritePixelSize)
+
+		for x := startX; x < endX && x < byte(constants.ScreenWidth); x++ {
+			// TODO: hide sprites
+			if r, g, b, a := gpu.getSpritePixel(e, x, scanline); a {
+				gpu.display.WritePixel(x, scanline, r, g, b, 0xff)
+			}
+		}
+	}
+}
+
 func (gpu *GPU) getSpritePixel(e *oamEntry, x, y byte) (byte, byte, byte, bool) {
 	tileX := byte(int16(x) - e.x)
 	tileY := byte(int16(y) - e.y)
@@ -226,25 +249,37 @@ func (gpu *GPU) getSpritePixel(e *oamEntry, x, y byte) (byte, byte, byte, bool) 
 			tileNum++
 		}
 	}
-	mapBitY, mapBitX := tileY&0x07, tileX&0x07
 
-	dataByteL := gpu.cpu.memory.get(0x8000 + (uint16(tileNum) << 4) + (uint16(mapBitY) << 1))
-	dataByteH := gpu.cpu.memory.get(0x8000 + (uint16(tileNum) << 4) + (uint16(mapBitY) << 1) + 1)
-	dataBitL := (dataByteL >> (7 - mapBitX)) & 0x1
-	dataBitH := (dataByteH >> (7 - mapBitX)) & 0x1
-	colourBit := (dataBitH << 1) | dataBitL
-
-	if colourBit == 0 {
+	charCode := uint16(tileY & CharCodeMask)
+	spriteAddress := gpu.getSpriteAddress(tileNum)
+	low, high := gpu.fetchSpriteData(spriteAddress, charCode)
+	colour := gpu.fetchBitPair(tileX, low, high)
+	if colour == 0 {
 		return 0, 0, 0, false
 	}
+
+	palettedPixel := gpu.applySpritePalette(e, colour)
+	r, g, b := gpu.applyCustomPalette(palettedPixel)
+	return r, g, b, true
+}
+
+func (gpu *GPU) getSpriteAddress(tileNum byte) uint16 {
+	return SpriteStartAddress + (uint16(tileNum) * SpriteDataSize)
+}
+
+func (gpu *GPU) fetchSpriteData(spriteAddress, charCode uint16) (byte, byte) {
+	low := gpu.cpu.memory.get(spriteAddress + (charCode << 1))
+	high := gpu.cpu.memory.get(spriteAddress + (charCode << 1) + 1)
+	return low, high
+}
+
+func (gpu *GPU) applySpritePalette(e *oamEntry, colour byte) byte {
 	palReg := gpu.cpu.getOBP0()
 	if e.palSelector() {
 		palReg = gpu.cpu.getOBP1()
 	}
 
-	palettedPixel := (palReg >> uint((colourBit * 2))) & 0x03
-	r, g, b := gpu.applyCustomPalette(palettedPixel)
-	return r, g, b, true
+	return (palReg >> uint((colour * ColourSize))) & ColourMask
 }
 
 type oamEntry struct {
@@ -296,80 +331,59 @@ func (s sortableOAM) Less(i, j int) bool { return s[i].x < s[j].x }
 func (s sortableOAM) Len() int           { return len(s) }
 func (s sortableOAM) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
-func (gpu *GPU) renderSprites(oams []*oamEntry, scanline byte) {
-	for _, e := range oams {
-		startX := byte(0)
-		if e.x > 0 {
-			startX = byte(e.x)
-		}
-		endX := byte(e.x + 8)
-
-		for x := startX; x < endX && x < 160; x++ {
-			// TODO: hide sprite?
-			if r, g, b, a := gpu.getSpritePixel(e, byte(x), byte(scanline)); a {
-				gpu.display.WritePixel(x, scanline, r, g, b, 0xff)
-			}
-		}
-	}
-}
-
 func (gpu *GPU) setLCDStatus(scanlineCounter int) {
 	status := gpu.cpu.getSTAT()
 	if !gpu.cpu.isLCDCSet(LCDDisplayEnable) {
 		gpu.cpu.setLY(0)
-		status &= 252 // TODO improve this
-		status = utils.SetBit(0, status, 1)
+		// status &= 252 // TODO improve this
+		status = setStatusMode(status, VBlankMode)
 		gpu.cpu.setSTAT(status)
 		return
 	}
 
 	currentLine := gpu.cpu.getLY()
-	currentMode := Mode(status & 0x3)
-	mode := AccessEnabledMode
-	requestInterrupt := false
+	currentMode := Mode(status & ModeMask)
 
+	var newMode Mode
 	if currentLine >= MaxVisibleScanline {
-		// In VBLANK
-		mode = VBlankMode
-		status = utils.SetBit(0, status, 1)
-		status = utils.SetBit(1, status, 0)
-		requestInterrupt = utils.IsSet(4, status)
-	} else {
-		mode2bounds := 456 - 80
-		mode3bounds := mode2bounds - 72
-
-		if scanlineCounter >= mode2bounds {
-			mode = SearchingOAMMode
-			status = utils.SetBit(1, status, 1)
-			status = utils.SetBit(0, status, 0)
-			requestInterrupt = utils.IsSet(5, status)
-			if scanlineCounter == mode2bounds {
-				gpu.parseOAMForScanline(currentLine)
-			}
-		} else if scanlineCounter >= mode3bounds {
-			mode = TransferringMode
-			status = utils.SetBit(1, status, 1)
-			status = utils.SetBit(0, status, 1)
-		} else {
-			mode = AccessEnabledMode
-			status = utils.SetBit(1, status, 0)
-			status = utils.SetBit(0, status, 0)
-			requestInterrupt = utils.IsSet(3, status)
+		newMode = VBlankMode
+	} else if scanlineCounter >= SearchingOAMModeCycleBound {
+		newMode = SearchingOAMMode
+		if scanlineCounter == SearchingOAMModeCycleBound {
+			gpu.parseOAMForScanline(currentLine)
 		}
+	} else if scanlineCounter >= TransferringModeCycleBound {
+		newMode = TransferringMode
+	} else {
+		newMode = AccessEnabledMode
 	}
 
-	if requestInterrupt && (mode != currentMode) {
+	status = setStatusMode(status, newMode)
+	requestInterrupt := modeInterruptSet(status, newMode)
+	if requestInterrupt && (newMode != currentMode) {
 		gpu.cpu.requestInterrupt(1)
 	}
 
 	if gpu.cpu.getLY() == gpu.cpu.getLYC() {
-		status = utils.SetBit(2, status, 1)
-		if utils.IsSet(6, status) {
+		status = utils.SetBit(byte(MatchFlag), status, 1)
+		if utils.IsSet(byte(MatchInterrupt), status) {
 			gpu.cpu.requestInterrupt(1)
 
 		}
 	} else {
-		status = utils.SetBit(2, status, 0)
+		status = utils.SetBit(byte(MatchFlag), status, 0)
 	}
 	gpu.cpu.setSTAT(status)
+}
+
+func setStatusMode(statusRegister byte, mode Mode) byte {
+	return (statusRegister & StatusModeResetMask) | byte(mode)
+}
+
+func modeInterruptSet(statusRegister byte, mode Mode) bool {
+	if mode == TransferringMode {
+		return false
+	} else {
+		return utils.IsSet(byte(mode)+3, statusRegister)
+	}
 }
