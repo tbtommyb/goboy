@@ -4,9 +4,22 @@ import (
 	"github.com/tbtommyb/goboy/pkg/utils"
 )
 
+type Interrupt byte
+
+const (
+	VBlank     Interrupt = 0
+	LCDCStatus           = 1
+)
+
 func (cpu *CPU) requestInterrupt(id byte) {
 	request := cpu.memory.get(0xFF0F)
 	request = utils.SetBit(id, request, 1)
+	cpu.memory.set(0xFF0F, request)
+}
+
+func (cpu *CPU) clearInterrupt(id byte) {
+	request := cpu.memory.get(0xFF0F)
+	request = utils.SetBit(id, request, 0)
 	cpu.memory.set(0xFF0F, request)
 }
 

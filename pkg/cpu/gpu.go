@@ -1,5 +1,8 @@
 package cpu
 
+// TODO
+// fix bug in rendering Mario
+// improve handling of where modes are stored
 import (
 	"sort"
 
@@ -10,6 +13,7 @@ import (
 const (
 	MaxScanline                byte = 153
 	MaxVisibleScanline              = 144
+	ScanlinesPerVBlank              = 10
 	ModeMask                        = 3
 	ScrollXOffset                   = 7
 	CharCodeMask                    = 7
@@ -25,24 +29,27 @@ const (
 	SearchingOAMModeCycleBound      = 376
 	TransferringModeCycleBound      = 302
 	StatusModeResetMask             = 0xFC
-	CyclesPerScanline          int  = 456
+	CyclesPerScanline          uint = 456
 )
 
 type Mode byte
 
 const (
-	AccessEnabledMode Mode = 0
-	VBlankMode             = 1
-	SearchingOAMMode       = 2
-	TransferringMode       = 3
+	HBlankMode       Mode = 0
+	VBlankMode            = 1
+	SearchingOAMMode      = 2
+	TransferringMode      = 3
 )
 
 type GPU struct {
 	mode          Mode
 	cpu           *CPU
 	display       DisplayInterface
-	cyclesCounter int
+	cyclesCounter uint
 	oams          []*oamEntry
+	// for oam sprite priority
+	BGMask     [160]bool
+	SpriteMask [160]bool
 }
 
 type DisplayInterface interface {
@@ -50,10 +57,15 @@ type DisplayInterface interface {
 }
 
 func InitGPU(cpu *CPU) *GPU {
-	return &GPU{
+	gpu := &GPU{
 		mode: SearchingOAMMode,
 		cpu:  cpu,
 	}
+	// TODO: tidy this up
+	status := gpu.cpu.getSTAT()
+	status = setStatusMode(status, SearchingOAMMode)
+	gpu.cpu.setSTAT(status)
+	return gpu
 }
 
 var standardPalette = [][]byte{
@@ -63,29 +75,73 @@ var standardPalette = [][]byte{
 	{0x00, 0x00, 0x00},
 }
 
-func (gpu *GPU) update(cycles uint) {
-	gpu.setLCDStatus(gpu.cyclesCounter)
+func (gpu *GPU) update(_ uint) {
+	status := gpu.cpu.getSTAT()
 	if !gpu.cpu.isLCDCSet(LCDDisplayEnable) {
-		gpu.cyclesCounter = CyclesPerScanline
-		return
-	}
-
-	gpu.cyclesCounter -= int(cycles)
-
-	if gpu.cyclesCounter > 0 {
-		return
-	}
-
-	scanline := gpu.incrementScanline()
-	gpu.cyclesCounter = CyclesPerScanline
-
-	if scanline == MaxVisibleScanline {
-		gpu.requestInterrupt(0)
-	} else if scanline > MaxScanline {
 		gpu.resetScanline()
-	} else if scanline < MaxVisibleScanline {
-		gpu.renderLine()
+		// status &= 252 // TODO improve this
+		status = setStatusMode(status, VBlankMode)
+		gpu.cpu.setSTAT(status)
+		return
 	}
+	currentLine := gpu.cpu.getLY()
+	currentMode := Mode(status & ModeMask)
+	newMode := currentMode
+
+	gpu.cyclesCounter += 1
+	switch currentMode {
+	case SearchingOAMMode:
+		if gpu.cyclesCounter >= 80 {
+			gpu.cyclesCounter = 0
+			newMode = TransferringMode
+			gpu.parseOAMForScanline(currentLine)
+		}
+	case TransferringMode:
+		if gpu.cyclesCounter >= 172 {
+			gpu.cyclesCounter = 0
+			newMode = HBlankMode
+			gpu.renderLine(currentLine)
+		}
+	case HBlankMode:
+		if gpu.cyclesCounter >= 204 {
+			gpu.cyclesCounter = 0
+			gpu.incrementScanline()
+
+			if currentLine == MaxVisibleScanline-1 && currentMode != VBlankMode {
+				newMode = VBlankMode
+				gpu.requestInterrupt(0)
+			} else {
+				newMode = SearchingOAMMode
+			}
+		}
+	case VBlankMode:
+		if gpu.cyclesCounter >= CyclesPerScanline*4 {
+			gpu.cyclesCounter = 0
+			newScanline := gpu.incrementScanline()
+			if newScanline > MaxScanline {
+				newMode = SearchingOAMMode
+				gpu.resetScanline()
+			}
+		}
+	}
+
+	status = setStatusMode(status, newMode)
+	requestInterrupt := modeInterruptSet(status, newMode)
+	if requestInterrupt && (newMode != currentMode) {
+		gpu.cpu.requestInterrupt(1)
+	}
+	if gpu.cpu.getLY() == gpu.cpu.getLYC() {
+		status = utils.SetBit(byte(MatchFlag), status, 1)
+		if utils.IsSet(byte(MatchInterrupt), status) {
+			gpu.cpu.requestInterrupt(1)
+
+		}
+	} else {
+		status = utils.SetBit(byte(MatchFlag), status, 0)
+	}
+	gpu.cpu.setSTAT(status)
+	gpu.mode = newMode
+
 }
 
 func (gpu *GPU) resetScanline() {
@@ -95,27 +151,34 @@ func (gpu *GPU) resetScanline() {
 func (gpu *GPU) incrementScanline() byte {
 	currentScanline := gpu.cpu.getLY()
 	currentScanline++
-	if currentScanline > MaxScanline {
-		currentScanline = 0
-	}
 	gpu.cpu.setLY(currentScanline)
 	return currentScanline
 }
 
-func (gpu *GPU) renderLine() {
-	scanline := gpu.cpu.getLY()
-	if gpu.cpu.isLCDCSet(WindowDisplayPriority) {
-		gpu.renderTiles()
+func (gpu *GPU) renderLine(scanline byte) {
+	for i := 0; i < constants.ScreenWidth; i++ {
+		gpu.BGMask[i] = false
+		gpu.SpriteMask[i] = false
 	}
+	gpu.renderBackground(scanline)
+	if gpu.cpu.isLCDCSet(WindowDisplayEnable) && scanline >= gpu.cpu.getWindowY() {
+		gpu.renderWindow(scanline)
+	}
+
 	if gpu.cpu.isLCDCSet(SpriteEnable) {
 		gpu.renderSprites(gpu.oams, scanline)
 	}
 }
 
 func (gpu *GPU) requestInterrupt(interrupt byte) {
-	// TODO: why this here?
-	gpu.parseOAMForScanline(gpu.cpu.getLY())
 	gpu.cpu.requestInterrupt(interrupt)
+}
+
+func (gpu *GPU) windowTileMapStartAddress() uint16 {
+	if gpu.cpu.isLCDCSet(WindowTileMapDisplaySelect) {
+		return 0x9C00
+	}
+	return 0x9800
 }
 
 func (gpu *GPU) bgTileDataAddress() (uint16, bool) {
@@ -126,11 +189,8 @@ func (gpu *GPU) bgTileDataAddress() (uint16, bool) {
 	}
 }
 
-func (gpu *GPU) bgTileMapStartAddress(usingWindow bool) uint16 {
+func (gpu *GPU) bgTileMapStartAddress() uint16 {
 	flag := LCDCFlag(BGTileMapDisplaySelect)
-	if usingWindow {
-		flag = WindowTileMapDisplaySelect
-	}
 	if gpu.cpu.isLCDCSet(flag) {
 		return 0x9C00
 	}
@@ -148,33 +208,45 @@ func (gpu *GPU) getTileNum(startAddress uint16, xPos, yPos byte) uint16 {
 	return uint16(gpu.cpu.memory.get(tileAddress))
 }
 
-func (gpu *GPU) renderTiles() {
+func (gpu *GPU) renderWindow(scanline byte) {
+	winY := scanline - gpu.cpu.getWindowY()
+	winStartX := int(gpu.cpu.getWindowX()) - ScrollXOffset
+
+	for x := winStartX; x < constants.ScreenWidth; x++ {
+		if x < 0 {
+			continue
+		}
+
+		pixel := gpu.getWindowPixel(byte(x-winStartX), winY)
+		if pixel != 0 {
+			gpu.BGMask[x] = true
+		}
+		r, g, b := gpu.applyBGPalette(pixel)
+		gpu.display.WritePixel(byte(x), scanline, r, g, b, 0xff)
+	}
+}
+
+func (gpu *GPU) getWindowPixel(x, y byte) byte {
+	startAddress := gpu.windowTileMapStartAddress()
+	dataAddress, unsig := gpu.bgTileDataAddress()
+	tileNum := gpu.getTileNum(startAddress, x, y)
+	tileLocation := getTileLocation(unsig, dataAddress, tileNum)
+	charCode := y & CharCodeMask
+	low, high := gpu.fetchCharCodeBytes(tileLocation, uint16(charCode))
+	return gpu.fetchBitPair(x, low, high)
+}
+
+func (gpu *GPU) renderBackground(scanline byte) {
 	scrollX := gpu.cpu.getScrollX()
 	scrollY := gpu.cpu.getScrollY()
-	windowX := gpu.cpu.getWindowX() - ScrollXOffset
-	windowY := gpu.cpu.getWindowY()
-	scanline := gpu.cpu.getLY()
-
-	var usingWindow bool
-	if gpu.cpu.isLCDCSet(WindowDisplayEnable) {
-		if windowY <= scanline {
-			usingWindow = true
-		}
-	}
 
 	tileDataAddress, unsig := gpu.bgTileDataAddress()
-	startAddress := gpu.bgTileMapStartAddress(usingWindow)
+	startAddress := gpu.bgTileMapStartAddress()
 
 	yPos := byte(scrollY + scanline)
-	if usingWindow {
-		yPos = scanline - windowY
-	}
 
 	for pixel := byte(0); pixel < byte(constants.ScreenWidth); pixel++ {
 		xPos := byte(scrollX + pixel)
-		if usingWindow && pixel >= windowX {
-			xPos = pixel - windowX
-		}
 
 		tileNum := gpu.getTileNum(startAddress, xPos, yPos)
 		tileLocation := getTileLocation(unsig, tileDataAddress, tileNum)
@@ -182,6 +254,9 @@ func (gpu *GPU) renderTiles() {
 		charCode := yPos & CharCodeMask
 		low, high := gpu.fetchCharCodeBytes(tileLocation, uint16(charCode))
 		colour := gpu.fetchBitPair(xPos, low, high)
+		if colour != 0 {
+			gpu.BGMask[pixel] = true
+		}
 		r, g, b := gpu.applyBGPalette(colour)
 
 		gpu.display.WritePixel(pixel, scanline, r, g, b, 0xff)
@@ -189,11 +264,10 @@ func (gpu *GPU) renderTiles() {
 }
 
 func getTileLocation(unsigned bool, baseAddress, tileNum uint16) uint16 {
-	if unsigned {
-		return baseAddress + (tileNum * CharCodeSize)
-	} else {
-		return baseAddress + uint16((int(tileNum)+ObjCount)*CharCodeSize)
+	if !unsigned {
+		tileNum = uint16(int(int8(tileNum)) + ObjCount)
 	}
+	return baseAddress + (tileNum * CharCodeSize)
 }
 
 func (gpu *GPU) fetchCharCodeBytes(baseAddress, tileOffset uint16) (byte, byte) {
@@ -225,8 +299,12 @@ func (gpu *GPU) renderSprites(oams []*oamEntry, scanline byte) {
 
 		for x := startX; x < endX && x < byte(constants.ScreenWidth); x++ {
 			// TODO: hide sprites
-			if r, g, b, a := gpu.getSpritePixel(e, x, scanline); a {
-				gpu.display.WritePixel(x, scanline, r, g, b, 0xff)
+			hideSprite := e.behindBG() && gpu.BGMask[x]
+			if !hideSprite && !gpu.SpriteMask[x] {
+				if r, g, b, a := gpu.getSpritePixel(e, x, scanline); a {
+					gpu.display.WritePixel(x, scanline, r, g, b, 0xff)
+					gpu.SpriteMask[x] = true
+				}
 			}
 		}
 	}
@@ -299,9 +377,9 @@ func yInSprite(y byte, spriteY int16, height int) bool {
 	return int16(y) >= spriteY && int16(y) < spriteY+int16(height)
 }
 
-func (gpu *GPU) ParseSprites() {
-	gpu.parseOAMForScanline(gpu.cpu.getLY())
-}
+// func (gpu *GPU) ParseSprites() {
+// 	gpu.parseOAMForScanline(gpu.cpu.getLY())
+// }
 
 func (gpu *GPU) parseOAMForScanline(scanline byte) {
 	height := 8
@@ -310,14 +388,18 @@ func (gpu *GPU) parseOAMForScanline(scanline byte) {
 	// search all sprites, limit total found to 10 per scanline
 	for i := 0; len(gpu.oams) < 10 && i < 40; i++ {
 		addr := 0xFE00 + uint16(i*4)
-		spriteY := int16(gpu.cpu.memory.get(addr)) - 16
+		// spriteY := int16(gpu.cpu.memory.get(addr)) - 16
+		spriteY := int16(gpu.cpu.memory.sram[addr-0xFE00]) - 16
 		if yInSprite(scanline, spriteY, height) {
 			gpu.oams = append(gpu.oams, &oamEntry{
-				y:         spriteY,
-				x:         int16(gpu.cpu.memory.get(addr+1)) - 8,
-				height:    byte(height),
-				tileNum:   gpu.cpu.memory.get(addr + 2),
-				flagsByte: gpu.cpu.memory.get(addr + 3),
+				y: spriteY,
+				// x:         int16(gpu.cpu.memory.get(addr+1)) - 8,
+				x:      int16(gpu.cpu.memory.sram[addr-0xFE00+1]) - 8,
+				height: byte(height),
+				// tileNum:   gpu.cpu.memory.get(addr + 2),
+				tileNum: gpu.cpu.memory.sram[addr-0xFE00+2],
+				// flagsByte: gpu.cpu.memory.get(addr + 3),
+				flagsByte: gpu.cpu.memory.sram[addr-0xFE00+3],
 			})
 		}
 	}
@@ -331,50 +413,50 @@ func (s sortableOAM) Less(i, j int) bool { return s[i].x < s[j].x }
 func (s sortableOAM) Len() int           { return len(s) }
 func (s sortableOAM) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
-func (gpu *GPU) setLCDStatus(scanlineCounter int) {
-	status := gpu.cpu.getSTAT()
-	if !gpu.cpu.isLCDCSet(LCDDisplayEnable) {
-		gpu.cpu.setLY(0)
-		// status &= 252 // TODO improve this
-		status = setStatusMode(status, VBlankMode)
-		gpu.cpu.setSTAT(status)
-		return
-	}
+// func (gpu *GPU) setLCDStatus(scanlineCounter int) {
+// 	status := gpu.cpu.getSTAT()
+// 	if !gpu.cpu.isLCDCSet(LCDDisplayEnable) {
+// 		gpu.cpu.setLY(0)
+// 		// status &= 252 // TODO improve this
+// 		status = setStatusMode(status, VBlankMode)
+// 		gpu.cpu.setSTAT(status)
+// 		return
+// 	}
 
-	currentLine := gpu.cpu.getLY()
-	currentMode := Mode(status & ModeMask)
+// 	currentLine := gpu.cpu.getLY()
+// 	currentMode := Mode(status & ModeMask)
 
-	var newMode Mode
-	if currentLine >= MaxVisibleScanline {
-		newMode = VBlankMode
-	} else if scanlineCounter >= SearchingOAMModeCycleBound {
-		newMode = SearchingOAMMode
-		if scanlineCounter == SearchingOAMModeCycleBound {
-			gpu.parseOAMForScanline(currentLine)
-		}
-	} else if scanlineCounter >= TransferringModeCycleBound {
-		newMode = TransferringMode
-	} else {
-		newMode = AccessEnabledMode
-	}
+// 	var newMode Mode
+// 	if currentLine >= MaxVisibleScanline {
+// 		newMode = VBlankMode
+// 	} else if scanlineCounter >= SearchingOAMModeCycleBound {
+// 		newMode = SearchingOAMMode
+// 		if scanlineCounter == SearchingOAMModeCycleBound {
+// 			gpu.parseOAMForScanline(currentLine)
+// 		}
+// 	} else if scanlineCounter >= TransferringModeCycleBound {
+// 		newMode = TransferringMode
+// 	} else {
+// 		newMode = AccessEnabledMode
+// 	}
 
-	status = setStatusMode(status, newMode)
-	requestInterrupt := modeInterruptSet(status, newMode)
-	if requestInterrupt && (newMode != currentMode) {
-		gpu.cpu.requestInterrupt(1)
-	}
+// 	status = setStatusMode(status, newMode)
+// 	requestInterrupt := modeInterruptSet(status, newMode)
+// 	if requestInterrupt && (newMode != currentMode) {
+// 		gpu.cpu.requestInterrupt(1)
+// 	}
 
-	if gpu.cpu.getLY() == gpu.cpu.getLYC() {
-		status = utils.SetBit(byte(MatchFlag), status, 1)
-		if utils.IsSet(byte(MatchInterrupt), status) {
-			gpu.cpu.requestInterrupt(1)
+// 	if gpu.cpu.getLY() == gpu.cpu.getLYC() {
+// 		status = utils.SetBit(byte(MatchFlag), status, 1)
+// 		if utils.IsSet(byte(MatchInterrupt), status) {
+// 			gpu.cpu.requestInterrupt(1)
 
-		}
-	} else {
-		status = utils.SetBit(byte(MatchFlag), status, 0)
-	}
-	gpu.cpu.setSTAT(status)
-}
+// 		}
+// 	} else {
+// 		status = utils.SetBit(byte(MatchFlag), status, 0)
+// 	}
+// 	gpu.cpu.setSTAT(status)
+// }
 
 func setStatusMode(statusRegister byte, mode Mode) byte {
 	return (statusRegister & StatusModeResetMask) | byte(mode)
@@ -386,4 +468,18 @@ func modeInterruptSet(statusRegister byte, mode Mode) bool {
 	} else {
 		return utils.IsSet(byte(mode)+3, statusRegister)
 	}
+}
+
+// -----------
+func (gpu *GPU) writeOAM(addr uint16, val byte) {
+	if !(gpu.mode == SearchingOAMMode || gpu.mode == TransferringMode) {
+		gpu.cpu.memory.sram[addr-0xFE00] = val
+	}
+}
+
+func (gpu *GPU) readOAM(addr uint16) byte {
+	if !(gpu.mode == SearchingOAMMode || gpu.mode == TransferringMode) {
+		return gpu.cpu.memory.sram[addr-0xFE00]
+	}
+	return 0xff
 }

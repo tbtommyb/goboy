@@ -11,7 +11,7 @@ import (
 	"github.com/tbtommyb/goboy/pkg/utils"
 )
 
-var GameboyClockSpeed = 4194300 / 2
+var GameboyClockSpeed = 4194300
 
 type CPU struct {
 	r               registers.Registers
@@ -563,9 +563,9 @@ func Init(loadBIOS bool) *CPU {
 		currentROMBank: 1,
 	}
 	memory := InitMemory(cpu)
+	cpu.memory = memory
 	gpu := InitGPU(cpu)
 	cpu.gpu = gpu
-	cpu.memory = memory
 	if !cpu.loadBIOS {
 		cpu.emulateBootSequence()
 	}
