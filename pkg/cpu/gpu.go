@@ -109,7 +109,7 @@ func (gpu *GPU) update(_ uint) {
 
 			if currentLine == MaxVisibleScanline-1 && currentMode != VBlankMode {
 				newMode = VBlankMode
-				gpu.requestInterrupt(0)
+				gpu.requestInterrupt(VBlank)
 			} else {
 				newMode = SearchingOAMMode
 			}
@@ -128,12 +128,12 @@ func (gpu *GPU) update(_ uint) {
 	status = setStatusMode(status, newMode)
 	requestInterrupt := modeInterruptSet(status, newMode)
 	if requestInterrupt && (newMode != currentMode) {
-		gpu.cpu.requestInterrupt(1)
+		gpu.cpu.requestInterrupt(LCDCStatus)
 	}
 	if gpu.cpu.getLY() == gpu.cpu.getLYC() {
 		status = utils.SetBit(byte(MatchFlag), status, 1)
 		if utils.IsSet(byte(MatchInterrupt), status) {
-			gpu.cpu.requestInterrupt(1)
+			gpu.cpu.requestInterrupt(LCDCStatus)
 
 		}
 	} else {
@@ -170,7 +170,7 @@ func (gpu *GPU) renderLine(scanline byte) {
 	}
 }
 
-func (gpu *GPU) requestInterrupt(interrupt byte) {
+func (gpu *GPU) requestInterrupt(interrupt Interrupt) {
 	gpu.cpu.requestInterrupt(interrupt)
 }
 
@@ -235,7 +235,7 @@ func (gpu *GPU) renderBackground(scanline byte) {
 
 	yPos := byte(scrollY + scanline)
 
-	for x := byte(0); pixel < byte(constants.ScreenWidth); pixel++ {
+	for x := byte(0); x < byte(constants.ScreenWidth); x++ {
 		xPos := byte(scrollX + x)
 
 		pixel := gpu.getPixel(startAddress, xPos, yPos)
@@ -406,51 +406,6 @@ type sortableOAM []*oamEntry
 func (s sortableOAM) Less(i, j int) bool { return s[i].x < s[j].x }
 func (s sortableOAM) Len() int           { return len(s) }
 func (s sortableOAM) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
-
-// func (gpu *GPU) setLCDStatus(scanlineCounter int) {
-// 	status := gpu.cpu.getSTAT()
-// 	if !gpu.cpu.isLCDCSet(LCDDisplayEnable) {
-// 		gpu.cpu.setLY(0)
-// 		// status &= 252 // TODO improve this
-// 		status = setStatusMode(status, VBlankMode)
-// 		gpu.cpu.setSTAT(status)
-// 		return
-// 	}
-
-// 	currentLine := gpu.cpu.getLY()
-// 	currentMode := Mode(status & ModeMask)
-
-// 	var newMode Mode
-// 	if currentLine >= MaxVisibleScanline {
-// 		newMode = VBlankMode
-// 	} else if scanlineCounter >= SearchingOAMModeCycleBound {
-// 		newMode = SearchingOAMMode
-// 		if scanlineCounter == SearchingOAMModeCycleBound {
-// 			gpu.parseOAMForScanline(currentLine)
-// 		}
-// 	} else if scanlineCounter >= TransferringModeCycleBound {
-// 		newMode = TransferringMode
-// 	} else {
-// 		newMode = AccessEnabledMode
-// 	}
-
-// 	status = setStatusMode(status, newMode)
-// 	requestInterrupt := modeInterruptSet(status, newMode)
-// 	if requestInterrupt && (newMode != currentMode) {
-// 		gpu.cpu.requestInterrupt(1)
-// 	}
-
-// 	if gpu.cpu.getLY() == gpu.cpu.getLYC() {
-// 		status = utils.SetBit(byte(MatchFlag), status, 1)
-// 		if utils.IsSet(byte(MatchInterrupt), status) {
-// 			gpu.cpu.requestInterrupt(1)
-
-// 		}
-// 	} else {
-// 		status = utils.SetBit(byte(MatchFlag), status, 0)
-// 	}
-// 	gpu.cpu.setSTAT(status)
-// }
 
 func setStatusMode(statusRegister byte, mode Mode) byte {
 	return (statusRegister & StatusModeResetMask) | byte(mode)

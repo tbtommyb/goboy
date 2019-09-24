@@ -4,34 +4,40 @@ import (
 	"github.com/tbtommyb/goboy/pkg/utils"
 )
 
+const InterruptFlagAddress = 0xFF0F
+const InterruptEnableAddress = 0xFFFF
+const InterruptCount = 4
+
 type Interrupt byte
 
 const (
-	VBlank     Interrupt = 0
-	LCDCStatus           = 1
+	VBlank        Interrupt = 0
+	LCDCStatus              = 1
+	TimerOverflow           = 3
+	Input                   = 4
 )
 
-func (cpu *CPU) requestInterrupt(id byte) {
-	request := cpu.memory.get(0xFF0F)
-	request = utils.SetBit(id, request, 1)
-	cpu.memory.set(0xFF0F, request)
+func (cpu *CPU) requestInterrupt(interrupt Interrupt) {
+	request := cpu.memory.get(InterruptFlagAddress)
+	request = utils.SetBit(byte(interrupt), request, 1)
+	cpu.memory.set(InterruptFlagAddress, request)
 }
 
-func (cpu *CPU) clearInterrupt(id byte) {
-	request := cpu.memory.get(0xFF0F)
-	request = utils.SetBit(id, request, 0)
-	cpu.memory.set(0xFF0F, request)
+func (cpu *CPU) clearInterrupt(interrupt Interrupt) {
+	request := cpu.memory.get(InterruptFlagAddress)
+	request = utils.SetBit(byte(interrupt), request, 0)
+	cpu.memory.set(InterruptFlagAddress, request)
 }
 
 func (cpu *CPU) CheckInterrupts() {
 	if cpu.interruptsEnabled() {
-		request := cpu.memory.get(0xFF0F)
-		enabled := cpu.memory.get(0xFFFF)
-		if request > 0 {
-			for i := byte(0); i < 5; i++ {
+		request := cpu.memory.get(InterruptFlagAddress)
+		enabled := cpu.memory.get(InterruptEnableAddress)
+		if request != 0 {
+			for i := byte(0); i <= InterruptCount; i++ {
 				if utils.IsSet(i, request) {
 					if utils.IsSet(i, enabled) {
-						cpu.serviceInterrupt(i)
+						cpu.serviceInterrupt(Interrupt(i))
 					}
 				}
 			}
@@ -39,25 +45,25 @@ func (cpu *CPU) CheckInterrupts() {
 	}
 }
 
-func (cpu *CPU) serviceInterrupt(interrupt byte) {
+func (cpu *CPU) serviceInterrupt(interrupt Interrupt) {
 	cpu.disableInterrupts()
 
-	request := cpu.memory.get(0xFF0F)
-	request = utils.SetBit(interrupt, request, 0)
-	cpu.memory.set(0xFF0F, request)
+	request := cpu.memory.get(InterruptFlagAddress)
+	request = utils.SetBit(byte(interrupt), request, 0)
+	cpu.memory.set(InterruptFlagAddress, request)
 
 	high, low := utils.SplitPair(cpu.GetPC())
 	cpu.pushStack(high)
 	cpu.pushStack(low)
 
 	switch interrupt {
-	case 0:
+	case VBlank:
 		cpu.setPC(0x40)
-	case 1:
+	case LCDCStatus:
 		cpu.setPC(0x48)
-	case 2:
+	case TimerOverflow:
 		cpu.setPC(0x50)
-	case 4:
+	case Input:
 		cpu.setPC(0x60)
 	}
 }
