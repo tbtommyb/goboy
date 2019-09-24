@@ -217,7 +217,8 @@ func (gpu *GPU) renderWindow(scanline byte) {
 			continue
 		}
 
-		pixel := gpu.getWindowPixel(byte(x-winStartX), winY)
+		startAddress := gpu.windowTileMapStartAddress()
+		pixel := gpu.getPixel(startAddress, byte(x-winStartX), winY)
 		if pixel != 0 {
 			gpu.BGMask[x] = true
 		}
@@ -226,41 +227,34 @@ func (gpu *GPU) renderWindow(scanline byte) {
 	}
 }
 
-func (gpu *GPU) getWindowPixel(x, y byte) byte {
-	startAddress := gpu.windowTileMapStartAddress()
+func (gpu *GPU) renderBackground(scanline byte) {
+	scrollX := gpu.cpu.getScrollX()
+	scrollY := gpu.cpu.getScrollY()
+
+	startAddress := gpu.bgTileMapStartAddress()
+
+	yPos := byte(scrollY + scanline)
+
+	for x := byte(0); pixel < byte(constants.ScreenWidth); pixel++ {
+		xPos := byte(scrollX + x)
+
+		pixel := gpu.getPixel(startAddress, xPos, yPos)
+		if pixel != 0 {
+			gpu.BGMask[x] = true
+		}
+		r, g, b := gpu.applyBGPalette(pixel)
+
+		gpu.display.WritePixel(x, scanline, r, g, b, 0xff)
+	}
+}
+
+func (gpu *GPU) getPixel(startAddress uint16, x, y byte) byte {
 	dataAddress, unsig := gpu.bgTileDataAddress()
 	tileNum := gpu.getTileNum(startAddress, x, y)
 	tileLocation := getTileLocation(unsig, dataAddress, tileNum)
 	charCode := y & CharCodeMask
 	low, high := gpu.fetchCharCodeBytes(tileLocation, uint16(charCode))
 	return gpu.fetchBitPair(x, low, high)
-}
-
-func (gpu *GPU) renderBackground(scanline byte) {
-	scrollX := gpu.cpu.getScrollX()
-	scrollY := gpu.cpu.getScrollY()
-
-	tileDataAddress, unsig := gpu.bgTileDataAddress()
-	startAddress := gpu.bgTileMapStartAddress()
-
-	yPos := byte(scrollY + scanline)
-
-	for pixel := byte(0); pixel < byte(constants.ScreenWidth); pixel++ {
-		xPos := byte(scrollX + pixel)
-
-		tileNum := gpu.getTileNum(startAddress, xPos, yPos)
-		tileLocation := getTileLocation(unsig, tileDataAddress, tileNum)
-
-		charCode := yPos & CharCodeMask
-		low, high := gpu.fetchCharCodeBytes(tileLocation, uint16(charCode))
-		colour := gpu.fetchBitPair(xPos, low, high)
-		if colour != 0 {
-			gpu.BGMask[pixel] = true
-		}
-		r, g, b := gpu.applyBGPalette(colour)
-
-		gpu.display.WritePixel(pixel, scanline, r, g, b, 0xff)
-	}
 }
 
 func getTileLocation(unsigned bool, baseAddress, tileNum uint16) uint16 {
