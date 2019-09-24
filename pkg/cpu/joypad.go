@@ -38,7 +38,7 @@ func (cpu *CPU) PressButton(button Button) {
 	}
 
 	if requestInterrupt && !previouslyUnset {
-		cpu.requestInterrupt(4)
+		cpu.requestInterrupt(Input)
 	}
 }
 

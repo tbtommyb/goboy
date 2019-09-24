@@ -13,7 +13,7 @@ func (cpu *CPU) UpdateTimers(cycles uint) {
 
 			if cpu.getTIMA() == 255 {
 				cpu.setTIMA(cpu.getTMA())
-				cpu.requestInterrupt(2)
+				cpu.requestInterrupt(TimerOverflow)
 			} else {
 				cpu.setTIMA(cpu.getTIMA() + 1)
 			}
