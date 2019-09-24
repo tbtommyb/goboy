@@ -56,7 +56,7 @@ func (m *Memory) set(address uint16, value byte) {
 		// shadow wram
 	case address >= 0xFE00 && address <= 0xFE9F:
 		// sprites
-		m.sram[address-0xFE00] = value
+		m.cpu.gpu.writeOAM(address, value)
 	case address >= 0xFEA0 && address <= 0xFEFF:
 		// unusable
 	case address >= 0xFF00 && address <= 0xFF7F:
@@ -128,7 +128,7 @@ func (m *Memory) get(address uint16) byte {
 		return 0x00
 	case address >= 0xFE00 && address <= 0xFE9F:
 		// sprites
-		val := m.sram[address-0xFE00]
+		val := m.cpu.gpu.readOAM(address)
 		return val
 	case address >= 0xFEA0 && address <= 0xFEFF:
 		// unused space
