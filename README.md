@@ -16,7 +16,6 @@ go run cmd/goboy/main.go -bios bios.gb -rom mario.gb
 ```
 
 I have tested with Tetris and Super Mario World. Both work so far though with lots of bugs e.g:
-- flickering / corrupted sprites
 - you need to hit START (enter) for the game to load
 - you seem to need to hit A/B a few times before START works on the title screen
 - no audio
