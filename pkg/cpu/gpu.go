@@ -107,7 +107,7 @@ func (gpu *GPU) update(_ uint) {
 			gpu.cyclesCounter = 0
 			gpu.incrementScanline()
 
-			if currentLine == MaxVisibleScanline-1 && currentMode != VBlankMode {
+			if currentLine == MaxVisibleScanline-1 {
 				newMode = VBlankMode
 				gpu.requestInterrupt(VBlank)
 			} else {
@@ -115,10 +115,10 @@ func (gpu *GPU) update(_ uint) {
 			}
 		}
 	case VBlankMode:
-		if gpu.cyclesCounter >= CyclesPerScanline*4 {
+		if gpu.cyclesCounter >= CyclesPerScanline {
 			gpu.cyclesCounter = 0
 			newScanline := gpu.incrementScanline()
-			if newScanline > MaxScanline {
+			if newScanline > MaxScanline-1 {
 				newMode = SearchingOAMMode
 				gpu.resetScanline()
 			}
