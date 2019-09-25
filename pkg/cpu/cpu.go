@@ -11,7 +11,7 @@ import (
 	"github.com/tbtommyb/goboy/pkg/utils"
 )
 
-var GameboyClockSpeed = 4194300
+var GameboyClockSpeed = 4194304
 
 type CPU struct {
 	r               registers.Registers
@@ -552,7 +552,7 @@ func (cpu *CPU) Step() uint {
 	}
 	initialCycles := cpu.GetCycles()
 	cpu.Execute(decoder.Decode(cpu))
-	return (cpu.GetCycles() - initialCycles)
+	return cpu.GetCycles() - initialCycles
 }
 
 func Init(loadBIOS bool) *CPU {
