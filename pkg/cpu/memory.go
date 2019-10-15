@@ -27,7 +27,8 @@ type Memory struct {
 
 const ProgramStartAddress = 0x100
 const StackStartAddress = 0xFFFE
-const SpriteStartAddress = 0x8000
+const CharacterStart = 0x8000
+const OAMStart = 0xFE00
 
 func (m *Memory) load(start uint, data []byte) {
 	for i := 0; i < len(data); i++ {

@@ -60,18 +60,23 @@ const (
 )
 
 const (
-	ScrollXOffset      byte = 7
-	CharCodeMask            = 7
-	CharCodeShift           = 1
-	CharCodeSize            = 16
-	TilePixelSize           = 8
-	TileRowSize             = 32
-	ColourSize              = 2
-	ColourMask              = 3
-	SpriteDataSize          = 16
-	SpritePixelSize         = 8
-	DoubleSpriteHeight      = 16
-	ObjCount                = 128
+	ScrollXOffset         byte = 7
+	CharCodeMask               = 7
+	CharCodeShift              = 1
+	CharCodeSize               = 16
+	TilePixelSize              = 8
+	TileRowSize                = 32
+	ColourSize                 = 2
+	ColourMask                 = 3
+	SpriteDataSize             = 16
+	SpritePixelSize            = 8
+	DoubleSpriteHeight         = 16
+	ObjCount                   = 128
+	MaxSpritesPerScanline      = 10
+	MaxSpritesPerScreen        = 40
+	SpriteByteSize             = 4
+	SpriteYOffset              = 16
+	SpriteXOffset              = 8
 )
 
 func InitGPU(cpu *CPU) *GPU {
@@ -346,7 +351,7 @@ func fetchBitPair(xPos, low, high byte) byte {
 }
 
 func getSpriteAddress(tileNum byte) uint16 {
-	return SpriteStartAddress + (uint16(tileNum) * SpriteDataSize)
+	return CharacterStart + (uint16(tileNum) * SpriteDataSize)
 }
 
 var standardPalette = [][]byte{
@@ -376,8 +381,8 @@ func (gpu *GPU) applySpritePalette(e *oamEntry, colour byte) byte {
 }
 
 type oamEntry struct {
-	y         int16
 	x         int16
+	y         int16
 	height    byte
 	tileNum   byte
 	flagsByte byte
@@ -388,34 +393,34 @@ func (e *oamEntry) yFlip() bool       { return e.flagsByte&0x40 != 0 }
 func (e *oamEntry) xFlip() bool       { return e.flagsByte&0x20 != 0 }
 func (e *oamEntry) palSelector() bool { return e.flagsByte&0x10 != 0 }
 
-func yInSprite(y byte, spriteY int16, height int) bool {
-	return int16(y) >= spriteY && int16(y) < spriteY+int16(height)
+func yInSprite(scanline byte, y int16, height int) bool {
+	return int16(scanline) >= y && int16(scanline) < y+int16(height)
 }
 
 func (gpu *GPU) parseOAMForScanline(scanline byte) {
-	height := 8
-
+	// This method accesses memory directly to avoid mode restrictions
 	gpu.oams = gpu.oams[:0]
-	// search all sprites, limit total found to 10 per scanline
-	for i := 0; len(gpu.oams) < 10 && i < 40; i++ {
-		addr := 0xFE00 + uint16(i*4)
-		// spriteY := int16(gpu.cpu.memory.get(addr)) - 16
-		spriteY := int16(gpu.cpu.memory.sram[addr-0xFE00]) - 16
-		if yInSprite(scanline, spriteY, height) {
-			gpu.oams = append(gpu.oams, &oamEntry{
-				y: spriteY,
-				// x:         int16(gpu.cpu.memory.get(addr+1)) - 8,
-				x:      int16(gpu.cpu.memory.sram[addr-0xFE00+1]) - 8,
-				height: byte(height),
-				// tileNum:   gpu.cpu.memory.get(addr + 2),
-				tileNum: gpu.cpu.memory.sram[addr-0xFE00+2],
-				// flagsByte: gpu.cpu.memory.get(addr + 3),
-				flagsByte: gpu.cpu.memory.sram[addr-0xFE00+3],
-			})
+	for i := 0; len(gpu.oams) < MaxSpritesPerScanline && i < MaxSpritesPerScreen; i++ {
+		offset := uint16(i * SpriteByteSize)
+		y, x, num, flags := gpu.fetchOAMData(offset)
+		if !yInSprite(scanline, y, SpritePixelSize) {
+			continue
 		}
+		gpu.oams = append(gpu.oams, &oamEntry{
+			x:         x,
+			y:         y,
+			height:    SpritePixelSize,
+			tileNum:   num,
+			flagsByte: flags,
+		})
 	}
 
 	sort.Stable(sortableOAM(gpu.oams))
+}
+
+func (gpu *GPU) fetchOAMData(location uint16) (int16, int16, byte, byte) {
+	bytes := gpu.cpu.memory.sram[location : location+4]
+	return int16(bytes[0]) - SpriteYOffset, int16(bytes[1]) - SpriteXOffset, bytes[2], bytes[3]
 }
 
 type sortableOAM []*oamEntry
