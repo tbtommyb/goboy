@@ -73,7 +73,7 @@ func main() {
 	f := func(screen *ebiten.Image) error {
 		for i := 0; i < CyclesPerFrame; i++ {
 			cycles := gameboy.Step()
-			gameboy.UpdateDisplay(cycles)
+			gameboy.UpdateDisplay()
 			gameboy.UpdateTimers(cycles)
 			gameboy.CheckInterrupts()
 		}
