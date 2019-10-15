@@ -7,11 +7,11 @@ import (
 )
 
 type GPU struct {
-	cpu               *CPU
-	display           DisplayInterface
-	cyclesCounter     uint
-	oams              []*oamEntry
-	backgroundVisible [constants.ScreenWidth]bool
+	cpu           *CPU
+	display       DisplayInterface
+	cyclesCounter uint
+	oams          []*oamEntry
+	bgVisibility  [constants.ScreenWidth]visibility
 }
 
 type DisplayInterface interface {
@@ -163,7 +163,7 @@ func (gpu *GPU) update() {
 func (gpu *GPU) renderScanline(scanline byte) {
 	control := gpu.getControl()
 	for i := 0; i < constants.ScreenWidth; i++ {
-		gpu.backgroundVisible[i] = false
+		gpu.bgVisibility[i] = invisible
 	}
 
 	gpu.renderBackground(scanline)
@@ -201,7 +201,7 @@ func (gpu *GPU) renderBackground(scanline byte) {
 
 		pixel := gpu.getBackgroundPixel(startAddress, xPos, yPos)
 		if pixel != 0 {
-			gpu.backgroundVisible[x] = true
+			gpu.bgVisibility[x] = visible
 		}
 
 		r, g, b := gpu.applyBGPalette(pixel)
@@ -218,7 +218,7 @@ func (gpu *GPU) renderSprites(oams []*oamEntry, scanline byte) {
 		endX := byte(e.x + SpritePixelSize)
 
 		for x := startX; x < endX && x < byte(constants.ScreenWidth); x++ {
-			if e.behindBG() && gpu.backgroundVisible[x] {
+			if e.behindBG() && gpu.bgVisibility[x] == visible {
 				continue
 			}
 			if r, g, b, isVisible := gpu.getSpritePixel(e, x, scanline); isVisible {
@@ -240,7 +240,7 @@ func (gpu *GPU) renderWindow(scanline byte) {
 		startAddress := gpu.windowTileMapStartAddress()
 		pixel := gpu.getBackgroundPixel(startAddress, byte(x-winStartX), winY)
 		if pixel != 0 {
-			gpu.backgroundVisible[x] = true
+			gpu.bgVisibility[x] = true
 		}
 
 		r, g, b := gpu.applyBGPalette(pixel)
