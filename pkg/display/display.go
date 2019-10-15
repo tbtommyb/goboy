@@ -10,7 +10,7 @@ type Display struct {
 	buffer *image.RGBA
 }
 
-func (d *Display) WritePixel(x, y, r, g, b, a byte) {
+func (d *Display) WritePixel(x, y, r, g, b byte) {
 	yIdx := int(y)*160 + int(x)
 	d.buffer.Pix[yIdx*4] = byte(r)
 	d.buffer.Pix[yIdx*4+1] = byte(g)
