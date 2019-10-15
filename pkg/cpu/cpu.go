@@ -576,8 +576,8 @@ func (cpu *CPU) AttachDisplay(d DisplayInterface) {
 	cpu.gpu.display = d
 }
 
-func (cpu *CPU) UpdateDisplay(cycles uint) {
-	cpu.gpu.update(cycles)
+func (cpu *CPU) UpdateDisplay() {
+	cpu.gpu.update()
 }
 
 func (cpu *CPU) Next() byte {
