@@ -1,8 +1,5 @@
 package cpu
 
-// TODO
-// fix bug in rendering Mario
-// improve handling of where modes are stored
 import (
 	"sort"
 
@@ -10,29 +7,47 @@ import (
 	"github.com/tbtommyb/goboy/pkg/utils"
 )
 
+type Mode byte
+
+type GPU struct {
+	mode          Mode
+	cpu           *CPU
+	display       DisplayInterface
+	cyclesCounter uint
+	oams          []*oamEntry
+	// for oam sprite priority
+	BGMask     [constants.ScreenWidth]bool
+	SpriteMask [constants.ScreenWidth]bool
+}
+
+type DisplayInterface interface {
+	WritePixel(x, y, r, g, b, a byte)
+}
+
 const (
 	MaxScanline                byte = 153
 	MaxVisibleScanline              = 144
 	ScanlinesPerVBlank              = 10
-	ModeMask                        = 3
-	ScrollXOffset                   = 7
-	CharCodeMask                    = 7
-	CharCodeShift                   = 1
-	CharCodeSize                    = 16
-	TilePixelSize                   = 8
-	TileRowSize                     = 32
-	ColourSize                      = 2
-	ColourMask                      = 3
-	SpriteDataSize                  = 16
-	SpritePixelSize                 = 8
-	ObjCount                        = 128
 	SearchingOAMModeCycleBound      = 376
 	TransferringModeCycleBound      = 302
 	StatusModeResetMask             = 0xFC
+	ModeMask                        = 3
 	CyclesPerScanline          uint = 456
 )
 
-type Mode byte
+const (
+	ScrollXOffset   byte = 7
+	CharCodeMask         = 7
+	CharCodeShift        = 1
+	CharCodeSize         = 16
+	TilePixelSize        = 8
+	TileRowSize          = 32
+	ColourSize           = 2
+	ColourMask           = 3
+	SpriteDataSize       = 16
+	SpritePixelSize      = 8
+	ObjCount             = 128
+)
 
 const (
 	HBlankMode       Mode = 0
@@ -210,7 +225,7 @@ func (gpu *GPU) getTileNum(startAddress uint16, xPos, yPos byte) uint16 {
 
 func (gpu *GPU) renderWindow(scanline byte) {
 	winY := scanline - gpu.cpu.getWindowY()
-	winStartX := int(gpu.cpu.getWindowX()) - ScrollXOffset
+	winStartX := int(gpu.cpu.getWindowX()) - int(ScrollXOffset)
 
 	for x := winStartX; x < constants.ScreenWidth; x++ {
 		if x < 0 {
