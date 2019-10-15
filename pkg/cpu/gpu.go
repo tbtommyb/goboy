@@ -4,14 +4,12 @@ import (
 	"sort"
 
 	"github.com/tbtommyb/goboy/pkg/constants"
-	"github.com/tbtommyb/goboy/pkg/utils"
 )
 
 type Mode byte
-type Status byte
 
 type GPU struct {
-	status        Status
+	status        GPUStatus
 	cpu           *CPU
 	display       DisplayInterface
 	cyclesCounter uint
@@ -72,8 +70,13 @@ func InitGPU(cpu *CPU) *GPU {
 	return gpu
 }
 
+func (gpu *GPU) setMode(mode Mode) {
+	gpu.setStatus(gpu.getStatus().setMode(mode))
+}
+
 func (gpu *GPU) update(_ uint) {
-	if !gpu.cpu.isLCDCSet(LCDDisplayEnable) {
+	control := gpu.getControl()
+	if !control.isDisplayEnabled() {
 		gpu.resetScanline()
 		gpu.setMode(VBlankMode)
 		return
@@ -141,16 +144,17 @@ func (gpu *GPU) update(_ uint) {
 }
 
 func (gpu *GPU) renderScanline(scanline byte) {
+	control := gpu.getControl()
 	for i := 0; i < constants.ScreenWidth; i++ {
 		gpu.BGMask[i] = false
 		gpu.SpriteMask[i] = false
 	}
 	gpu.renderBackground(scanline)
-	if gpu.cpu.isLCDCSet(WindowDisplayEnable) && scanline >= gpu.cpu.getWindowY() {
+	if control.isWindowEnabled() && scanline >= gpu.cpu.getWindowY() {
 		gpu.renderWindow(scanline)
 	}
 
-	if gpu.cpu.isLCDCSet(SpriteEnable) {
+	if control.isSpriteEnabled() {
 		gpu.renderSprites(gpu.oams, scanline)
 	}
 }
@@ -232,23 +236,21 @@ func (gpu *GPU) requestInterrupt(interrupt Interrupt) {
 }
 
 func (gpu *GPU) windowTileMapStartAddress() uint16 {
-	if gpu.cpu.isLCDCSet(WindowTileMapDisplaySelect) {
+	if gpu.getControl().isHighWindowAddress() {
 		return 0x9C00
 	}
 	return 0x9800
 }
 
 func (gpu *GPU) bgTileDataAddress() (uint16, bool) {
-	if gpu.cpu.isLCDCSet(DataSelect) {
-		return 0x8000, true
-	} else {
+	if gpu.getControl().isHighBGDataAddress() {
 		return 0x8800, false
 	}
+	return 0x8000, true
 }
 
 func (gpu *GPU) bgTileMapStartAddress() uint16 {
-	flag := LCDCFlag(BGTileMapDisplaySelect)
-	if gpu.cpu.isLCDCSet(flag) {
+	if gpu.getControl().isHighBGStartAddress() {
 		return 0x9C00
 	}
 	return 0x9800
@@ -417,44 +419,4 @@ func (gpu *GPU) readOAM(addr uint16) byte {
 		return gpu.cpu.memory.sram[addr-0xFE00]
 	}
 	return 0xff
-}
-
-func (status Status) mode() Mode {
-	return Mode(status & ModeMask)
-}
-
-func (status Status) setMode(mode Mode) Status {
-	return Status((byte(status) & StatusModeResetMask) | byte(mode))
-}
-
-func (status Status) isModeInterruptSet() bool {
-	mode := status.mode()
-	if mode == TransferringMode {
-		return false
-	}
-	return utils.IsSet(byte(mode)+3, byte(status))
-}
-
-func (status Status) setMatchFlag() Status {
-	return Status(utils.SetBit(byte(MatchFlag), byte(status), 1))
-}
-
-func (status Status) resetMatchFlag() Status {
-	return Status(utils.SetBit(byte(MatchFlag), byte(status), 0))
-}
-
-func (status Status) isMatchInterruptSet() bool {
-	return utils.IsSet(byte(MatchInterrupt), byte(status))
-}
-
-func (gpu *GPU) getStatus() Status {
-	return Status(gpu.cpu.getSTAT())
-}
-
-func (gpu *GPU) setStatus(status Status) {
-	gpu.cpu.setSTAT(byte(status))
-}
-
-func (gpu *GPU) setMode(mode Mode) {
-	gpu.setStatus(gpu.getStatus().setMode(mode))
 }
