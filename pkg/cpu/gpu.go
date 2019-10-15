@@ -18,6 +18,10 @@ type DisplayInterface interface {
 	WritePixel(x, y, r, g, b byte)
 }
 
+type RGB struct {
+	r, g, b byte
+}
+
 type Mode byte
 
 const (
@@ -188,6 +192,10 @@ func (gpu *GPU) incrementScanline() byte {
 	return currentScanline
 }
 
+func (gpu *GPU) requestInterrupt(interrupt Interrupt) {
+	gpu.cpu.requestInterrupt(interrupt)
+}
+
 func (gpu *GPU) renderBackground(scanline byte) {
 	scrollX := gpu.cpu.getScrollX()
 	scrollY := gpu.cpu.getScrollY()
@@ -204,8 +212,8 @@ func (gpu *GPU) renderBackground(scanline byte) {
 			gpu.bgVisibility[x] = visible
 		}
 
-		r, g, b := gpu.applyBGPalette(pixel)
-		gpu.display.WritePixel(x, scanline, r, g, b)
+		rgb := gpu.applyBGPalette(pixel)
+		gpu.display.WritePixel(x, scanline, rgb.r, rgb.g, rgb.b)
 	}
 }
 
@@ -221,8 +229,8 @@ func (gpu *GPU) renderSprites(oams []*oamEntry, scanline byte) {
 			if e.behindBG() && gpu.bgVisibility[x] == visible {
 				continue
 			}
-			if r, g, b, isVisible := gpu.getSpritePixel(e, x, scanline); isVisible {
-				gpu.display.WritePixel(x, scanline, r, g, b)
+			if rgb, isVisible := gpu.getSpritePixel(e, x, scanline); isVisible {
+				gpu.display.WritePixel(x, scanline, rgb.r, rgb.r, rgb.b)
 			}
 		}
 	}
@@ -243,13 +251,9 @@ func (gpu *GPU) renderWindow(scanline byte) {
 			gpu.bgVisibility[x] = true
 		}
 
-		r, g, b := gpu.applyBGPalette(pixel)
-		gpu.display.WritePixel(byte(x), scanline, r, g, b)
+		rgb := gpu.applyBGPalette(pixel)
+		gpu.display.WritePixel(byte(x), scanline, rgb.r, rgb.g, rgb.b)
 	}
-}
-
-func (gpu *GPU) requestInterrupt(interrupt Interrupt) {
-	gpu.cpu.requestInterrupt(interrupt)
 }
 
 func (gpu *GPU) windowTileMapStartAddress() uint16 {
@@ -302,7 +306,7 @@ func (gpu *GPU) fetchCharCodeBytes(baseAddress, tileOffset uint16) (byte, byte) 
 	return low, high
 }
 
-func (gpu *GPU) getSpritePixel(e *oamEntry, x, y byte) (byte, byte, byte, visibility) {
+func (gpu *GPU) getSpritePixel(e *oamEntry, x, y byte) (RGB, visibility) {
 	tileX := byte(int16(x) - e.x)
 	tileY := byte(int16(y) - e.y)
 
@@ -325,12 +329,12 @@ func (gpu *GPU) getSpritePixel(e *oamEntry, x, y byte) (byte, byte, byte, visibi
 	low, high := gpu.fetchSpriteData(spriteAddress, charCode)
 	colour := fetchBitPair(tileX, low, high)
 	if colour == 0 {
-		return 0, 0, 0, invisible
+		return RGB{0, 0, 0}, invisible
 	}
 
 	palettedPixel := gpu.applySpritePalette(e, colour)
-	r, g, b := applyCustomPalette(palettedPixel)
-	return r, g, b, visible
+	rgb := applyCustomPalette(palettedPixel)
+	return rgb, visible
 }
 
 func (gpu *GPU) fetchSpriteData(spriteAddress, charCode uint16) (byte, byte) {
@@ -354,19 +358,14 @@ func getSpriteAddress(tileNum byte) uint16 {
 	return CharacterStart + (uint16(tileNum) * SpriteDataSize)
 }
 
-var standardPalette = [][]byte{
-	{0xff, 0xff, 0xff},
-	{0xaa, 0xaa, 0xaa},
-	{0x55, 0x55, 0x55},
-	{0x00, 0x00, 0x00},
-}
+var standardPalette = []byte{0xff, 0xaa, 0x55, 0x00}
 
-func applyCustomPalette(val byte) (byte, byte, byte) {
+func applyCustomPalette(val byte) RGB {
 	outVal := standardPalette[val]
-	return outVal[0], outVal[1], outVal[2]
+	return RGB{r: outVal, g: outVal, b: outVal}
 }
 
-func (gpu *GPU) applyBGPalette(colour byte) (byte, byte, byte) {
+func (gpu *GPU) applyBGPalette(colour byte) RGB {
 	customColour := (gpu.cpu.getBGP() >> (colour * ColourSize)) & ColourMask
 	return applyCustomPalette(customColour)
 }
