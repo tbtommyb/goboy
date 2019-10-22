@@ -48,15 +48,15 @@ func (control GPUControl) isSpriteEnabled() bool {
 	return control.isSet(SpriteEnable)
 }
 
-func (control GPUControl) isHighWindowAddress() bool {
+func (control GPUControl) useHighWindowAddress() bool {
 	return control.isSet(WindowTileMapDisplaySelect)
 }
 
-func (control GPUControl) isHighBGDataAddress() bool {
+func (control GPUControl) useHighBGDataAddress() bool {
 	return !control.isSet(DataSelect)
 }
 
-func (control GPUControl) isHighBGStartAddress() bool {
+func (control GPUControl) useHighBGStartAddress() bool {
 	return control.isSet(BGTileMapDisplaySelect)
 }
 

@@ -7,11 +7,11 @@ import (
 )
 
 type GPU struct {
-	cpu           *CPU
-	display       DisplayInterface
-	cyclesCounter uint
-	oams          []*oamEntry
-	bgVisibility  [constants.ScreenWidth]visibility
+	cpu               *CPU
+	display           DisplayInterface
+	cyclesCounter     uint
+	oams              []*oamEntry
+	bgPixelVisibility [constants.ScreenWidth]pixelVisibility
 }
 
 type DisplayInterface interface {
@@ -21,6 +21,10 @@ type DisplayInterface interface {
 type RGB struct {
 	r, g, b byte
 }
+
+type tileNum byte
+type colourCode byte
+type flags byte
 
 type Mode byte
 
@@ -38,11 +42,11 @@ const (
 	unsignedAddressing = false
 )
 
-type visibility bool
+type pixelVisibility bool
 
 const (
-	invisible = false
 	visible   = true
+	invisible = false
 )
 
 // Cycle counts taken from Pandocs
@@ -70,18 +74,21 @@ const (
 	CharCodeSize               = 16
 	TilePixelSize              = 8
 	TileRowSize                = 32
-	ColourSize                 = 2
+	BitsPerColour              = 2
 	ColourMask                 = 3
 	SpriteDataSize             = 16
 	SpritePixelSize            = 8
 	DoubleSpriteHeight         = 16
 	ObjCount                   = 128
+	ObjDataSize                = 4
 	MaxSpritesPerScanline      = 10
 	MaxSpritesPerScreen        = 40
 	SpriteByteSize             = 4
 	SpriteYOffset              = 16
 	SpriteXOffset              = 8
 )
+
+var standardPalette = []byte{0xff, 0xaa, 0x55, 0x00}
 
 func InitGPU(cpu *CPU) *GPU {
 	gpu := &GPU{
@@ -167,7 +174,7 @@ func (gpu *GPU) update() {
 func (gpu *GPU) renderScanline(scanline byte) {
 	control := gpu.getControl()
 	for i := 0; i < constants.ScreenWidth; i++ {
-		gpu.bgVisibility[i] = invisible
+		gpu.bgPixelVisibility[i] = invisible
 	}
 
 	gpu.renderBackground(scanline)
@@ -207,12 +214,12 @@ func (gpu *GPU) renderBackground(scanline byte) {
 	for x := byte(0); x < byte(constants.ScreenWidth); x++ {
 		xPos := byte(scrollX + x)
 
-		pixel := gpu.getBackgroundPixel(startAddress, xPos, yPos)
-		if pixel != 0 {
-			gpu.bgVisibility[x] = visible
+		colour := gpu.fetchBackgroundColour(startAddress, xPos, yPos)
+		if colour != 0 {
+			gpu.bgPixelVisibility[x] = visible
 		}
 
-		rgb := gpu.applyBGPalette(pixel)
+		rgb := gpu.applyBGPalette(colour)
 		gpu.display.WritePixel(x, scanline, rgb.r, rgb.g, rgb.b)
 	}
 }
@@ -226,10 +233,10 @@ func (gpu *GPU) renderSprites(oams []*oamEntry, scanline byte) {
 		endX := byte(e.x + SpritePixelSize)
 
 		for x := startX; x < endX && x < byte(constants.ScreenWidth); x++ {
-			if e.behindBG() && gpu.bgVisibility[x] == visible {
+			if e.behindBG() && gpu.bgPixelVisibility[x] == visible {
 				continue
 			}
-			if rgb, isVisible := gpu.getSpritePixel(e, x, scanline); isVisible {
+			if rgb, isVisible := gpu.fetchSpritePixel(e, x, scanline); isVisible {
 				gpu.display.WritePixel(x, scanline, rgb.r, rgb.r, rgb.b)
 			}
 		}
@@ -246,57 +253,57 @@ func (gpu *GPU) renderWindow(scanline byte) {
 		}
 
 		startAddress := gpu.windowTileMapStartAddress()
-		pixel := gpu.getBackgroundPixel(startAddress, byte(x-winStartX), winY)
-		if pixel != 0 {
-			gpu.bgVisibility[x] = true
+		colour := gpu.fetchBackgroundColour(startAddress, byte(x-winStartX), winY)
+		if colour != 0 {
+			gpu.bgPixelVisibility[x] = true
 		}
 
-		rgb := gpu.applyBGPalette(pixel)
+		rgb := gpu.applyBGPalette(colour)
 		gpu.display.WritePixel(byte(x), scanline, rgb.r, rgb.g, rgb.b)
 	}
 }
 
 func (gpu *GPU) windowTileMapStartAddress() uint16 {
-	if gpu.getControl().isHighWindowAddress() {
+	if gpu.getControl().useHighWindowAddress() {
 		return 0x9C00
 	}
 	return 0x9800
 }
 
 func (gpu *GPU) bgTileDataAddress() (uint16, addressingMode) {
-	if gpu.getControl().isHighBGDataAddress() {
+	if gpu.getControl().useHighBGDataAddress() {
 		return 0x8800, signedAddressing
 	}
 	return 0x8000, unsignedAddressing
 }
 
 func (gpu *GPU) bgTileMapStartAddress() uint16 {
-	if gpu.getControl().isHighBGStartAddress() {
+	if gpu.getControl().useHighBGStartAddress() {
 		return 0x9C00
 	}
 	return 0x9800
 }
 
-func getTileLocation(addressMode addressingMode, baseAddress, tileNum uint16) uint16 {
+func getTileLocation(addressMode addressingMode, baseAddress uint16, tile tileNum) uint16 {
 	if addressMode == signedAddressing {
-		tileNum = uint16(int(int8(tileNum)) + ObjCount)
+		tile = tileNum(int(tile) + ObjCount)
 	}
-	return baseAddress + (tileNum * CharCodeSize)
+	return baseAddress + (uint16(tile) * CharCodeSize)
 }
 
-func (gpu *GPU) getBackgroundPixel(startAddress uint16, x, y byte) byte {
+func (gpu *GPU) fetchBackgroundColour(startAddress uint16, x, y byte) colourCode {
 	dataAddress, addressMode := gpu.bgTileDataAddress()
-	tileNum := gpu.getTileNum(startAddress, x, y)
+	tileNum := gpu.fetchTileNum(startAddress, x, y)
 	tileLocation := getTileLocation(addressMode, dataAddress, tileNum)
 	charCode := y & CharCodeMask
 	low, high := gpu.fetchCharCodeBytes(tileLocation, uint16(charCode))
-	return fetchBitPair(x, low, high)
+	return getColourCodeFrom(x, low, high)
 }
 
-func (gpu *GPU) getTileNum(startAddress uint16, xPos, yPos byte) uint16 {
+func (gpu *GPU) fetchTileNum(startAddress uint16, xPos, yPos byte) tileNum {
 	tileNumX, tileNumY := uint16(xPos/TilePixelSize), uint16(yPos/TilePixelSize)
 	tileAddress := uint16(startAddress + tileNumY*TileRowSize + tileNumX)
-	return uint16(gpu.cpu.memory.get(tileAddress))
+	return tileNum(gpu.cpu.memory.get(tileAddress))
 }
 
 func (gpu *GPU) fetchCharCodeBytes(baseAddress, tileOffset uint16) (byte, byte) {
@@ -306,7 +313,7 @@ func (gpu *GPU) fetchCharCodeBytes(baseAddress, tileOffset uint16) (byte, byte) 
 	return low, high
 }
 
-func (gpu *GPU) getSpritePixel(e *oamEntry, x, y byte) (RGB, visibility) {
+func (gpu *GPU) fetchSpritePixel(e *oamEntry, x, y byte) (RGB, pixelVisibility) {
 	tileX := byte(int16(x) - e.x)
 	tileY := byte(int16(y) - e.y)
 
@@ -316,25 +323,32 @@ func (gpu *GPU) getSpritePixel(e *oamEntry, x, y byte) (RGB, visibility) {
 	if e.yFlip() {
 		tileY = e.height - 1 - tileY
 	}
-	tileNum := e.tileNum
+	tile := e.tileNum
 	if e.height == DoubleSpriteHeight {
-		tileNum = ignoreLowerBit(tileNum)
+		tile = tileNum(ignoreLowerBit(byte(tile)))
 		if tileY >= SpritePixelSize {
-			tileNum++
+			tile++
 		}
 	}
 
 	charCode := uint16(tileY & CharCodeMask)
-	spriteAddress := getSpriteAddress(tileNum)
+	spriteAddress := getSpriteAddress(tile)
 	low, high := gpu.fetchSpriteData(spriteAddress, charCode)
-	colour := fetchBitPair(tileX, low, high)
+	colour := getColourCodeFrom(tileX, low, high)
 	if colour == 0 {
 		return RGB{0, 0, 0}, invisible
 	}
 
-	palettedPixel := gpu.applySpritePalette(e, colour)
-	rgb := applyCustomPalette(palettedPixel)
+	rgb := gpu.applySpritePalette(colour, e)
 	return rgb, visible
+}
+
+func ignoreLowerBit(val byte) byte {
+	return val &^ 0x1
+}
+
+func getSpriteAddress(tileNum tileNum) uint16 {
+	return SpriteDataStartAddress + (uint16(tileNum) * SpriteDataSize)
 }
 
 func (gpu *GPU) fetchSpriteData(spriteAddress, charCode uint16) (byte, byte) {
@@ -343,54 +357,47 @@ func (gpu *GPU) fetchSpriteData(spriteAddress, charCode uint16) (byte, byte) {
 	return low, high
 }
 
-func ignoreLowerBit(val byte) byte {
-	return val &^ 0x1
-}
-
-func fetchBitPair(xPos, low, high byte) byte {
+func getColourCodeFrom(xPos, low, high byte) colourCode {
 	bitOffset := xPos & CharCodeMask
 	bitL := (low >> (7 - bitOffset)) & 0x1
 	bitH := (high >> (7 - bitOffset)) & 0x1
-	return (bitH << 1) | bitL
+	return colourCode((bitH << 1) | bitL)
 }
 
-func getSpriteAddress(tileNum byte) uint16 {
-	return CharacterStart + (uint16(tileNum) * SpriteDataSize)
+func (gpu *GPU) applyBGPalette(colour colourCode) RGB {
+	paletteRegister := gpu.cpu.getBGP()
+	return applyPalette(selectColourCode(paletteRegister, colour))
 }
 
-var standardPalette = []byte{0xff, 0xaa, 0x55, 0x00}
-
-func applyCustomPalette(val byte) RGB {
-	outVal := standardPalette[val]
-	return RGB{r: outVal, g: outVal, b: outVal}
-}
-
-func (gpu *GPU) applyBGPalette(colour byte) RGB {
-	customColour := (gpu.cpu.getBGP() >> (colour * ColourSize)) & ColourMask
-	return applyCustomPalette(customColour)
-}
-
-func (gpu *GPU) applySpritePalette(e *oamEntry, colour byte) byte {
-	palReg := gpu.cpu.getOBP0()
-	if e.palSelector() {
-		palReg = gpu.cpu.getOBP1()
+func (gpu *GPU) applySpritePalette(colour colourCode, e *oamEntry) RGB {
+	paletteRegister := gpu.cpu.getOBP0()
+	if e.useOBP1() {
+		paletteRegister = gpu.cpu.getOBP1()
 	}
+	return applyPalette(selectColourCode(paletteRegister, colour))
+}
 
-	return (palReg >> uint((colour * ColourSize))) & ColourMask
+func selectColourCode(register byte, colour colourCode) colourCode {
+	return colourCode((register >> (colour * BitsPerColour)) & ColourMask)
+}
+
+func applyPalette(code colourCode) RGB {
+	colour := standardPalette[code]
+	return RGB{r: colour, g: colour, b: colour}
 }
 
 type oamEntry struct {
-	x         int16
-	y         int16
-	height    byte
-	tileNum   byte
-	flagsByte byte
+	x       int16
+	y       int16
+	height  byte
+	tileNum tileNum
+	flags   flags
 }
 
-func (e *oamEntry) behindBG() bool    { return e.flagsByte&0x80 != 0 }
-func (e *oamEntry) yFlip() bool       { return e.flagsByte&0x40 != 0 }
-func (e *oamEntry) xFlip() bool       { return e.flagsByte&0x20 != 0 }
-func (e *oamEntry) palSelector() bool { return e.flagsByte&0x10 != 0 }
+func (e *oamEntry) behindBG() bool { return e.flags&0x80 != 0 }
+func (e *oamEntry) yFlip() bool    { return e.flags&0x40 != 0 }
+func (e *oamEntry) xFlip() bool    { return e.flags&0x20 != 0 }
+func (e *oamEntry) useOBP1() bool  { return e.flags&0x10 != 0 }
 
 func yInSprite(scanline byte, y int16, height int) bool {
 	return int16(scanline) >= y && int16(scanline) < y+int16(height)
@@ -406,20 +413,20 @@ func (gpu *GPU) parseOAMForScanline(scanline byte) {
 			continue
 		}
 		gpu.oams = append(gpu.oams, &oamEntry{
-			x:         x,
-			y:         y,
-			height:    SpritePixelSize,
-			tileNum:   num,
-			flagsByte: flags,
+			x:       x,
+			y:       y,
+			height:  SpritePixelSize,
+			tileNum: num,
+			flags:   flags,
 		})
 	}
 
 	sort.Stable(sortableOAM(gpu.oams))
 }
 
-func (gpu *GPU) fetchOAMData(location uint16) (int16, int16, byte, byte) {
-	bytes := gpu.cpu.memory.sram[location : location+4]
-	return int16(bytes[0]) - SpriteYOffset, int16(bytes[1]) - SpriteXOffset, bytes[2], bytes[3]
+func (gpu *GPU) fetchOAMData(location uint16) (int16, int16, tileNum, flags) {
+	bytes := gpu.cpu.memory.sram[location : location+ObjDataSize]
+	return int16(bytes[0]) - SpriteYOffset, int16(bytes[1]) - SpriteXOffset, tileNum(bytes[2]), flags(bytes[3])
 }
 
 type sortableOAM []*oamEntry
@@ -428,7 +435,6 @@ func (s sortableOAM) Less(i, j int) bool { return s[i].x < s[j].x }
 func (s sortableOAM) Len() int           { return len(s) }
 func (s sortableOAM) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
-// -----------
 func (gpu *GPU) writeOAM(addr uint16, val byte) {
 	currentMode := gpu.getStatus().mode()
 	if !(currentMode == SearchingOAMMode || currentMode == TransferringMode) {
