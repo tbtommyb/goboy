@@ -4,22 +4,22 @@ import "github.com/tbtommyb/goboy/pkg/utils"
 
 type GPUStatus byte
 type GPUControl byte
-type LCDCFlag byte
-type LCDStatusFlag byte
+type GPUControlFlag byte
+type GPUStatusFlag byte
 
 const (
-	LCDDisplayEnable           LCDCFlag = 0x80
-	WindowTileMapDisplaySelect          = 0x40
-	WindowDisplayEnable                 = 0x20
-	DataSelect                          = 0x10
-	BGTileMapDisplaySelect              = 0x8
-	SpriteSize                          = 0x4
-	SpriteEnable                        = 0x2
-	WindowDisplayPriority               = 0x1
+	LCDDisplayEnable           GPUControlFlag = 0x80
+	WindowTileMapDisplaySelect                = 0x40
+	WindowDisplayEnable                       = 0x20
+	DataSelect                                = 0x10
+	BGTileMapDisplaySelect                    = 0x8
+	SpriteSize                                = 0x4
+	SpriteEnable                              = 0x2
+	WindowDisplayPriority                     = 0x1
 )
 
 const (
-	MatchFlag              LCDStatusFlag = 2
+	MatchFlag              GPUStatusFlag = 2
 	AccessEnabledInterrupt               = 3
 	VBlankInterrupt                      = 4
 	OAMInterrupt                         = 5
@@ -60,7 +60,7 @@ func (control GPUControl) useHighBGStartAddress() bool {
 	return control.isSet(BGTileMapDisplaySelect)
 }
 
-func (control GPUControl) isSet(flag LCDCFlag) bool {
+func (control GPUControl) isSet(flag GPUControlFlag) bool {
 	return (byte(control) & byte(flag)) > 0
 }
 
