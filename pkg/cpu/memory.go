@@ -29,6 +29,7 @@ const ProgramStartAddress = 0x100
 const StackStartAddress = 0xFFFE
 const SpriteDataStartAddress = 0x8000
 const OAMStart = 0xFE00
+const TACMask = 0x7
 
 func (m *Memory) load(start uint, data []byte) {
 	for i := 0; i < len(data); i++ {
@@ -67,19 +68,18 @@ func (m *Memory) set(address uint16, value byte) {
 		} else if address == LYAddress {
 			// Reset if game writes to LY
 			m.ioram[address-0xFF00] = 0
-		} else if address == 0xFF04 {
-			// div
-			m.cpu.dividerRegister = uint(value)
+		} else if address == DIVAddress {
+			m.ioram[address-0xFF00] = 0
+			m.cpu.internalTimer = 0
 		} else if address == 0xFF46 {
 			// DMA
 			m.performDMA(uint16(value) << 8)
-		} else if address == TMCAddress {
-			currentFreq := m.cpu.getClockFreq()
-			m.ioram[address-0xFF00] = value
-			newFreq := m.cpu.getClockFreq()
-
-			if currentFreq != newFreq {
-				m.cpu.setClockFreq()
+		} else if address == TACAddress {
+			newVal := value & TACMask
+			oldVal := m.ioram[address-0xFF00] & TACMask
+			m.ioram[address-0xFF00] = newVal
+			if newVal != oldVal {
+				m.cpu.resetCyclesForCurrentTick()
 			}
 		} else if address == 0xFF0A {
 			m.ioram[address-0xFF00] = 0
@@ -143,8 +143,8 @@ func (m *Memory) get(address uint16) byte {
 		// TODO: maybe map to memory instead
 		if address == JoypadRegisterAddress {
 			return m.cpu.getJoypadState()
-		} else if address == 0xFF04 {
-			return byte(m.cpu.dividerRegister)
+		} else if address == DIVAddress {
+			return byte(m.cpu.internalTimer >> 8)
 		}
 
 		return m.ioram[address-0xFF00]

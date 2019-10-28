@@ -7,9 +7,10 @@ import (
 	"github.com/tbtommyb/goboy/pkg/utils"
 )
 
+const DIVAddress = 0xFF04
 const TIMAAddress = 0xFF05
 const TMAAddress = 0xFF06
-const TMCAddress = 0xFF07
+const TACAddress = 0xFF07
 const LCDCAddress = 0xFF40
 const STATAddress = 0xFF41
 const ScrollYAddress = 0xFF42
@@ -120,7 +121,7 @@ func (cpu *CPU) getLCDC() byte {
 }
 
 func (cpu *CPU) setLCDC(value byte) {
-	cpu.memory.set(LCDCAddress, value|1)
+	cpu.memory.set(LCDCAddress, value)
 }
 
 func (cpu *CPU) getSTAT() byte {
@@ -191,6 +192,14 @@ func (cpu *CPU) getOBP1() byte {
 	return cpu.memory.get(OBP1Address)
 }
 
+func (cpu *CPU) getDIV() byte {
+	return cpu.memory.get(DIVAddress)
+}
+
+func (cpu *CPU) setDIV(value byte) {
+	cpu.memory.set(DIVAddress, value)
+}
+
 func (cpu *CPU) getTIMA() byte {
 	return cpu.memory.get(TIMAAddress)
 }
@@ -203,10 +212,10 @@ func (cpu *CPU) getTMA() byte {
 	return cpu.memory.get(TMAAddress)
 }
 
-func (cpu *CPU) getTMC() byte {
-	return cpu.memory.get(TMCAddress)
+func (cpu *CPU) getTAC() byte {
+	return cpu.memory.get(TACAddress)
 }
 
-func (cpu *CPU) setTMC(value byte) {
-	cpu.memory.set(TMCAddress, value)
+func (cpu *CPU) setTAC(value byte) {
+	cpu.memory.set(TACAddress, value)
 }
