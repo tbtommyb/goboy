@@ -29,7 +29,8 @@ var keyMap = map[ebiten.Key]cpu.Button{
 }
 
 func main() {
-	runtime.GOMAXPROCS(4)
+	runtime.GOMAXPROCS(2)
+
 	var loadBIOS, testMode bool
 	var bios, test, rom []byte
 	var err error
@@ -82,7 +83,7 @@ func main() {
 			gameboy.UpdateDisplay()
 			gameboy.UpdateTimers(cycles)
 		}
-		// TODO: change to goroutines
+
 		for key, button := range keyMap {
 			if inpututil.IsKeyJustPressed(key) {
 				gameboy.PressButton(button)

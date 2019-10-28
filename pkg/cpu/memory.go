@@ -93,6 +93,10 @@ func (m *Memory) set(address uint16, value byte) {
 	}
 }
 
+func (m *Memory) setBitAt(address uint16, bitNumber, bitValue byte) {
+	m.set(address, utils.SetBit(bitNumber, m.get(address), bitValue))
+}
+
 func (m *Memory) performDMA(address uint16) {
 	for i := uint16(0); i < 0xA0; i++ {
 		m.set(0xFE00+i, m.get(address+i))

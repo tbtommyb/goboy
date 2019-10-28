@@ -1,8 +1,6 @@
 package cpu
 
 import (
-	"fmt"
-
 	"github.com/tbtommyb/goboy/pkg/utils"
 )
 
@@ -29,23 +27,6 @@ const (
 
 var Interrupts = []Interrupt{VBlank, LCDCStatus, TimerOverflow, Input}
 
-func (cpu *CPU) requestInterrupt(interrupt Interrupt) {
-	requested := cpu.memory.get(InterruptFlagAddress)
-	requested = utils.SetBit(byte(interrupt), requested, 1)
-	cpu.memory.set(InterruptFlagAddress, requested)
-	fmt.Printf("Interrupt requested at %x. ", cpu.PC)
-	cpu.interrupts <- interrupt
-	// runtime.Gosched()
-	<-cpu.complete
-	fmt.Printf("Interrupt completed at %x\n.", cpu.PC)
-}
-
-func (cpu *CPU) clearInterrupt(interrupt Interrupt) {
-	requested := cpu.memory.get(InterruptFlagAddress)
-	requested = utils.SetBit(byte(interrupt), requested, 0)
-	cpu.memory.set(InterruptFlagAddress, requested)
-}
-
 func (cpu *CPU) HandleInterrupts(interrupts <-chan Interrupt, complete chan<- bool) {
 	for interrupt := range interrupts {
 		if !cpu.interruptsEnabled() {
@@ -58,6 +39,16 @@ func (cpu *CPU) HandleInterrupts(interrupts <-chan Interrupt, complete chan<- bo
 		}
 		complete <- true
 	}
+}
+
+func (cpu *CPU) requestInterrupt(interrupt Interrupt) {
+	cpu.memory.setBitAt(InterruptFlagAddress, byte(interrupt), 1)
+	cpu.interrupts <- interrupt
+	<-cpu.complete
+}
+
+func (cpu *CPU) clearInterrupt(interrupt Interrupt) {
+	cpu.memory.setBitAt(InterruptFlagAddress, byte(interrupt), 0)
 }
 
 func (cpu *CPU) serviceInterrupt(interrupt Interrupt) {
