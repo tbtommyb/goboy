@@ -1,6 +1,8 @@
 package cpu
 
 import (
+	"fmt"
+
 	"github.com/tbtommyb/goboy/pkg/utils"
 )
 
@@ -31,6 +33,11 @@ func (cpu *CPU) requestInterrupt(interrupt Interrupt) {
 	requested := cpu.memory.get(InterruptFlagAddress)
 	requested = utils.SetBit(byte(interrupt), requested, 1)
 	cpu.memory.set(InterruptFlagAddress, requested)
+	fmt.Printf("Interrupt requested at %x. ", cpu.PC)
+	cpu.interrupts <- interrupt
+	// runtime.Gosched()
+	<-cpu.complete
+	fmt.Printf("Interrupt completed at %x\n.", cpu.PC)
 }
 
 func (cpu *CPU) clearInterrupt(interrupt Interrupt) {
@@ -39,21 +46,17 @@ func (cpu *CPU) clearInterrupt(interrupt Interrupt) {
 	cpu.memory.set(InterruptFlagAddress, requested)
 }
 
-func (cpu *CPU) CheckInterrupts() {
-	if !cpu.interruptsEnabled() {
-		return
-	}
-
-	requested := cpu.memory.get(InterruptFlagAddress)
-	if requested == 0 {
-		return
-	}
-
-	enabled := cpu.memory.get(InterruptEnableAddress)
-	for i, interrupt := range Interrupts {
-		if utils.IsSet(byte(i), requested) && utils.IsSet(byte(i), enabled) {
+func (cpu *CPU) HandleInterrupts(interrupts <-chan Interrupt, complete chan<- bool) {
+	for interrupt := range interrupts {
+		if !cpu.interruptsEnabled() {
+			complete <- true
+			continue
+		}
+		enabled := cpu.memory.get(InterruptEnableAddress)
+		if utils.IsSet(byte(interrupt), enabled) {
 			cpu.serviceInterrupt(interrupt)
 		}
+		complete <- true
 	}
 }
 
