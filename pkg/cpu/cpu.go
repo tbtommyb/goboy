@@ -15,26 +15,25 @@ import (
 var GameboyClockSpeed = 4194304
 
 type CPU struct {
-	r               registers.Registers
-	flags           byte
-	SP, PC          uint16
-	memory          *Memory
-	cycles          uint
-	IME             bool
-	halt            bool
-	Display         *display.Display
-	gpu             *GPU
-	loadBIOS        bool
-	joypad          byte
-	timerCounter    int
-	dividerRegister uint
-	dividerCounter  uint
-	mbc1            bool
-	mbc2            bool
-	currentROMBank  uint16
-	interrupts      chan Interrupt
-	complete        chan bool
-	pcMutex         sync.Mutex
+	r                    registers.Registers
+	flags                byte
+	SP, PC               uint16
+	memory               *Memory
+	cycles               uint
+	IME                  bool
+	halt                 bool
+	Display              *display.Display
+	gpu                  *GPU
+	loadBIOS             bool
+	joypad               byte
+	internalTimer        uint16
+	cyclesForCurrentTick int
+	mbc1                 bool
+	mbc2                 bool
+	currentROMBank       uint16
+	interrupts           chan Interrupt
+	complete             chan bool
+	pcMutex              sync.Mutex
 }
 
 func (cpu *CPU) GetPC() uint16 {

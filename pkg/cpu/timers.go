@@ -1,53 +1,45 @@
 package cpu
 
-import "github.com/tbtommyb/goboy/pkg/utils"
+import (
+	"github.com/tbtommyb/goboy/pkg/utils"
+)
+
+const (
+	TimerControlBit      byte = 2
+	InputClockSelectMask      = 3
+)
+
+// f/20^10, f/2^4, f/2^6, f/2^8
+var inputClocks = []uint16{1024, 16, 64, 256}
 
 func (cpu *CPU) UpdateTimers(cycles uint) {
-	cpu.doDividerRegister(cycles)
+	cpu.internalTimer += uint16(cycles)
 
-	if cpu.isClockEnabled() {
-		cpu.timerCounter -= int(cycles)
-
-		if cpu.timerCounter <= 0 {
-			cpu.setClockFreq()
-
-			if cpu.getTIMA() == 255 {
-				cpu.setTIMA(cpu.getTMA())
-				cpu.requestInterrupt(TimerOverflow)
-			} else {
-				cpu.setTIMA(cpu.getTIMA() + 1)
-			}
-		}
+	if !cpu.isTimerEnabled() {
+		return
 	}
-}
 
-func (cpu *CPU) isClockEnabled() bool {
-	return utils.IsSet(2, cpu.getTMC())
-}
-
-func (cpu *CPU) getClockFreq() byte {
-	return cpu.memory.get(TMCAddress) & 0x3
-}
-
-func (cpu *CPU) setClockFreq() {
-	freq := cpu.getClockFreq()
-	switch freq {
-	case 0:
-		cpu.timerCounter = 1024
-	case 1:
-		cpu.timerCounter = 16
-	case 2:
-		cpu.timerCounter = 64
-	case 3:
-		cpu.timerCounter = 256
+	cpu.cyclesForCurrentTick -= int(cycles)
+	if cpu.cyclesForCurrentTick > 0 {
+		return
 	}
+
+	cpu.setTIMA(cpu.getTIMA() + 1)
+	if cpu.getTIMA() == 0 {
+		cpu.setTIMA(cpu.getTMA())
+		cpu.requestInterrupt(TimerOverflow)
+	}
+	cpu.resetCyclesForCurrentTick()
 }
 
-func (cpu *CPU) doDividerRegister(cycles uint) {
-	// TODO: use bytes and detect overflow?
-	cpu.dividerRegister += cycles
-	if cpu.dividerCounter >= 255 {
-		cpu.dividerCounter = 0
-		cpu.memory.set(0xFF04, cpu.memory.get(0xFF04)+1)
-	}
+func (cpu *CPU) isTimerEnabled() bool {
+	return utils.IsSet(TimerControlBit, cpu.getTAC())
+}
+
+func (cpu *CPU) getClockFreq() uint16 {
+	return inputClocks[cpu.getTAC()&InputClockSelectMask]
+}
+
+func (cpu *CPU) resetCyclesForCurrentTick() {
+	cpu.cyclesForCurrentTick = int(cpu.getClockFreq())
 }
