@@ -16,7 +16,7 @@ type CPU struct {
 func (cpu *CPU) handleInterrupts(interrupts <-chan int) {
 	for interrupt := range interrupts {
 		cpu.mutex.Lock()
-		fmt.Printf("handled at: %d", cpu.pc)
+		fmt.Printf("handled at: %d\n", cpu.pc)
 		cpu.pc = interrupt
 		fmt.Printf("New pc: %d\n", cpu.pc)
 		cpu.mutex.Unlock()

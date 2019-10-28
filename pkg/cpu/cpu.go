@@ -3,6 +3,7 @@ package cpu
 import (
 	"fmt"
 	"math/bits"
+	"sync"
 
 	"github.com/tbtommyb/goboy/pkg/decoder"
 	"github.com/tbtommyb/goboy/pkg/display"
@@ -31,6 +32,9 @@ type CPU struct {
 	mbc1            bool
 	mbc2            bool
 	currentROMBank  uint16
+	interrupts      chan Interrupt
+	complete        chan bool
+	pcMutex         sync.Mutex
 }
 
 func (cpu *CPU) GetPC() uint16 {
@@ -38,12 +42,16 @@ func (cpu *CPU) GetPC() uint16 {
 }
 
 func (cpu *CPU) incrementPC() {
+	cpu.pcMutex.Lock()
 	cpu.PC += 1
+	cpu.pcMutex.Unlock()
 }
 
 func (cpu *CPU) setPC(value uint16) {
 	cpu.incrementCycles()
+	cpu.pcMutex.Lock()
 	cpu.PC = value
+	cpu.pcMutex.Unlock()
 }
 
 func (cpu *CPU) GetCycles() uint {
@@ -535,7 +543,7 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 		cpu.halt = true
 		// TODO: implement
 	case in.InvalidInstruction:
-		panic(fmt.Sprintf("Invalid Instruction: %x", instr.Opcode()))
+		fmt.Sprintf("Invalid Instruction: %x", instr.Opcode())
 	}
 }
 
@@ -555,12 +563,14 @@ func (cpu *CPU) Step() uint {
 	return cpu.GetCycles() - initialCycles
 }
 
-func Init(loadBIOS bool) *CPU {
+func Init(loadBIOS bool, interrupts chan Interrupt, complete chan bool) *CPU {
 	cpu := &CPU{
 		loadBIOS:       loadBIOS,
 		r:              registers.Registers{},
 		joypad:         0xf,
 		currentROMBank: 1,
+		interrupts:     interrupts,
+		complete:       complete,
 	}
 	memory := InitMemory(cpu)
 	cpu.memory = memory
