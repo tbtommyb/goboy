@@ -29,7 +29,7 @@ var keyMap = map[ebiten.Key]cpu.Button{
 }
 
 func main() {
-	runtime.GOMAXPROCS(2)
+	runtime.GOMAXPROCS(4)
 
 	var loadBIOS, testMode bool
 	var bios, test, rom []byte

@@ -4,6 +4,13 @@ import (
 	"github.com/tbtommyb/goboy/pkg/utils"
 )
 
+type Joypad struct {
+	buttons byte
+	selection
+}
+
+const joypadSelectionMask = 0x30
+
 type Button byte
 
 const (
@@ -17,47 +24,44 @@ const (
 	ButtonStart         = 7
 )
 
+type selection byte
+
+const (
+	directional    selection = 0x20
+	nonDirectional           = 0x10
+)
+
 func (cpu *CPU) PressButton(button Button) {
-	previouslyUnset := utils.IsSet(byte(button), cpu.joypad)
+	initialButtons := cpu.joypadInternalState.buttons
+	updatedButtons := utils.SetBit(byte(button), initialButtons, 1)
 
-	cpu.joypad = utils.SetBit(byte(button), cpu.joypad, 0)
+	cpu.joypadInternalState.buttons = updatedButtons
 
-	notDirectional := true
-
-	if button > ButtonDown {
-		notDirectional = false
-	}
-
-	buttonReq := cpu.memory.ioram[0] // janky
-	requestInterrupt := false
-
-	if notDirectional && !utils.IsSet(5, buttonReq) {
-		requestInterrupt = true
-	} else if !notDirectional && !utils.IsSet(4, buttonReq) {
-		requestInterrupt = true
-	}
-
-	if requestInterrupt && !previouslyUnset {
+	if initialButtons == 0 && updatedButtons > initialButtons {
 		cpu.requestInterrupt(Input)
 	}
 }
 
 func (cpu *CPU) ReleaseButton(button Button) {
-	cpu.joypad = utils.SetBit(byte(button), cpu.joypad, 1)
+	initialButtons := cpu.joypadInternalState.buttons
+	cpu.joypadInternalState.buttons = utils.SetBit(byte(button), initialButtons, 0)
 }
 
 func (cpu *CPU) getJoypadState() byte {
-	res := cpu.memory.ioram[0]
-	res ^= 0xFF
+	return cpu.joypadInternalState.toRegisterFormat()
+}
 
-	if !utils.IsSet(4, res) {
-		topJoypad := cpu.joypad >> 4
-		topJoypad |= 0xF0
-		res &= topJoypad
-	} else if !utils.IsSet(5, res) {
-		bottomJoypad := cpu.joypad & 0xF
-		bottomJoypad |= 0xF0
-		res &= bottomJoypad
+func (cpu *CPU) setJoypadSelection(value byte) {
+	cpu.joypadInternalState.selection = selection(value & joypadSelectionMask)
+}
+
+func (joypad *Joypad) toRegisterFormat() byte {
+	switch joypad.selection {
+	case directional:
+		return (^(joypad.buttons & 0xf) & 0xf) | byte(joypad.selection)
+	case nonDirectional:
+		return (^(joypad.buttons >> 4) & 0xf) | byte(joypad.selection)
+	default:
+		return byte(joypad.selection) | 0xf
 	}
-	return res
 }
