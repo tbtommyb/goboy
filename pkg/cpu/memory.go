@@ -65,6 +65,8 @@ func (m *Memory) set(address uint16, value byte) {
 		// memory mapped IO
 		if address == 0xFF01 {
 			// fmt.Printf("%c", value)
+		} else if address == JoypadRegisterAddress {
+			m.cpu.setJoypadSelection(value)
 		} else if address == LYAddress {
 			// Reset if game writes to LY
 			m.ioram[address-0xFF00] = 0
@@ -140,13 +142,11 @@ func (m *Memory) get(address uint16) byte {
 		return 0xFF
 	case address >= 0xFF00 && address <= 0xFF7F:
 		// memory mapped IO
-		// TODO: maybe map to memory instead
-		if address == JoypadRegisterAddress {
-			return m.cpu.getJoypadState()
-		} else if address == DIVAddress {
+		if address == DIVAddress {
 			return byte(m.cpu.internalTimer >> 8)
+		} else if address == JoypadRegisterAddress {
+			return m.cpu.getJoypadState()
 		}
-
 		return m.ioram[address-0xFF00]
 	case address >= 0xFF80 && address <= 0xFFFE:
 		// if address == 0xff85 {

@@ -25,7 +25,6 @@ type CPU struct {
 	Display              *display.Display
 	gpu                  *GPU
 	loadBIOS             bool
-	joypad               byte
 	internalTimer        uint16
 	cyclesForCurrentTick int
 	mbc1                 bool
@@ -34,6 +33,7 @@ type CPU struct {
 	interrupts           chan Interrupt
 	complete             chan bool
 	pcMutex              sync.Mutex
+	joypadInternalState  Joypad
 }
 
 func (cpu *CPU) GetPC() uint16 {
@@ -566,7 +566,6 @@ func Init(loadBIOS bool, interrupts chan Interrupt, complete chan bool) *CPU {
 	cpu := &CPU{
 		loadBIOS:       loadBIOS,
 		r:              registers.Registers{},
-		joypad:         0xf,
 		currentROMBank: 1,
 		interrupts:     interrupts,
 		complete:       complete,

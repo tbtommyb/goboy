@@ -121,7 +121,7 @@ func (cpu *CPU) getLCDC() byte {
 }
 
 func (cpu *CPU) setLCDC(value byte) {
-	cpu.memory.set(LCDCAddress, value)
+	cpu.memory.set(LCDCAddress, value|1)
 }
 
 func (cpu *CPU) getSTAT() byte {
