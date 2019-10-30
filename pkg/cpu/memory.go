@@ -25,21 +25,26 @@ type Memory struct {
 	romBanking      bool
 }
 
-const ProgramStartAddress = 0x100
-const CartridgeTypeAddress = 0x147
-const RomSizeAddress = 0x148
-const BankingStartAddress = 0x4000
-const VideoRamStartAddress = 0x8000
-const CartRamStartAddress = 0xA000
-const WorkRamStartAddress = 0xC000
-const EchoStartAddress = 0xE000
-const OAMStartAddress = 0xFE00
-const UnusedBlockStartAddress = 0xFEA0
-const IOStartAddress = 0xFF00
-const DMAAddress = 0xFF46
-const HRamStartAddress = 0xFF80
-const StackStartAddress = 0xFFFE
-const SpriteDataStartAddress = 0x8000
+type Address uint16
+
+const (
+	ProgramStartAddress     Address = 0x100
+	CartridgeTypeAddress            = 0x147
+	RomSizeAddress                  = 0x148
+	BankingStartAddress             = 0x4000
+	VideoRamStartAddress            = 0x8000
+	CartRamStartAddress             = 0xA000
+	WorkRamStartAddress             = 0xC000
+	EchoStartAddress                = 0xE000
+	OAMStartAddress                 = 0xFE00
+	UnusedBlockStartAddress         = 0xFEA0
+	IOStartAddress                  = 0xFF00
+	DMAAddress                      = 0xFF46
+	HRamStartAddress                = 0xFF80
+	StackStartAddress               = 0xFFFE
+	SpriteDataStartAddress          = 0x8000
+)
+
 const TACMask = 0x7
 
 func InitMemory(cpu *CPU) *Memory {
@@ -55,13 +60,13 @@ func InitMemory(cpu *CPU) *Memory {
 		cpu:            cpu,
 	}
 }
-func (m *Memory) load(start uint, data []byte) {
+func (m *Memory) load(start Address, data []byte) {
 	for i := 0; i < len(data); i++ {
-		m.rom[start+uint(i)] = data[i]
+		m.rom[start+Address(i)] = data[i]
 	}
 }
 
-func (m *Memory) get(address uint16) byte {
+func (m *Memory) get(address Address) byte {
 	switch {
 	case address < ProgramStartAddress:
 		if m.cpu.loadBIOS {
@@ -75,13 +80,13 @@ func (m *Memory) get(address uint16) byte {
 		if !m.romBanking {
 			return m.rom[address]
 		}
-		newAddress := uint16(address - BankingStartAddress)
-		return m.rom[newAddress+uint16(m.cpu.currentROMBank*0x4000)]
+		newAddress := address - BankingStartAddress
+		return m.rom[newAddress+Address(m.cpu.currentROMBank*0x4000)]
 	case address < CartRamStartAddress:
 		return m.vram[address-VideoRamStartAddress]
 	case address < WorkRamStartAddress:
 		newAddress := address - CartRamStartAddress
-		return m.eram[newAddress+(uint16(m.currentRamBank)*0x2000)]
+		return m.eram[newAddress+(Address(m.currentRamBank)*0x2000)]
 	case address < EchoStartAddress:
 		return m.wram[address-WorkRamStartAddress]
 	case address < OAMStartAddress:
@@ -107,7 +112,7 @@ func (m *Memory) get(address uint16) byte {
 	}
 }
 
-func (m *Memory) set(address uint16, value byte) {
+func (m *Memory) set(address Address, value byte) {
 	switch {
 	case address < VideoRamStartAddress:
 		if !m.romBanking {
@@ -119,7 +124,7 @@ func (m *Memory) set(address uint16, value byte) {
 	case address < WorkRamStartAddress:
 		if m.enableRam {
 			newAddress := address - CartRamStartAddress
-			m.ramBanks[newAddress+(uint16(m.currentRamBank)*0x2000)] = value
+			m.ramBanks[newAddress+(Address(m.currentRamBank)*0x2000)] = value
 		}
 	case address < EchoStartAddress:
 		m.wram[address-WorkRamStartAddress] = value
@@ -140,7 +145,7 @@ func (m *Memory) set(address uint16, value byte) {
 			m.ioram[address-IOStartAddress] = 0
 			m.cpu.internalTimer = 0
 		} else if address == DMAAddress {
-			m.performDMA(uint16(value) << 8)
+			m.performDMA(Address(value) << 8)
 		} else if address == TACAddress {
 			newVal := value & TACMask
 			oldVal := m.ioram[address-IOStartAddress] & TACMask
@@ -160,17 +165,17 @@ func (m *Memory) set(address uint16, value byte) {
 	}
 }
 
-func (m *Memory) setBitAt(address uint16, bitNumber, bitValue byte) {
+func (m *Memory) setBitAt(address Address, bitNumber, bitValue byte) {
 	m.set(address, utils.SetBit(bitNumber, m.get(address), bitValue))
 }
 
-func (m *Memory) performDMA(address uint16) {
-	for i := uint16(0); i < 0xA0; i++ {
+func (m *Memory) performDMA(address Address) {
+	for i := Address(0); i < 0xA0; i++ {
 		m.set(OAMStartAddress+i, m.get(address+i))
 	}
 }
 
-func (cpu *CPU) WriteMem(address uint16, value byte) {
+func (cpu *CPU) WriteMem(address Address, value byte) {
 	cpu.incrementCycles()
 	cpu.memory.set(address, value)
 }
@@ -178,13 +183,13 @@ func (cpu *CPU) WriteMem(address uint16, value byte) {
 func (cpu *CPU) GetMem(r registers.Pair) byte {
 	switch r {
 	case registers.BC:
-		return cpu.readMem(cpu.GetBC())
+		return cpu.readMem(Address(cpu.GetBC()))
 	case registers.DE:
-		return cpu.readMem(cpu.GetDE())
+		return cpu.readMem(Address(cpu.GetDE()))
 	case registers.HL:
-		return cpu.readMem(cpu.GetHL())
+		return cpu.readMem(Address(cpu.GetHL()))
 	case registers.SP:
-		return cpu.readMem(cpu.GetSP())
+		return cpu.readMem(Address(cpu.GetSP()))
 	default:
 		panic(fmt.Sprintf("GetMem: Invalid register %x", r))
 	}
@@ -193,11 +198,11 @@ func (cpu *CPU) GetMem(r registers.Pair) byte {
 func (cpu *CPU) SetMem(r registers.Pair, val byte) byte {
 	switch r {
 	case registers.BC:
-		cpu.WriteMem(cpu.GetBC(), val)
+		cpu.WriteMem(Address(cpu.GetBC()), val)
 	case registers.DE:
-		cpu.WriteMem(cpu.GetDE(), val)
+		cpu.WriteMem(Address(cpu.GetDE()), val)
 	case registers.HL:
-		cpu.WriteMem(cpu.GetHL(), val)
+		cpu.WriteMem(Address(cpu.GetHL()), val)
 	case registers.SP:
 		cpu.WriteMem(cpu.GetSP(), val)
 	default:
@@ -206,7 +211,7 @@ func (cpu *CPU) SetMem(r registers.Pair, val byte) byte {
 	return val
 }
 
-func (m *Memory) handleBanking(address uint16, data byte) {
+func (m *Memory) handleBanking(address Address, data byte) {
 	switch {
 	case address < 0x2000:
 		if m.cpu.mbc1 || m.cpu.mbc2 {
@@ -231,7 +236,7 @@ func (m *Memory) handleBanking(address uint16, data byte) {
 	}
 }
 
-func (m *Memory) ramBankEnable(address uint16, data byte) {
+func (m *Memory) ramBankEnable(address Address, data byte) {
 	if m.cpu.mbc2 {
 		// TODO: clarify
 		if utils.IsSet(4, byte(address)) {
@@ -288,15 +293,10 @@ func (m *Memory) changeROMRAMMode(data byte) {
 	}
 }
 
-func (cpu *CPU) readMem(address uint16) byte {
+func (cpu *CPU) readMem(address Address) byte {
 	cpu.incrementCycles()
 	return cpu.memory.get(address)
 }
-
-// TODO: remove this
-// func (cpu *CPU) LoadProgram(program []byte) {
-// 	cpu.memory.load(cpu.GetPC(), program)
-// }
 
 func (cpu *CPU) LoadBIOS(program []byte) {
 	for i := 0; i < len(program); i++ {

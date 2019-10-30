@@ -14,15 +14,15 @@ const (
 )
 
 const (
-	VBlankInterruptHandlerAddress        uint16 = 0x40
-	LCDCStatusInterruptHandlerAddress           = 0x48
-	TimerOverflowInterruptHandlerAddress        = 0x50
-	InputInterruptHandlerAddress                = 0x60
+	VBlankInterruptHandlerAddress        Address = 0x40
+	LCDCStatusInterruptHandlerAddress            = 0x48
+	TimerOverflowInterruptHandlerAddress         = 0x50
+	InputInterruptHandlerAddress                 = 0x60
 )
 
 const (
-	InterruptFlagAddress   uint16 = 0xFF0F
-	InterruptEnableAddress        = 0xFFFF
+	InterruptFlagAddress   Address = 0xFF0F
+	InterruptEnableAddress         = 0xFFFF
 )
 
 var Interrupts = []Interrupt{VBlank, LCDCStatus, TimerOverflow, Input}
@@ -56,7 +56,7 @@ func (cpu *CPU) serviceInterrupt(interrupt Interrupt) {
 
 	cpu.clearInterrupt(interrupt)
 
-	high, low := utils.SplitPair(cpu.GetPC())
+	high, low := utils.SplitPair(uint16(cpu.GetPC()))
 	cpu.pushStack(high)
 	cpu.pushStack(low)
 

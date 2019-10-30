@@ -263,51 +263,51 @@ func (gpu *GPU) renderWindow(scanline byte) {
 	}
 }
 
-func (gpu *GPU) windowTileMapStartAddress() uint16 {
+func (gpu *GPU) windowTileMapStartAddress() Address {
 	if gpu.getControl().useHighWindowAddress() {
 		return 0x9C00
 	}
 	return 0x9800
 }
 
-func (gpu *GPU) bgTileDataAddress() (uint16, addressingMode) {
+func (gpu *GPU) bgTileDataAddress() (Address, addressingMode) {
 	if gpu.getControl().useHighBGDataAddress() {
 		return 0x8800, signedAddressing
 	}
 	return 0x8000, unsignedAddressing
 }
 
-func (gpu *GPU) bgTileMapStartAddress() uint16 {
+func (gpu *GPU) bgTileMapStartAddress() Address {
 	if gpu.getControl().useHighBGStartAddress() {
 		return 0x9C00
 	}
 	return 0x9800
 }
 
-func getTileLocation(addressMode addressingMode, baseAddress uint16, tile tileNum) uint16 {
+func getTileLocation(addressMode addressingMode, baseAddress Address, tile tileNum) Address {
 	if addressMode == signedAddressing {
 		tile = tileNum(int(tile) + ObjCount)
 	}
-	return baseAddress + (uint16(tile) * CharCodeSize)
+	return baseAddress + (Address(tile) * CharCodeSize)
 }
 
-func (gpu *GPU) fetchBackgroundColour(startAddress uint16, x, y byte) colourCode {
+func (gpu *GPU) fetchBackgroundColour(startAddress Address, x, y byte) colourCode {
 	dataAddress, addressMode := gpu.bgTileDataAddress()
 	tileNum := gpu.fetchTileNum(startAddress, x, y)
 	tileLocation := getTileLocation(addressMode, dataAddress, tileNum)
 	charCode := y & CharCodeMask
-	low, high := gpu.fetchCharCodeBytes(tileLocation, uint16(charCode))
+	low, high := gpu.fetchCharCodeBytes(tileLocation, Address(charCode))
 	return getColourCodeFrom(x, low, high)
 }
 
-func (gpu *GPU) fetchTileNum(startAddress uint16, xPos, yPos byte) tileNum {
-	tileNumX, tileNumY := uint16(xPos/TilePixelSize), uint16(yPos/TilePixelSize)
-	tileAddress := uint16(startAddress + tileNumY*TileRowSize + tileNumX)
+func (gpu *GPU) fetchTileNum(startAddress Address, xPos, yPos byte) tileNum {
+	tileNumX, tileNumY := Address(xPos/TilePixelSize), Address(yPos/TilePixelSize)
+	tileAddress := Address(startAddress + tileNumY*TileRowSize + tileNumX)
 	return tileNum(gpu.cpu.memory.get(tileAddress))
 }
 
-func (gpu *GPU) fetchCharCodeBytes(baseAddress, tileOffset uint16) (byte, byte) {
-	charCodeAddress := baseAddress + (uint16(tileOffset) << 1)
+func (gpu *GPU) fetchCharCodeBytes(baseAddress, tileOffset Address) (byte, byte) {
+	charCodeAddress := baseAddress + (Address(tileOffset) << 1)
 	low := gpu.cpu.memory.get(charCodeAddress)
 	high := gpu.cpu.memory.get(charCodeAddress + 1)
 	return low, high
@@ -331,7 +331,7 @@ func (gpu *GPU) fetchSpritePixel(e *oamEntry, x, y byte) (RGB, pixelVisibility) 
 		}
 	}
 
-	charCode := uint16(tileY & CharCodeMask)
+	charCode := Address(tileY & CharCodeMask)
 	spriteAddress := getSpriteAddress(tile)
 	low, high := gpu.fetchSpriteData(spriteAddress, charCode)
 	colour := getColourCodeFrom(tileX, low, high)
@@ -347,11 +347,11 @@ func ignoreLowerBit(val byte) byte {
 	return val &^ 0x1
 }
 
-func getSpriteAddress(tileNum tileNum) uint16 {
-	return SpriteDataStartAddress + (uint16(tileNum) * SpriteDataSize)
+func getSpriteAddress(tileNum tileNum) Address {
+	return SpriteDataStartAddress + (Address(tileNum) * SpriteDataSize)
 }
 
-func (gpu *GPU) fetchSpriteData(spriteAddress, charCode uint16) (byte, byte) {
+func (gpu *GPU) fetchSpriteData(spriteAddress, charCode Address) (byte, byte) {
 	low := gpu.cpu.memory.get(spriteAddress + (charCode << 1))
 	high := gpu.cpu.memory.get(spriteAddress + (charCode << 1) + 1)
 	return low, high
@@ -407,7 +407,7 @@ func (gpu *GPU) parseOAMForScanline(scanline byte) {
 	// This method accesses memory directly to avoid mode restrictions
 	gpu.oams = gpu.oams[:0]
 	for i := 0; len(gpu.oams) < MaxSpritesPerScanline && i < MaxSpritesPerScreen; i++ {
-		offset := uint16(i * SpriteByteSize)
+		offset := Address(i * SpriteByteSize)
 		y, x, num, flags := gpu.fetchOAMData(offset)
 		if !yInSprite(scanline, y, SpritePixelSize) {
 			continue
@@ -424,7 +424,7 @@ func (gpu *GPU) parseOAMForScanline(scanline byte) {
 	sort.Stable(sortableOAM(gpu.oams))
 }
 
-func (gpu *GPU) fetchOAMData(location uint16) (int16, int16, tileNum, flags) {
+func (gpu *GPU) fetchOAMData(location Address) (int16, int16, tileNum, flags) {
 	bytes := gpu.cpu.memory.sram[location : location+ObjDataSize]
 	return int16(bytes[0]) - SpriteYOffset, int16(bytes[1]) - SpriteXOffset, tileNum(bytes[2]), flags(bytes[3])
 }
@@ -435,14 +435,14 @@ func (s sortableOAM) Less(i, j int) bool { return s[i].x < s[j].x }
 func (s sortableOAM) Len() int           { return len(s) }
 func (s sortableOAM) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
-func (gpu *GPU) writeOAM(addr uint16, val byte) {
+func (gpu *GPU) writeOAM(addr Address, val byte) {
 	currentMode := gpu.getStatus().mode()
 	if !(currentMode == SearchingOAMMode || currentMode == TransferringMode) {
 		gpu.cpu.memory.sram[addr-0xFE00] = val
 	}
 }
 
-func (gpu *GPU) readOAM(addr uint16) byte {
+func (gpu *GPU) readOAM(addr Address) byte {
 	currentMode := gpu.getStatus().mode()
 	if !(currentMode == SearchingOAMMode || currentMode == TransferringMode) {
 		return gpu.cpu.memory.sram[addr-0xFE00]

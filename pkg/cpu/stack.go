@@ -3,11 +3,11 @@ package cpu
 import "github.com/tbtommyb/goboy/pkg/registers"
 
 // TODO: create separate stack structure
-func (cpu *CPU) GetSP() uint16 {
+func (cpu *CPU) GetSP() Address {
 	return cpu.SP
 }
 
-func (cpu *CPU) setSP(value uint16) uint16 {
+func (cpu *CPU) setSP(value Address) Address {
 	cpu.incrementCycles()
 	cpu.SP = value
 	return value

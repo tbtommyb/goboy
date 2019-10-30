@@ -6,8 +6,8 @@ import (
 	"github.com/tbtommyb/goboy/pkg/conditions"
 )
 
-func (cpu *CPU) computeOffset(offset uint16) uint16 {
-	return 0xFF00 + offset
+func (cpu *CPU) computeOffset(offset Address) Address {
+	return IOStartAddress + offset
 }
 
 func (cpu *CPU) carryBit(withCarry bool, flag Flag) byte {

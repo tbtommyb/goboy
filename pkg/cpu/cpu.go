@@ -17,7 +17,7 @@ var GameboyClockSpeed = 4194304
 type CPU struct {
 	r                    registers.Registers
 	flags                byte
-	SP, PC               uint16
+	SP, PC               Address
 	memory               *Memory
 	cycles               uint
 	IME                  bool
@@ -36,7 +36,7 @@ type CPU struct {
 	joypadInternalState  Joypad
 }
 
-func (cpu *CPU) GetPC() uint16 {
+func (cpu *CPU) GetPC() Address {
 	return cpu.PC
 }
 
@@ -46,7 +46,7 @@ func (cpu *CPU) incrementPC() {
 	cpu.pcMutex.Unlock()
 }
 
-func (cpu *CPU) setPC(value uint16) {
+func (cpu *CPU) setPC(value Address) {
 	cpu.incrementCycles()
 	cpu.pcMutex.Lock()
 	cpu.PC = value
@@ -244,24 +244,24 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 	case in.LoadIndirect:
 		cpu.Set(i.Dest, cpu.GetMem(i.Source))
 	case in.StoreIndirect:
-		address := utils.MergePair(cpu.GetPair(i.Dest))
+		address := Address(utils.MergePair(cpu.GetPair(i.Dest)))
 		cpu.WriteMem(address, cpu.Get(i.Source))
 	case in.LoadRelative:
-		source := cpu.computeOffset(uint16(cpu.Get(registers.C)))
+		source := cpu.computeOffset(Address(cpu.Get(registers.C)))
 		cpu.Set(registers.A, cpu.readMem(source))
 	case in.LoadRelativeImmediateN:
-		source := cpu.computeOffset(uint16(i.Immediate))
+		source := cpu.computeOffset(Address(i.Immediate))
 		cpu.Set(registers.A, cpu.readMem(source))
 	case in.LoadRelativeImmediateNN:
-		cpu.Set(registers.A, cpu.readMem(i.Immediate))
+		cpu.Set(registers.A, cpu.readMem(Address(i.Immediate)))
 	case in.StoreRelative:
-		source := cpu.computeOffset(uint16(cpu.Get(registers.C)))
+		source := cpu.computeOffset(Address(cpu.Get(registers.C)))
 		cpu.WriteMem(source, cpu.Get(registers.A))
 	case in.StoreRelativeImmediateN:
-		dest := cpu.computeOffset(uint16(i.Immediate))
+		dest := cpu.computeOffset(Address(i.Immediate))
 		cpu.WriteMem(dest, cpu.Get(registers.A))
 	case in.StoreRelativeImmediateNN:
-		cpu.WriteMem(i.Immediate, cpu.Get(registers.A))
+		cpu.WriteMem(Address(i.Immediate), cpu.Get(registers.A))
 	case in.LoadIncrement:
 		cpu.Set(registers.A, cpu.GetMem(registers.HL))
 		cpu.SetHL(cpu.GetHL() + 1)
@@ -277,7 +277,7 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 	case in.LoadRegisterPairImmediate:
 		cpu.SetPair(i.Dest, i.Immediate)
 	case in.HLtoSP:
-		cpu.setSP(cpu.GetHL())
+		cpu.setSP(Address(cpu.GetHL()))
 	case in.Push:
 		high, low := cpu.GetPair(i.Source)
 		cpu.pushStack(high)
@@ -288,17 +288,17 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 		high := cpu.popStack()
 		cpu.SetPair(i.Dest, utils.MergePair(high, low))
 	case in.LoadHLSP:
-		a := uint16(i.Immediate)
+		a := Address(i.Immediate)
 		b := cpu.GetSP()
-		cpu.SetHL(a + b)
+		cpu.SetHL(uint16(a + b))
 		cpu.incrementCycles() // TODO: remove need for this
 		cpu.setFlags(FlagSet{
 			HalfCarry: lowerByteHalfCarry(byte(a), byte(b)),
 			FullCarry: lowerByteFullCarry(byte(a), byte(b)),
 		})
 	case in.StoreSP:
-		cpu.WriteMem(i.Immediate, byte(cpu.GetSP()))
-		cpu.WriteMem(i.Immediate+1, byte(cpu.GetSP()>>8))
+		cpu.WriteMem(Address(i.Immediate), byte(cpu.GetSP()))
+		cpu.WriteMem(Address(i.Immediate+1), byte(cpu.GetSP()>>8))
 	case in.Add:
 		carry := cpu.carryBit(i.WithCarry, FullCarry)
 		cpu.perform(addOp, cpu.Get(registers.A), cpu.Get(i.Source), carry)
@@ -365,7 +365,7 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 		cpu.incrementCycles()
 	case in.AddSP:
 		a := cpu.GetSP()
-		b := uint16(i.Immediate)
+		b := Address(i.Immediate)
 		result := a + b
 		cpu.setSP(result)
 		cpu.setFlags(FlagSet{
@@ -441,48 +441,48 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 		result := utils.SetBit(bit, cpu.Get(i.Source), 0)
 		cpu.Set(i.Source, result)
 	case in.JumpImmediate:
-		cpu.setPC(i.Immediate)
+		cpu.setPC(Address(i.Immediate))
 	case in.JumpImmediateConditional:
 		if cpu.conditionMet(i.Condition) {
-			cpu.setPC(i.Immediate)
+			cpu.setPC(Address(i.Immediate))
 		}
 	case in.JumpRelative:
 		// -2 to account for decoder having moved past immediate value. Refactor?
-		cpu.setPC(cpu.GetPC() - 2 + uint16(i.Immediate))
+		cpu.setPC(cpu.GetPC() - 2 + Address(i.Immediate))
 	case in.JumpRelativeConditional:
 		if cpu.conditionMet(i.Condition) {
-			cpu.setPC(cpu.GetPC() - 2 + uint16(i.Immediate))
+			cpu.setPC(cpu.GetPC() - 2 + Address(i.Immediate))
 		}
 	case in.JumpMemory:
-		cpu.setPC(cpu.GetHL())
+		cpu.setPC(Address(cpu.GetHL()))
 		cpu.decrementCycles() // TODO: hack attack
 	case in.Call:
-		high, low := utils.SplitPair(cpu.GetPC())
+		high, low := utils.SplitPair(uint16(cpu.GetPC()))
 		cpu.pushStack(high)
 		cpu.pushStack(low)
-		cpu.setPC(i.Immediate)
+		cpu.setPC(Address(i.Immediate))
 	case in.CallConditional:
 		if cpu.conditionMet(i.Condition) {
-			high, low := utils.SplitPair(cpu.GetPC())
+			high, low := utils.SplitPair(uint16(cpu.GetPC()))
 			cpu.pushStack(high)
 			cpu.pushStack(low)
-			cpu.setPC(i.Immediate)
+			cpu.setPC(Address(i.Immediate))
 		}
 	case in.Return:
-		cpu.setPC(utils.ReverseMergePair(cpu.popStack(), cpu.popStack()))
+		cpu.setPC(Address(utils.ReverseMergePair(cpu.popStack(), cpu.popStack())))
 	case in.ReturnInterrupt:
-		cpu.setPC(utils.ReverseMergePair(cpu.popStack(), cpu.popStack()))
+		cpu.setPC(Address(utils.ReverseMergePair(cpu.popStack(), cpu.popStack())))
 		cpu.enableInterrupts()
 	case in.ReturnConditional:
 		if cpu.conditionMet(i.Condition) {
-			cpu.setPC(utils.ReverseMergePair(cpu.popStack(), cpu.popStack()))
+			cpu.setPC(Address(utils.ReverseMergePair(cpu.popStack(), cpu.popStack())))
 		}
 		cpu.incrementCycles()
 	case in.RST:
-		high, low := utils.SplitPair(cpu.GetPC())
+		high, low := utils.SplitPair(uint16(cpu.GetPC()))
 		cpu.pushStack(high)
 		cpu.pushStack(low)
-		cpu.setPC(uint16(i.Operand << in.OperandShift))
+		cpu.setPC(Address(i.Operand << in.OperandShift))
 	case in.DAA:
 		if !cpu.isSet(Negative) {
 			if cpu.isSet(FullCarry) || cpu.Get(registers.A) > 0x99 {

@@ -27,7 +27,7 @@ const JoypadRegisterAddress = 0xFF00
 func (cpu *CPU) Get(r registers.Single) byte {
 	switch r {
 	case registers.M:
-		return cpu.readMem(cpu.GetHL())
+		return cpu.readMem(Address(cpu.GetHL()))
 	default:
 		return byte(cpu.r[r])
 	}
@@ -44,7 +44,7 @@ func (cpu *CPU) GetPair(r registers.Pair) (byte, byte) {
 	case registers.AF:
 		return cpu.Get(registers.A), cpu.GetFlags()
 	case registers.SP:
-		return utils.SplitPair(cpu.GetSP())
+		return utils.SplitPair(uint16(cpu.GetSP()))
 	default:
 		panic(fmt.Sprintf("GetPair: Invalid register %x", r))
 	}
@@ -53,7 +53,7 @@ func (cpu *CPU) GetPair(r registers.Pair) (byte, byte) {
 func (cpu *CPU) Set(r registers.Single, val byte) byte {
 	switch r {
 	case registers.M:
-		cpu.WriteMem(cpu.GetHL(), val)
+		cpu.WriteMem(Address(cpu.GetHL()), val)
 	default:
 		cpu.r[r] = val
 	}
@@ -69,7 +69,7 @@ func (cpu *CPU) SetPair(r registers.Pair, val uint16) uint16 {
 	case registers.HL:
 		cpu.SetHL(val)
 	case registers.SP:
-		cpu.setSP(val)
+		cpu.setSP(Address(val))
 	case registers.AF:
 		cpu.SetAF(val)
 	}
@@ -161,7 +161,7 @@ func (cpu *CPU) getLY() byte {
 }
 
 func (cpu *CPU) setLY(value byte) {
-	cpu.memory.ioram[LYAddress-0xFF00] = value
+	cpu.memory.ioram[LYAddress-IOStartAddress] = value
 }
 
 func (cpu *CPU) getLYC() byte {
