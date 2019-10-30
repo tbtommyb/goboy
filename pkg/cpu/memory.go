@@ -26,71 +26,136 @@ type Memory struct {
 }
 
 const ProgramStartAddress = 0x100
+const CartridgeTypeAddress = 0x147
+const RomSizeAddress = 0x148
+const BankingStartAddress = 0x4000
+const VideoRamStartAddress = 0x8000
+const CartRamStartAddress = 0xA000
+const WorkRamStartAddress = 0xC000
+const EchoStartAddress = 0xE000
+const OAMStartAddress = 0xFE00
+const UnusedBlockStartAddress = 0xFEA0
+const IOStartAddress = 0xFF00
+const DMAAddress = 0xFF46
+const HRamStartAddress = 0xFF80
 const StackStartAddress = 0xFFFE
 const SpriteDataStartAddress = 0x8000
-const OAMStart = 0xFE00
 const TACMask = 0x7
 
+func InitMemory(cpu *CPU) *Memory {
+	return &Memory{
+		bios:           [0x100]byte{},
+		vram:           [0x2000]byte{},
+		eram:           [0x2000]byte{},
+		wram:           [0x2000]byte{},
+		ioram:          [0x100]byte{},
+		hram:           [0x7F]byte{},
+		ramBanks:       [0x8000]byte{},
+		currentRamBank: 0,
+		cpu:            cpu,
+	}
+}
 func (m *Memory) load(start uint, data []byte) {
 	for i := 0; i < len(data); i++ {
 		m.rom[start+uint(i)] = data[i]
 	}
 }
 
+func (m *Memory) get(address uint16) byte {
+	switch {
+	case address < ProgramStartAddress:
+		if m.cpu.loadBIOS {
+			return m.bios[address]
+		} else {
+			return m.rom[address]
+		}
+	case address < BankingStartAddress:
+		return m.rom[address]
+	case address < VideoRamStartAddress:
+		if !m.romBanking {
+			return m.rom[address]
+		}
+		newAddress := uint16(address - BankingStartAddress)
+		return m.rom[newAddress+uint16(m.cpu.currentROMBank*0x4000)]
+	case address < CartRamStartAddress:
+		return m.vram[address-VideoRamStartAddress]
+	case address < WorkRamStartAddress:
+		newAddress := address - CartRamStartAddress
+		return m.eram[newAddress+(uint16(m.currentRamBank)*0x2000)]
+	case address < EchoStartAddress:
+		return m.wram[address-WorkRamStartAddress]
+	case address < OAMStartAddress:
+		// TODO: return C000 - DDFF
+		return 0x00
+	case address < UnusedBlockStartAddress:
+		return m.cpu.gpu.readOAM(address)
+	case address < IOStartAddress:
+		return 0xFF
+	case address < HRamStartAddress:
+		if address == DIVAddress {
+			return byte(m.cpu.internalTimer >> 8)
+		} else if address == JoypadRegisterAddress {
+			return m.cpu.getJoypadState()
+		}
+		return m.ioram[address-IOStartAddress]
+	case address < InterruptEnableAddress:
+		return m.hram[address-HRamStartAddress]
+	case address == InterruptEnableAddress:
+		return m.interruptEnable
+	default:
+		panic(fmt.Sprintf("Illegal fetch from %x\n", address))
+	}
+}
+
 func (m *Memory) set(address uint16, value byte) {
 	switch {
-	case address < 0x8000:
+	case address < VideoRamStartAddress:
 		if !m.romBanking {
 			m.rom[address] = value
 		}
 		m.handleBanking(address, value)
-	case address >= 0x8000 && address <= 0x9FFF:
-		// video ram
-		m.vram[address-0x8000] = value
-	case address >= 0xA000 && address <= 0xBFFF:
+	case address < CartRamStartAddress:
+		m.vram[address-VideoRamStartAddress] = value
+	case address < WorkRamStartAddress:
 		if m.enableRam {
-			newAddress := address - 0xA000
+			newAddress := address - CartRamStartAddress
 			m.ramBanks[newAddress+(uint16(m.currentRamBank)*0x2000)] = value
 		}
-	case address >= 0xC000 && address <= 0xDFFF:
-		m.wram[address-0xC000] = value
-	case address >= 0xE000 && address <= 0xFDFF:
+	case address < EchoStartAddress:
+		m.wram[address-WorkRamStartAddress] = value
+	case address < OAMStartAddress:
 		// shadow wram
-	case address >= 0xFE00 && address <= 0xFE9F:
-		// sprites
+	case address < UnusedBlockStartAddress:
 		m.cpu.gpu.writeOAM(address, value)
-	case address >= 0xFEA0 && address <= 0xFEFF:
+	case address < IOStartAddress:
 		// unusable
-	case address >= 0xFF00 && address <= 0xFF7F:
-		// memory mapped IO
+	case address < HRamStartAddress:
 		if address == 0xFF01 {
 			// fmt.Printf("%c", value)
 		} else if address == JoypadRegisterAddress {
 			m.cpu.setJoypadSelection(value)
 		} else if address == LYAddress {
-			// Reset if game writes to LY
-			m.ioram[address-0xFF00] = 0
+			m.ioram[address-IOStartAddress] = 0
 		} else if address == DIVAddress {
-			m.ioram[address-0xFF00] = 0
+			m.ioram[address-IOStartAddress] = 0
 			m.cpu.internalTimer = 0
-		} else if address == 0xFF46 {
-			// DMA
+		} else if address == DMAAddress {
 			m.performDMA(uint16(value) << 8)
 		} else if address == TACAddress {
 			newVal := value & TACMask
-			oldVal := m.ioram[address-0xFF00] & TACMask
-			m.ioram[address-0xFF00] = newVal
+			oldVal := m.ioram[address-IOStartAddress] & TACMask
+			m.ioram[address-IOStartAddress] = newVal
 			if newVal != oldVal {
 				m.cpu.resetCyclesForCurrentTick()
 			}
 		} else if address == 0xFF0A {
-			m.ioram[address-0xFF00] = 0
+			m.ioram[address-IOStartAddress] = 0
 		} else {
-			m.ioram[address-0xFF00] = value
+			m.ioram[address-IOStartAddress] = value
 		}
-	case address >= 0xFF80 && address <= 0xFFFE:
-		m.hram[address-0xFF80] = value
-	case address == 0xFFFF:
+	case address < StackStartAddress:
+		m.hram[address-HRamStartAddress] = value
+	case address == InterruptEnableAddress:
 		m.interruptEnable = value
 	}
 }
@@ -101,64 +166,46 @@ func (m *Memory) setBitAt(address uint16, bitNumber, bitValue byte) {
 
 func (m *Memory) performDMA(address uint16) {
 	for i := uint16(0); i < 0xA0; i++ {
-		m.set(0xFE00+i, m.get(address+i))
+		m.set(OAMStartAddress+i, m.get(address+i))
 	}
 }
-func (m *Memory) get(address uint16) byte {
-	switch {
-	case address < 0x100:
-		if m.cpu.loadBIOS {
-			return m.bios[address]
-		} else {
-			return m.rom[address]
-		}
-	case address < 0x4000:
-		return m.rom[address]
-	case address >= 0x4000 && address <= 0x7FFF:
-		if !m.romBanking {
-			return m.rom[address]
-		}
-		newAddress := uint16(address - 0x4000)
-		value := m.rom[newAddress+uint16(m.cpu.currentROMBank*0x4000)]
-		return value
-	case address >= 0x8000 && address <= 0x9FFF:
-		// video ram
-		return m.vram[address-0x8000]
-	case address >= 0xA000 && address <= 0xBFFF:
-		// cart ram
-		newAddress := address - 0xA000
-		return m.eram[newAddress+(uint16(m.currentRamBank)*0x2000)]
-	case address >= 0xC000 && address <= 0xDFFF:
-		return m.wram[address-0xC000]
-	case address >= 0xE000 && address <= 0xFDFF:
-		// shadow wram
-		return 0x00
-	case address >= 0xFE00 && address <= 0xFE9F:
-		// sprites
-		val := m.cpu.gpu.readOAM(address)
-		return val
-	case address >= 0xFEA0 && address <= 0xFEFF:
-		// unused space
-		return 0xFF
-	case address >= 0xFF00 && address <= 0xFF7F:
-		// memory mapped IO
-		if address == DIVAddress {
-			return byte(m.cpu.internalTimer >> 8)
-		} else if address == JoypadRegisterAddress {
-			return m.cpu.getJoypadState()
-		}
-		return m.ioram[address-0xFF00]
-	case address >= 0xFF80 && address <= 0xFFFE:
-		// if address == 0xff85 {
-		// 	return 1
-		// }
-		return m.hram[address-0xFF80]
-	case address == 0xFFFF:
-		return m.interruptEnable
+
+func (cpu *CPU) WriteMem(address uint16, value byte) {
+	cpu.incrementCycles()
+	cpu.memory.set(address, value)
+}
+
+func (cpu *CPU) GetMem(r registers.Pair) byte {
+	switch r {
+	case registers.BC:
+		return cpu.readMem(cpu.GetBC())
+	case registers.DE:
+		return cpu.readMem(cpu.GetDE())
+	case registers.HL:
+		return cpu.readMem(cpu.GetHL())
+	case registers.SP:
+		return cpu.readMem(cpu.GetSP())
 	default:
-		panic(fmt.Sprintf("%x\n", address))
+		panic(fmt.Sprintf("GetMem: Invalid register %x", r))
 	}
 }
+
+func (cpu *CPU) SetMem(r registers.Pair, val byte) byte {
+	switch r {
+	case registers.BC:
+		cpu.WriteMem(cpu.GetBC(), val)
+	case registers.DE:
+		cpu.WriteMem(cpu.GetDE(), val)
+	case registers.HL:
+		cpu.WriteMem(cpu.GetHL(), val)
+	case registers.SP:
+		cpu.WriteMem(cpu.GetSP(), val)
+	default:
+		panic(fmt.Sprintf("SetMem: Invalid register %x", r))
+	}
+	return val
+}
+
 func (m *Memory) handleBanking(address uint16, data byte) {
 	switch {
 	case address < 0x2000:
@@ -259,8 +306,8 @@ func (cpu *CPU) LoadBIOS(program []byte) {
 }
 
 func (cpu *CPU) LoadROM(program []byte) {
-	cartridgeType := program[0x147]
-	romSize := program[0x148]
+	cartridgeType := program[CartridgeTypeAddress]
+	romSize := program[RomSizeAddress]
 	if romSize > 0 {
 		cpu.memory.romBanking = true
 	}
@@ -296,55 +343,5 @@ func (cpu *CPU) LoadROM(program []byte) {
 		cpu.mbc2 = true
 	case 6:
 		cpu.mbc2 = true
-	}
-}
-
-func (cpu *CPU) WriteMem(address uint16, value byte) {
-	cpu.incrementCycles()
-	cpu.memory.set(address, value)
-}
-
-func (cpu *CPU) GetMem(r registers.Pair) byte {
-	switch r {
-	case registers.BC:
-		return cpu.readMem(cpu.GetBC())
-	case registers.DE:
-		return cpu.readMem(cpu.GetDE())
-	case registers.HL:
-		return cpu.readMem(cpu.GetHL())
-	case registers.SP:
-		return cpu.readMem(cpu.GetSP())
-	default:
-		panic(fmt.Sprintf("GetMem: Invalid register %x", r))
-	}
-}
-
-func (cpu *CPU) SetMem(r registers.Pair, val byte) byte {
-	switch r {
-	case registers.BC:
-		cpu.WriteMem(cpu.GetBC(), val)
-	case registers.DE:
-		cpu.WriteMem(cpu.GetDE(), val)
-	case registers.HL:
-		cpu.WriteMem(cpu.GetHL(), val)
-	case registers.SP:
-		cpu.WriteMem(cpu.GetSP(), val)
-	default:
-		panic(fmt.Sprintf("SetMem: Invalid register %x", r))
-	}
-	return val
-}
-
-func InitMemory(cpu *CPU) *Memory {
-	return &Memory{
-		bios:           [0x100]byte{},
-		vram:           [0x2000]byte{},
-		eram:           [0x2000]byte{},
-		wram:           [0x2000]byte{},
-		ioram:          [0x100]byte{},
-		hram:           [0x7F]byte{},
-		ramBanks:       [0x8000]byte{},
-		currentRamBank: 0,
-		cpu:            cpu,
 	}
 }
