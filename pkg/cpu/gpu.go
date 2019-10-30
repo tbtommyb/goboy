@@ -99,11 +99,11 @@ func InitGPU(cpu *CPU) *GPU {
 }
 
 func (gpu *GPU) setMode(mode Mode) {
-	gpu.setStatus(gpu.getStatus().setMode(mode))
+	gpu.cpu.setGPUStatus(gpu.cpu.getGPUStatus().setMode(mode))
 }
 
 func (gpu *GPU) update() {
-	control := gpu.getControl()
+	control := gpu.cpu.getGPUControl()
 	if !control.isDisplayEnabled() {
 		gpu.resetScanline()
 		gpu.setMode(VBlankMode)
@@ -111,7 +111,7 @@ func (gpu *GPU) update() {
 	}
 
 	currentLine := gpu.cpu.getLY()
-	status := gpu.getStatus()
+	status := gpu.cpu.getGPUStatus()
 	currentMode := status.mode()
 	newMode := currentMode
 
@@ -167,12 +167,12 @@ func (gpu *GPU) update() {
 		status = status.resetMatchFlag()
 	}
 
-	gpu.setStatus(status)
+	gpu.cpu.setGPUStatus(status)
 
 }
 
 func (gpu *GPU) renderScanline(scanline byte) {
-	control := gpu.getControl()
+	control := gpu.cpu.getGPUControl()
 	for i := 0; i < constants.ScreenWidth; i++ {
 		gpu.bgPixelVisibility[i] = invisible
 	}
@@ -264,21 +264,21 @@ func (gpu *GPU) renderWindow(scanline byte) {
 }
 
 func (gpu *GPU) windowTileMapStartAddress() uint16 {
-	if gpu.getControl().useHighWindowAddress() {
+	if gpu.cpu.getGPUControl().useHighWindowAddress() {
 		return 0x9C00
 	}
 	return 0x9800
 }
 
 func (gpu *GPU) bgTileDataAddress() (uint16, addressingMode) {
-	if gpu.getControl().useHighBGDataAddress() {
+	if gpu.cpu.getGPUControl().useHighBGDataAddress() {
 		return 0x8800, signedAddressing
 	}
 	return 0x8000, unsignedAddressing
 }
 
 func (gpu *GPU) bgTileMapStartAddress() uint16 {
-	if gpu.getControl().useHighBGStartAddress() {
+	if gpu.cpu.getGPUControl().useHighBGStartAddress() {
 		return 0x9C00
 	}
 	return 0x9800
@@ -436,14 +436,14 @@ func (s sortableOAM) Len() int           { return len(s) }
 func (s sortableOAM) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 func (gpu *GPU) writeOAM(addr uint16, val byte) {
-	currentMode := gpu.getStatus().mode()
+	currentMode := gpu.cpu.getGPUStatus().mode()
 	if !(currentMode == SearchingOAMMode || currentMode == TransferringMode) {
 		gpu.cpu.memory.sram[addr-0xFE00] = val
 	}
 }
 
 func (gpu *GPU) readOAM(addr uint16) byte {
-	currentMode := gpu.getStatus().mode()
+	currentMode := gpu.cpu.getGPUStatus().mode()
 	if !(currentMode == SearchingOAMMode || currentMode == TransferringMode) {
 		return gpu.cpu.memory.sram[addr-0xFE00]
 	}
