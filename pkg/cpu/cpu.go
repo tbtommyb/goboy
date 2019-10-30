@@ -608,7 +608,7 @@ func (cpu *CPU) emulateBootSequence() {
 	cpu.SetDE(0x00D8)
 	cpu.SetHL(0x014D)
 	cpu.setSP(0xFFFE)
-	cpu.setGPUControl(0x91)
+	cpu.setLCDC(0x91)
 	cpu.setBGP(0xFC)
 	cpu.setOBP0(0xFF)
 	cpu.setOBP1(0xFF)

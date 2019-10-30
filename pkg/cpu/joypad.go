@@ -9,7 +9,6 @@ type Joypad struct {
 	selection
 }
 
-const JoypadRegisterAddress = 0xFF00
 const joypadSelectionMask = 0x30
 
 type Button byte
