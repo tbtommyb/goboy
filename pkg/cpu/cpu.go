@@ -554,21 +554,26 @@ func (cpu *CPU) Run() {
 }
 
 func (cpu *CPU) Step() uint {
+	// TODO: find more efficient solution
 	if cpu.GetPC() == 0x100 && cpu.loadBIOS {
 		cpu.loadBIOS = false
 	}
 	initialCycles := cpu.GetCycles()
-	cpu.Execute(decoder.Decode(cpu))
+	select {
+	case interrupt := <-cpu.interrupts:
+		cpu.handleInterrupt(interrupt)
+	default:
+		cpu.Execute(decoder.Decode(cpu))
+	}
 	return cpu.GetCycles() - initialCycles
 }
 
-func Init(loadBIOS bool, interrupts chan Interrupt, complete chan bool) *CPU {
+func Init(loadBIOS bool) *CPU {
 	cpu := &CPU{
 		loadBIOS:       loadBIOS,
 		r:              registers.Registers{},
 		currentROMBank: 1,
-		interrupts:     interrupts,
-		complete:       complete,
+		interrupts:     make(chan Interrupt, len(Interrupts)),
 	}
 	memory := InitMemory(cpu)
 	cpu.memory = memory
