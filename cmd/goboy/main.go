@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"runtime"
 
 	"github.com/hajimehoshi/ebiten"
 	"github.com/hajimehoshi/ebiten/inpututil"
@@ -29,8 +28,6 @@ var keyMap = map[ebiten.Key]cpu.Button{
 }
 
 func main() {
-	runtime.GOMAXPROCS(4)
-
 	var loadBIOS, testMode bool
 	var bios, test, rom []byte
 	var err error
@@ -61,10 +58,7 @@ func main() {
 		}
 	}
 
-	interrupts := make(chan cpu.Interrupt)
-	complete := make(chan bool)
-
-	gameboy := cpu.Init(loadBIOS, interrupts, complete)
+	gameboy := cpu.Init(loadBIOS)
 	if testMode {
 		gameboy.LoadROM(test)
 	} else {
@@ -76,7 +70,6 @@ func main() {
 	display := display.Init()
 	gameboy.AttachDisplay(display)
 
-	go gameboy.HandleInterrupts(interrupts, complete)
 	f := func(screen *ebiten.Image) error {
 		for i := 0; i < CyclesPerFrame; i++ {
 			cycles := gameboy.Step()

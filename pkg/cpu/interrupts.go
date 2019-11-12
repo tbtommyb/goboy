@@ -27,24 +27,19 @@ const (
 
 var Interrupts = []Interrupt{VBlank, LCDCStatus, TimerOverflow, Input}
 
-func (cpu *CPU) HandleInterrupts(interrupts <-chan Interrupt, complete chan<- bool) {
-	for interrupt := range interrupts {
-		if !cpu.interruptsEnabled() {
-			complete <- true
-			continue
-		}
-		enabled := cpu.memory.get(InterruptEnableAddress)
-		if utils.IsSet(byte(interrupt), enabled) {
-			cpu.serviceInterrupt(interrupt)
-		}
-		complete <- true
+func (cpu *CPU) handleInterrupt(interrupt Interrupt) {
+	if !cpu.interruptsEnabled() {
+		return
+	}
+	enabled := cpu.memory.get(InterruptEnableAddress)
+	if utils.IsSet(byte(interrupt), enabled) {
+		cpu.serviceInterrupt(interrupt)
 	}
 }
 
 func (cpu *CPU) requestInterrupt(interrupt Interrupt) {
 	cpu.memory.setBitAt(InterruptFlagAddress, byte(interrupt), 1)
 	cpu.interrupts <- interrupt
-	<-cpu.complete
 }
 
 func (cpu *CPU) clearInterrupt(interrupt Interrupt) {
