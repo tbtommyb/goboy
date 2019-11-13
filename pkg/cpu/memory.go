@@ -85,13 +85,21 @@ func (m *Memory) set(address uint16, value byte) {
 			}
 		} else if address == 0xFF0A {
 			m.ioram[address-0xFF00] = 0
+		} else if address == InterruptFlagAddress {
+			for _, interrupt := range Interrupts {
+				if utils.IsSet(byte(interrupt), value) {
+					m.cpu.interrupts <- interrupt
+				}
+			}
+			m.ioram[address-0xFF00] = value & 0x1F
+			return
 		} else {
 			m.ioram[address-0xFF00] = value
 		}
 	case address >= 0xFF80 && address <= 0xFFFE:
 		m.hram[address-0xFF80] = value
-	case address == 0xFFFF:
-		m.interruptEnable = value
+	case address == InterruptEnableAddress:
+		m.interruptEnable = value & 0x1f
 	}
 }
 
@@ -146,6 +154,8 @@ func (m *Memory) get(address uint16) byte {
 			return byte(m.cpu.internalTimer >> 8)
 		} else if address == JoypadRegisterAddress {
 			return m.cpu.getJoypadState()
+		} else if address == InterruptFlagAddress {
+			return m.ioram[address-0xFF00] & 0x1F
 		}
 		return m.ioram[address-0xFF00]
 	case address >= 0xFF80 && address <= 0xFFFE:
@@ -153,8 +163,8 @@ func (m *Memory) get(address uint16) byte {
 		// 	return 1
 		// }
 		return m.hram[address-0xFF80]
-	case address == 0xFFFF:
-		return m.interruptEnable
+	case address == InterruptEnableAddress:
+		return m.interruptEnable & 0x1F
 	default:
 		panic(fmt.Sprintf("%x\n", address))
 	}

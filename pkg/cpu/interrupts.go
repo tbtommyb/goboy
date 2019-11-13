@@ -9,7 +9,7 @@ type Interrupt byte
 const (
 	VBlank        Interrupt = 0
 	LCDCStatus              = 1
-	TimerOverflow           = 3
+	TimerOverflow           = 2
 	Input                   = 4
 )
 
