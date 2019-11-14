@@ -86,11 +86,6 @@ func (m *Memory) set(address uint16, value byte) {
 		} else if address == 0xFF0A {
 			m.ioram[address-0xFF00] = 0
 		} else if address == InterruptFlagAddress {
-			for _, interrupt := range Interrupts {
-				if utils.IsSet(byte(interrupt), value) {
-					m.cpu.interrupts <- interrupt
-				}
-			}
 			m.ioram[address-0xFF00] = value & 0x1F
 			return
 		} else {
