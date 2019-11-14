@@ -11,7 +11,7 @@ type Memory struct {
 	rom             []byte
 	bios            [0x100]byte
 	vram            [0x2000]byte
-	eram            [0x2000]byte
+	eram            [0x8000]byte
 	wram            [0x2000]byte
 	sram            [0x100]byte
 	ioram           [0x100]byte
@@ -19,17 +19,32 @@ type Memory struct {
 	interruptEnable byte
 	statMode        byte
 	cpu             *CPU
-	ramBanks        [0x8000]byte
-	currentRamBank  byte
-	enableRam       bool
-	romBanking      bool
+	// ramBanks        [0x8000]byte
+	currentRAMBank uint16
+	enableRam      bool
+	bankingMode    BankingMode
+	bankingEnabled bool
 }
+
+type BankingMode byte
+
+const (
+	ROMBanking BankingMode = 0x0
+	RAMBanking             = 0x1
+)
 
 const ProgramStartAddress = 0x100
 const StackStartAddress = 0xFFFE
 const SpriteDataStartAddress = 0x8000
 const OAMStart = 0xFE00
 const TACMask = 0x7
+const DMAAddress = 0xFF46
+const ROMBank00Limit = 0x4000
+const ROMBankLimit = 0x8000
+const ROMBankSize = 0x4000
+const CartRAMStart = 0xA000
+const CartRAMEnd = 0xBFFF
+const RAMBankSize = 0x2000 // TODO: double-check this
 
 func (m *Memory) load(start uint, data []byte) {
 	for i := 0; i < len(data); i++ {
@@ -39,18 +54,17 @@ func (m *Memory) load(start uint, data []byte) {
 
 func (m *Memory) set(address uint16, value byte) {
 	switch {
-	case address < 0x8000:
-		if !m.romBanking {
-			m.rom[address] = value
+	case address < ROMBankLimit:
+		if m.bankingEnabled {
+			m.handleBanking(address, value)
 		}
-		m.handleBanking(address, value)
 	case address >= 0x8000 && address <= 0x9FFF:
 		// video ram
 		m.vram[address-0x8000] = value
-	case address >= 0xA000 && address <= 0xBFFF:
+	case address >= CartRAMStart && address <= CartRAMEnd:
 		if m.enableRam {
-			newAddress := address - 0xA000
-			m.ramBanks[newAddress+(uint16(m.currentRamBank)*0x2000)] = value
+			offset := address - CartRAMStart
+			m.eram[offset+(m.currentRAMBank*RAMBankSize)] = value
 		}
 	case address >= 0xC000 && address <= 0xDFFF:
 		m.wram[address-0xC000] = value
@@ -73,7 +87,7 @@ func (m *Memory) set(address uint16, value byte) {
 		} else if address == DIVAddress {
 			m.ioram[address-0xFF00] = 0
 			m.cpu.internalTimer = 0
-		} else if address == 0xFF46 {
+		} else if address == DMAAddress {
 			// DMA
 			m.performDMA(uint16(value) << 8)
 		} else if address == TACAddress {
@@ -110,27 +124,27 @@ func (m *Memory) performDMA(address uint16) {
 func (m *Memory) get(address uint16) byte {
 	switch {
 	case address < 0x100:
+		// TODO: find neater solution
 		if m.cpu.loadBIOS {
 			return m.bios[address]
 		} else {
 			return m.rom[address]
 		}
-	case address < 0x4000:
+	case address < ROMBank00Limit:
 		return m.rom[address]
-	case address >= 0x4000 && address <= 0x7FFF:
-		if !m.romBanking {
+	case address >= ROMBank00Limit && address < ROMBankLimit:
+		if !m.bankingEnabled {
 			return m.rom[address]
 		}
-		newAddress := uint16(address - 0x4000)
-		value := m.rom[newAddress+uint16(m.cpu.currentROMBank*0x4000)]
-		return value
-	case address >= 0x8000 && address <= 0x9FFF:
+		offset := address - ROMBank00Limit
+		return m.rom[offset+(m.cpu.currentROMBank*ROMBankSize)]
+	case address >= ROMBankLimit && address <= 0x9FFF:
 		// video ram
 		return m.vram[address-0x8000]
-	case address >= 0xA000 && address <= 0xBFFF:
+	case address >= CartRAMStart && address <= CartRAMEnd:
 		// cart ram
-		newAddress := address - 0xA000
-		return m.eram[newAddress+(uint16(m.currentRamBank)*0x2000)]
+		offset := address - CartRAMStart
+		return m.eram[offset+(m.currentRAMBank*RAMBankSize)]
 	case address >= 0xC000 && address <= 0xDFFF:
 		return m.wram[address-0xC000]
 	case address >= 0xE000 && address <= 0xFDFF:
@@ -164,86 +178,74 @@ func (m *Memory) get(address uint16) byte {
 		panic(fmt.Sprintf("%x\n", address))
 	}
 }
-func (m *Memory) handleBanking(address uint16, data byte) {
+
+const RAMEnableLimit = 0x2000
+const ROMBankNumberLimit = 0x4000
+const RAMBankNumberLimit = 0x6000
+const ROMRAMModeSelectLimit = 0x8000
+
+func (m *Memory) handleBanking(address uint16, value byte) {
 	switch {
-	case address < 0x2000:
+	case address < RAMEnableLimit:
 		if m.cpu.mbc1 || m.cpu.mbc2 {
-			m.ramBankEnable(address, data)
+			m.ramBankEnable(address, value)
 		}
-	case address >= 0x2000 && address < 0x4000:
+	case address >= RAMEnableLimit && address < ROMBankNumberLimit:
 		if m.cpu.mbc1 || m.cpu.mbc2 {
-			m.changeLowROMBank(data)
+			m.setLowerROMBankBits(value)
 		}
-	case address >= 0x4000 && address < 0x6000:
+	case address >= ROMBankNumberLimit && address < RAMBankNumberLimit:
 		if m.cpu.mbc1 {
-			if m.romBanking {
-				m.changeHiROMBank(data)
+			if m.bankingMode == ROMBanking {
+				m.setUpperROMBankBits(value)
 			} else {
-				m.ramBankChange(data)
+				m.currentRAMBank = uint16(value & 0x3)
 			}
 		}
-	case address >= 0x6000 && address < 0x8000:
+	case address >= RAMBankNumberLimit && address < ROMRAMModeSelectLimit:
 		if m.cpu.mbc1 {
-			m.changeROMRAMMode(data)
+			m.bankingMode = BankingMode(value & 0x1)
+			if m.bankingMode == ROMBanking {
+				m.currentRAMBank = 0
+			}
 		}
 	}
 }
 
-func (m *Memory) ramBankEnable(address uint16, data byte) {
+func (m *Memory) ramBankEnable(address uint16, value byte) {
 	if m.cpu.mbc2 {
 		// TODO: clarify
 		if utils.IsSet(4, byte(address)) {
 			return
 		}
 	}
-	testData := data & 0xf
-	if testData == 0xA {
-		m.enableRam = true
-	} else if testData == 0x0 {
-		m.enableRam = false
-	}
+	m.enableRam = (value & 0xF) == 0xA
 }
 
-func (m *Memory) changeLowROMBank(data byte) {
+func (m *Memory) setLowerROMBankBits(value byte) {
 	if m.cpu.mbc2 {
-		m.cpu.currentROMBank = uint16(data & 0xf)
+		m.cpu.currentROMBank = uint16(value & 0xf)
 		if m.cpu.currentROMBank == 0 {
 			m.cpu.currentROMBank++
 		}
 		return
 	}
-	lower := data & 31
-	m.cpu.currentROMBank &= 224
-	m.cpu.currentROMBank |= uint16(lower)
+	lowerFiveBits := uint16(value & 0x1F)
+	topThreeBits := m.cpu.currentROMBank & 0xE0
+	m.cpu.currentROMBank = topThreeBits | lowerFiveBits
 	if m.cpu.currentROMBank == 0 {
 		m.cpu.currentROMBank++
 	}
 }
 
-func (m *Memory) changeHiROMBank(data byte) {
-	m.cpu.currentROMBank &= 31
+func (m *Memory) setUpperROMBankBits(value byte) {
+	bitsFiveAndSix := uint16(value & 0x60)
+	remainingBits := m.cpu.currentROMBank & 0x9F
 
-	data &= 224
-	m.cpu.currentROMBank |= uint16(data)
-	if m.cpu.currentROMBank == 0 {
-		m.cpu.currentROMBank++
-	}
-}
-
-func (m *Memory) ramBankChange(data byte) {
-	m.currentRamBank = data & 0x3
-}
-
-func (m *Memory) changeROMRAMMode(data byte) {
-	newData := data & 0x1
-	if newData == 0 {
-		m.romBanking = true
-	} else {
-		m.romBanking = false
-	}
-	if m.romBanking {
-		m.currentRamBank = 0
-	}
+	m.cpu.currentROMBank = remainingBits | bitsFiveAndSix
+	// if m.cpu.currentROMBank == 0 {
+	// 	m.cpu.currentROMBank++
+	// }
 }
 
 func (cpu *CPU) readMem(address uint16) byte {
@@ -251,14 +253,9 @@ func (cpu *CPU) readMem(address uint16) byte {
 	return cpu.memory.get(address)
 }
 
-// TODO: remove this
-// func (cpu *CPU) LoadProgram(program []byte) {
-// 	cpu.memory.load(cpu.GetPC(), program)
-// }
-
 func (cpu *CPU) LoadBIOS(program []byte) {
 	for i := 0; i < len(program); i++ {
-		cpu.memory.bios[+uint(i)] = program[i]
+		cpu.memory.bios[uint(i)] = program[i]
 	}
 	cpu.loadBIOS = true
 }
@@ -267,7 +264,8 @@ func (cpu *CPU) LoadROM(program []byte) {
 	cartridgeType := program[0x147]
 	romSize := program[0x148]
 	if romSize > 0 {
-		cpu.memory.romBanking = true
+		cpu.memory.bankingEnabled = true
+		cpu.memory.bankingMode = ROMBanking
 	}
 	switch romSize {
 	case 0x0:
@@ -291,16 +289,14 @@ func (cpu *CPU) LoadROM(program []byte) {
 	}
 	cpu.memory.load(0, program)
 	switch cartridgeType {
-	case 1:
+	case 1, 2, 3:
 		cpu.mbc1 = true
-	case 2:
-		cpu.mbc1 = true
-	case 3:
-		cpu.mbc1 = true
-	case 5:
+		fmt.Printf("MBC1 selected")
+	case 5, 6:
 		cpu.mbc2 = true
-	case 6:
-		cpu.mbc2 = true
+		fmt.Printf("MBC2 selected")
+	case 15, 16, 17, 18, 19:
+		panic("MBC3 not implemented")
 	}
 }
 
@@ -342,14 +338,14 @@ func (cpu *CPU) SetMem(r registers.Pair, val byte) byte {
 
 func InitMemory(cpu *CPU) *Memory {
 	return &Memory{
-		bios:           [0x100]byte{},
-		vram:           [0x2000]byte{},
-		eram:           [0x2000]byte{},
-		wram:           [0x2000]byte{},
-		ioram:          [0x100]byte{},
-		hram:           [0x7F]byte{},
-		ramBanks:       [0x8000]byte{},
-		currentRamBank: 0,
+		bios:  [0x100]byte{},
+		vram:  [0x2000]byte{},
+		eram:  [0x8000]byte{},
+		wram:  [0x2000]byte{},
+		ioram: [0x100]byte{},
+		hram:  [0x7F]byte{},
+		// ramBanks:       [0x8000]byte{},
+		currentRAMBank: 0,
 		cpu:            cpu,
 	}
 }

@@ -577,14 +577,14 @@ func (cpu *CPU) Run() {
 // }
 
 func (cpu *CPU) Step() uint {
+	if cpu.halt {
+		return 1 // nop
+	}
 	// TODO: find more efficient solution
 	if cpu.GetPC() == 0x100 && cpu.loadBIOS {
 		cpu.loadBIOS = false
 	}
 	initialCycles := cpu.GetCycles()
-	if cpu.halt {
-		return 1 // nop
-	}
 	cpu.Execute(decoder.Decode(cpu))
 	return cpu.GetCycles() - initialCycles
 }
