@@ -24,6 +24,7 @@ type Memory struct {
 	enableRam      bool
 	bankingMode    BankingMode
 	bankingEnabled bool
+	mbc            MBC
 }
 
 type BankingMode byte
@@ -33,6 +34,20 @@ const (
 	RAMBanking             = 0x1
 )
 
+type MBC byte
+
+const (
+	MBC1 MBC = 1
+	MBC2     = 2
+)
+
+const CartridgeTypeAddress = 0x147
+const ROMSizeAddress = 0x148
+
+const RAMEnableLimit = 0x2000
+const ROMBankNumberLimit = 0x4000
+const RAMBankNumberLimit = 0x6000
+const ROMRAMModeSelectLimit = 0x8000
 const ProgramStartAddress = 0x100
 const StackStartAddress = 0xFFFE
 const SpriteDataStartAddress = 0x8000
@@ -45,6 +60,19 @@ const ROMBankSize = 0x4000
 const CartRAMStart = 0xA000
 const CartRAMEnd = 0xBFFF
 const RAMBankSize = 0x2000 // TODO: double-check this
+
+func InitMemory(cpu *CPU) *Memory {
+	return &Memory{
+		bios:           [0x100]byte{},
+		vram:           [0x2000]byte{},
+		eram:           [0x8000]byte{},
+		wram:           [0x2000]byte{},
+		ioram:          [0x100]byte{},
+		hram:           [0x7F]byte{},
+		currentRAMBank: 0,
+		cpu:            cpu,
+	}
+}
 
 func (m *Memory) load(start uint, data []byte) {
 	for i := 0; i < len(data); i++ {
@@ -62,9 +90,14 @@ func (m *Memory) set(address uint16, value byte) {
 		// video ram
 		m.vram[address-0x8000] = value
 	case address >= CartRAMStart && address <= CartRAMEnd:
+		offset := address - CartRAMStart
 		if m.enableRam {
-			offset := address - CartRAMStart
-			m.eram[offset+(m.currentRAMBank*RAMBankSize)] = value
+			switch m.mbc {
+			case MBC1:
+				m.eram[offset+(m.currentRAMBank*RAMBankSize)] = value
+			case MBC2:
+				m.eram[offset] = value & 0xF // lower 4 bits only
+			}
 		}
 	case address >= 0xC000 && address <= 0xDFFF:
 		m.wram[address-0xC000] = value
@@ -77,33 +110,34 @@ func (m *Memory) set(address uint16, value byte) {
 		// unusable
 	case address >= 0xFF00 && address <= 0xFF7F:
 		// memory mapped IO
+		localAddress := address - 0xFF00
 		if address == 0xFF01 {
 			// fmt.Printf("%c", value)
 		} else if address == JoypadRegisterAddress {
 			m.cpu.setJoypadSelection(value)
 		} else if address == LYAddress {
 			// Reset if game writes to LY
-			m.ioram[address-0xFF00] = 0
+			m.ioram[localAddress] = 0
 		} else if address == DIVAddress {
-			m.ioram[address-0xFF00] = 0
+			m.ioram[localAddress] = 0
 			m.cpu.internalTimer = 0
 		} else if address == DMAAddress {
 			// DMA
 			m.performDMA(uint16(value) << 8)
 		} else if address == TACAddress {
 			newVal := value & TACMask
-			oldVal := m.ioram[address-0xFF00] & TACMask
-			m.ioram[address-0xFF00] = newVal
+			oldVal := m.ioram[localAddress] & TACMask
+			m.ioram[localAddress] = newVal
 			if newVal != oldVal {
 				m.cpu.resetCyclesForCurrentTick()
 			}
 		} else if address == 0xFF0A {
-			m.ioram[address-0xFF00] = 0
+			m.ioram[localAddress] = 0
 		} else if address == InterruptFlagAddress {
-			m.ioram[address-0xFF00] = value & 0x1F
+			m.ioram[localAddress] = value & 0x1F
 			return
 		} else {
-			m.ioram[address-0xFF00] = value
+			m.ioram[localAddress] = value
 		}
 	case address >= 0xFF80 && address <= 0xFFFE:
 		m.hram[address-0xFF80] = value
@@ -112,15 +146,6 @@ func (m *Memory) set(address uint16, value byte) {
 	}
 }
 
-func (m *Memory) setBitAt(address uint16, bitNumber, bitValue byte) {
-	m.set(address, utils.SetBit(bitNumber, m.get(address), bitValue))
-}
-
-func (m *Memory) performDMA(address uint16) {
-	for i := uint16(0); i < 0xA0; i++ {
-		m.set(0xFE00+i, m.get(address+i))
-	}
-}
 func (m *Memory) get(address uint16) byte {
 	switch {
 	case address < 0x100:
@@ -179,23 +204,21 @@ func (m *Memory) get(address uint16) byte {
 	}
 }
 
-const RAMEnableLimit = 0x2000
-const ROMBankNumberLimit = 0x4000
-const RAMBankNumberLimit = 0x6000
-const ROMRAMModeSelectLimit = 0x8000
+func (m *Memory) performDMA(address uint16) {
+	for i := uint16(0); i < 0xA0; i++ {
+		m.set(0xFE00+i, m.get(address+i))
+	}
+}
 
 func (m *Memory) handleBanking(address uint16, value byte) {
 	switch {
 	case address < RAMEnableLimit:
-		if m.cpu.mbc1 || m.cpu.mbc2 {
-			m.ramBankEnable(address, value)
-		}
+		m.ramBankEnable(address, value)
 	case address >= RAMEnableLimit && address < ROMBankNumberLimit:
-		if m.cpu.mbc1 || m.cpu.mbc2 {
-			m.setLowerROMBankBits(value)
-		}
+		m.setLowerROMBankBits(address, value)
 	case address >= ROMBankNumberLimit && address < RAMBankNumberLimit:
-		if m.cpu.mbc1 {
+		switch m.mbc {
+		case MBC1:
 			if m.bankingMode == ROMBanking {
 				m.setUpperROMBankBits(value)
 			} else {
@@ -203,7 +226,8 @@ func (m *Memory) handleBanking(address uint16, value byte) {
 			}
 		}
 	case address >= RAMBankNumberLimit && address < ROMRAMModeSelectLimit:
-		if m.cpu.mbc1 {
+		switch m.mbc {
+		case MBC1:
 			m.bankingMode = BankingMode(value & 0x1)
 			if m.bankingMode == ROMBanking {
 				m.currentRAMBank = 0
@@ -213,26 +237,24 @@ func (m *Memory) handleBanking(address uint16, value byte) {
 }
 
 func (m *Memory) ramBankEnable(address uint16, value byte) {
-	if m.cpu.mbc2 {
-		// TODO: clarify
-		if utils.IsSet(4, byte(address)) {
-			return
-		}
+	if m.mbc == MBC2 && address&0x100 > 0 {
+		return
 	}
 	m.enableRam = (value & 0xF) == 0xA
 }
 
-func (m *Memory) setLowerROMBankBits(value byte) {
-	if m.cpu.mbc2 {
-		m.cpu.currentROMBank = uint16(value & 0xf)
-		if m.cpu.currentROMBank == 0 {
-			m.cpu.currentROMBank++
+func (m *Memory) setLowerROMBankBits(address uint16, value byte) {
+	switch m.mbc {
+	case MBC1:
+		lowerFiveBits := uint16(value & 0x1F)
+		topThreeBits := m.cpu.currentROMBank & 0xE0
+		m.cpu.currentROMBank = topThreeBits | lowerFiveBits
+	case MBC2:
+		if address&0x100 == 0 {
+			return
 		}
-		return
+		m.cpu.currentROMBank = uint16(value & 0xF)
 	}
-	lowerFiveBits := uint16(value & 0x1F)
-	topThreeBits := m.cpu.currentROMBank & 0xE0
-	m.cpu.currentROMBank = topThreeBits | lowerFiveBits
 	if m.cpu.currentROMBank == 0 {
 		m.cpu.currentROMBank++
 	}
@@ -243,9 +265,6 @@ func (m *Memory) setUpperROMBankBits(value byte) {
 	remainingBits := m.cpu.currentROMBank & 0x9F
 
 	m.cpu.currentROMBank = remainingBits | bitsFiveAndSix
-	// if m.cpu.currentROMBank == 0 {
-	// 	m.cpu.currentROMBank++
-	// }
 }
 
 func (cpu *CPU) readMem(address uint16) byte {
@@ -261,8 +280,8 @@ func (cpu *CPU) LoadBIOS(program []byte) {
 }
 
 func (cpu *CPU) LoadROM(program []byte) {
-	cartridgeType := program[0x147]
-	romSize := program[0x148]
+	cartridgeType := program[CartridgeTypeAddress]
+	romSize := program[ROMSizeAddress]
 	if romSize > 0 {
 		cpu.memory.bankingEnabled = true
 		cpu.memory.bankingMode = ROMBanking
@@ -290,11 +309,9 @@ func (cpu *CPU) LoadROM(program []byte) {
 	cpu.memory.load(0, program)
 	switch cartridgeType {
 	case 1, 2, 3:
-		cpu.mbc1 = true
-		fmt.Printf("MBC1 selected")
+		cpu.memory.mbc = MBC1
 	case 5, 6:
-		cpu.mbc2 = true
-		fmt.Printf("MBC2 selected")
+		cpu.memory.mbc = MBC2
 	case 15, 16, 17, 18, 19:
 		panic("MBC3 not implemented")
 	}
@@ -336,16 +353,6 @@ func (cpu *CPU) SetMem(r registers.Pair, val byte) byte {
 	return val
 }
 
-func InitMemory(cpu *CPU) *Memory {
-	return &Memory{
-		bios:  [0x100]byte{},
-		vram:  [0x2000]byte{},
-		eram:  [0x8000]byte{},
-		wram:  [0x2000]byte{},
-		ioram: [0x100]byte{},
-		hram:  [0x7F]byte{},
-		// ramBanks:       [0x8000]byte{},
-		currentRAMBank: 0,
-		cpu:            cpu,
-	}
+func (m *Memory) setBitAt(address uint16, bitNumber, bitValue byte) {
+	m.set(address, utils.SetBit(bitNumber, m.get(address), bitValue))
 }
