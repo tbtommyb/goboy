@@ -551,28 +551,41 @@ func (cpu *CPU) Run() {
 	return
 }
 
+// func (cpu *CPU) Step() uint {
+// 	// TODO: find more efficient solution
+// 	if cpu.GetPC() == 0x100 && cpu.loadBIOS {
+// 		cpu.loadBIOS = false
+// 	}
+// 	initialCycles := cpu.GetCycles()
+// 	select {
+// 	case interrupt := <-cpu.interrupts:
+// 		if cpu.halt {
+// 			cpu.halt = false
+// 			haltPC := cpu.GetPC()
+// 			cpu.handleInterrupt(interrupt)
+// 			cpu.setPC(haltPC + 1)
+// 		} else {
+// 			cpu.handleInterrupt(interrupt)
+// 		}
+// 	default:
+// 		if cpu.halt {
+// 			return 1 // nop
+// 		}
+// 		cpu.Execute(decoder.Decode(cpu))
+// 	}
+// 	return cpu.GetCycles() - initialCycles
+// }
+
 func (cpu *CPU) Step() uint {
 	// TODO: find more efficient solution
 	if cpu.GetPC() == 0x100 && cpu.loadBIOS {
 		cpu.loadBIOS = false
 	}
 	initialCycles := cpu.GetCycles()
-	select {
-	case interrupt := <-cpu.interrupts:
-		if cpu.halt {
-			cpu.halt = false
-			haltPC := cpu.GetPC()
-			cpu.handleInterrupt(interrupt)
-			cpu.setPC(haltPC + 1)
-		} else {
-			cpu.handleInterrupt(interrupt)
-		}
-	default:
-		if cpu.halt {
-			return 1 // nop
-		}
-		cpu.Execute(decoder.Decode(cpu))
+	if cpu.halt {
+		return 1 // nop
 	}
+	cpu.Execute(decoder.Decode(cpu))
 	return cpu.GetCycles() - initialCycles
 }
 
