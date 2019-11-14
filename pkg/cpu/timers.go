@@ -19,7 +19,7 @@ func (cpu *CPU) UpdateTimers(cycles uint) {
 		return
 	}
 
-	cpu.cyclesForCurrentTick -= int(cycles)
+	cpu.cyclesForCurrentTick -= int(cycles) * 4 // IS THIS CORRECT?
 	if cpu.cyclesForCurrentTick > 0 {
 		return
 	}
