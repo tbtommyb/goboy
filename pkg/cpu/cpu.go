@@ -342,7 +342,6 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 			Negative:  false,
 		})
 	case in.Decrement:
-
 		a := cpu.Get(i.Dest)
 		result := a - 1
 		cpu.Set(i.Dest, result)
@@ -540,7 +539,6 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 		cpu.halt = true
 	case in.Halt:
 		cpu.halt = true
-		// TODO: implement
 	case in.InvalidInstruction:
 		fmt.Sprintf("Invalid Instruction: %x", instr.Opcode())
 	}
@@ -561,8 +559,18 @@ func (cpu *CPU) Step() uint {
 	initialCycles := cpu.GetCycles()
 	select {
 	case interrupt := <-cpu.interrupts:
-		cpu.handleInterrupt(interrupt)
+		if cpu.halt {
+			cpu.halt = false
+			haltPC := cpu.GetPC()
+			cpu.handleInterrupt(interrupt)
+			cpu.setPC(haltPC + 1)
+		} else {
+			cpu.handleInterrupt(interrupt)
+		}
 	default:
+		if cpu.halt {
+			return 1 // nop
+		}
 		cpu.Execute(decoder.Decode(cpu))
 	}
 	return cpu.GetCycles() - initialCycles
