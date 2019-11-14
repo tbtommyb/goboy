@@ -37,6 +37,7 @@ func main() {
 	testPtr := flag.String("test", "", "test file to run")
 	flag.Parse()
 
+	fmt.Println("START")
 	if *testPtr != "" {
 		test, err = ioutil.ReadFile(*testPtr)
 		if err != nil {
@@ -74,8 +75,8 @@ func main() {
 		for i := 0; i < CyclesPerFrame; i++ {
 			gameboy.HandleInterrupts()
 			cycles := gameboy.Step()
-			gameboy.UpdateDisplay()
 			gameboy.UpdateTimers(cycles)
+			gameboy.UpdateDisplay()
 		}
 
 		for key, button := range keyMap {
