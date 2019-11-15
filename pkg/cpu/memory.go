@@ -133,9 +133,11 @@ func (m *Memory) set(address uint16, value byte) {
 			}
 		} else if address == 0xFF0A {
 			m.ioram[localAddress] = 0
+		} else if address == STATAddress {
+			readOnlyBits := m.ioram[localAddress] & 7
+			m.ioram[localAddress] = (value & 0xF8) | readOnlyBits
 		} else if address == InterruptFlagAddress {
 			m.ioram[localAddress] = value & 0x1F
-			return
 		} else {
 			m.ioram[localAddress] = value
 		}

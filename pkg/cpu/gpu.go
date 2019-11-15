@@ -59,7 +59,7 @@ const (
 
 const (
 	MaxScanline                byte = 153
-	MaxVisibleScanline              = 144
+	VBlankStartScanline             = 144
 	ScanlinesPerVBlank              = 10
 	SearchingOAMModeCycleBound      = 376
 	TransferringModeCycleBound      = 302
@@ -102,7 +102,7 @@ func (gpu *GPU) setMode(mode Mode) {
 	gpu.setStatus(gpu.getStatus().setMode(mode))
 }
 
-func (gpu *GPU) update() {
+func (gpu *GPU) update(cycles uint) {
 	control := gpu.getControl()
 	if !control.isDisplayEnabled() {
 		gpu.resetScanline()
@@ -115,7 +115,7 @@ func (gpu *GPU) update() {
 	currentMode := status.mode()
 	newMode := currentMode
 
-	gpu.cyclesCounter++
+	gpu.cyclesCounter += cycles
 
 	switch currentMode {
 	case SearchingOAMMode:
@@ -133,9 +133,9 @@ func (gpu *GPU) update() {
 	case HBlankMode:
 		if gpu.cyclesCounter >= CyclesPerHBlankMode {
 			gpu.cyclesCounter = 0
-			gpu.incrementScanline()
+			newScanline := gpu.incrementScanline()
 
-			if currentLine == MaxVisibleScanline-1 {
+			if newScanline == VBlankStartScanline {
 				newMode = VBlankMode
 				gpu.requestInterrupt(VBlank)
 			} else {
@@ -146,7 +146,8 @@ func (gpu *GPU) update() {
 		if gpu.cyclesCounter >= CyclesPerScanline {
 			gpu.cyclesCounter = 0
 			newScanline := gpu.incrementScanline()
-			if newScanline > MaxScanline-1 {
+			// TODO: refactor to put wrapping logic in incrementScanline
+			if newScanline > MaxScanline { // TODO -1 or not?
 				newMode = SearchingOAMMode
 				gpu.resetScanline()
 			}

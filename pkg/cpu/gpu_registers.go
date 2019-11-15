@@ -1,6 +1,8 @@
 package cpu
 
-import "github.com/tbtommyb/goboy/pkg/utils"
+import (
+	"github.com/tbtommyb/goboy/pkg/utils"
+)
 
 type GPUStatus byte
 type GPUControl byte

@@ -534,6 +534,7 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 		cpu.incrementCycles()
 	case in.Stop:
 		// TODO: implement
+		fmt.Println("STOP!")
 		cpu.halt = true
 	case in.Halt:
 		cpu.halt = true
@@ -583,8 +584,8 @@ func (cpu *CPU) AttachDisplay(d DisplayInterface) {
 	cpu.gpu.display = d
 }
 
-func (cpu *CPU) UpdateDisplay() {
-	cpu.gpu.update()
+func (cpu *CPU) UpdateDisplay(cycles uint) {
+	cpu.gpu.update(cycles)
 }
 
 func (cpu *CPU) Next() byte {

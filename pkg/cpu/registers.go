@@ -129,7 +129,7 @@ func (cpu *CPU) getSTAT() byte {
 }
 
 func (cpu *CPU) setSTAT(status byte) {
-	cpu.memory.set(STATAddress, status)
+	cpu.memory.ioram[0x41] = status
 }
 
 func (cpu *CPU) getScrollY() byte {
