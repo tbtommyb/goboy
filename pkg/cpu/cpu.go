@@ -12,7 +12,7 @@ import (
 	"github.com/tbtommyb/goboy/pkg/utils"
 )
 
-var GameboyClockSpeed = 4194304
+var GameboyClockSpeed = 4194304 / 4 // four clocks per op
 
 type CPU struct {
 	r                    registers.Registers
@@ -560,7 +560,7 @@ func (cpu *CPU) Step() uint {
 	}
 	initialCycles := cpu.GetCycles()
 	cpu.Execute(decoder.Decode(cpu))
-	return cpu.GetCycles() - initialCycles
+	return 4 * (cpu.GetCycles() - initialCycles)
 }
 
 func Init(loadBIOS bool) *CPU {
@@ -569,6 +569,7 @@ func Init(loadBIOS bool) *CPU {
 		r:              registers.Registers{},
 		currentROMBank: 1,
 		interrupts:     make(chan Interrupt, len(Interrupts)),
+		internalTimer:  0xABCC,
 	}
 	memory := InitMemory(cpu)
 	cpu.memory = memory
