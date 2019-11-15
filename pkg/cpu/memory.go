@@ -163,7 +163,11 @@ func (m *Memory) get(address uint16) byte {
 			return m.rom[address]
 		}
 		offset := address - ROMBank00Limit
-		return m.rom[offset+(m.cpu.currentROMBank*ROMBankSize)]
+		computed := uint(offset) + uint(m.cpu.currentROMBank*ROMBankSize)
+		if address == 0x4253 {
+			fmt.Printf("Fetch from %x computed to %x. ROM Bank %x. Mult %x\n", address, computed, m.cpu.currentROMBank, (m.cpu.currentROMBank * ROMBankSize))
+		}
+		return m.rom[computed]
 	case address >= ROMBankLimit && address <= 0x9FFF:
 		// video ram
 		return m.vram[address-0x8000]
@@ -217,11 +221,13 @@ func (m *Memory) handleBanking(address uint16, value byte) {
 		m.ramBankEnable(address, value)
 	case address >= RAMEnableLimit && address < ROMBankNumberLimit:
 		m.setLowerROMBankBits(address, value)
+		fmt.Printf("writing %x to %x selected %x rom bank\n", value, address, m.cpu.currentROMBank)
 	case address >= ROMBankNumberLimit && address < RAMBankNumberLimit:
 		switch m.mbc {
 		case MBC1:
 			if m.bankingMode == ROMBanking {
 				m.setUpperROMBankBits(value)
+				fmt.Printf("writing %x to %x selected %x rom bank\n", value, address, m.cpu.currentROMBank)
 			} else {
 				m.currentRAMBank = uint16(value & 0x3)
 			}
@@ -247,14 +253,14 @@ func (m *Memory) ramBankEnable(address uint16, value byte) {
 func (m *Memory) setLowerROMBankBits(address uint16, value byte) {
 	switch m.mbc {
 	case MBC1:
-		lowerFiveBits := uint16(value & 0x1F)
+		lowerFiveBits := uint(value & 0x1F)
 		topThreeBits := m.cpu.currentROMBank & 0xE0
 		m.cpu.currentROMBank = topThreeBits | lowerFiveBits
 	case MBC2:
 		if address&0x100 == 0 {
 			return
 		}
-		m.cpu.currentROMBank = uint16(value & 0xF)
+		m.cpu.currentROMBank = uint(value & 0xF)
 	}
 	if m.cpu.currentROMBank == 0 {
 		m.cpu.currentROMBank++
@@ -262,7 +268,7 @@ func (m *Memory) setLowerROMBankBits(address uint16, value byte) {
 }
 
 func (m *Memory) setUpperROMBankBits(value byte) {
-	bitsFiveAndSix := uint16(value & 0x60)
+	bitsFiveAndSix := uint(value & 0x60)
 	remainingBits := m.cpu.currentROMBank & 0x9F
 
 	m.cpu.currentROMBank = remainingBits | bitsFiveAndSix
@@ -278,6 +284,12 @@ func (cpu *CPU) LoadBIOS(program []byte) {
 		cpu.memory.bios[uint(i)] = program[i]
 	}
 	cpu.loadBIOS = true
+}
+
+func (cpu *CPU) LoadTestFile(program []byte) {
+	cpu.loadBIOS = true
+	cpu.memory.rom = make([]byte, 0x1000)
+	cpu.memory.load(0, program)
 }
 
 func (cpu *CPU) LoadROM(program []byte) {

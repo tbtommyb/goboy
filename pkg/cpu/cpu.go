@@ -27,7 +27,7 @@ type CPU struct {
 	loadBIOS             bool
 	internalTimer        uint16
 	cyclesForCurrentTick int
-	currentROMBank       uint16
+	currentROMBank       uint
 	interrupts           chan Interrupt
 	complete             chan bool
 	pcMutex              sync.Mutex
@@ -234,6 +234,9 @@ func (cpu *CPU) perform(f func(...byte) (byte, FlagSet), args ...byte) {
 }
 
 func (cpu *CPU) Execute(instr in.Instruction) {
+	// if cpu.GetPC() == 0x4278 {
+	// 	fmt.Printf("0x4278: %#v, %x, %#v\n", instr, cpu.memory.get(0x4278), instr.Opcode())
+	// }
 	switch i := instr.(type) {
 	case in.Move:
 		cpu.Set(i.Dest, cpu.Get(i.Source))
@@ -552,7 +555,7 @@ func (cpu *CPU) Run() {
 
 func (cpu *CPU) Step() uint {
 	if cpu.halt {
-		return 1 // nop
+		return 4 // nop
 	}
 	// TODO: find more efficient solution
 	if cpu.GetPC() == 0x100 && cpu.loadBIOS {
