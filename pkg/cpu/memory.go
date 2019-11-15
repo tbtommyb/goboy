@@ -19,12 +19,11 @@ type Memory struct {
 	interruptEnable byte
 	statMode        byte
 	cpu             *CPU
-	// ramBanks        [0x8000]byte
-	currentRAMBank uint16
-	enableRam      bool
-	bankingMode    BankingMode
-	bankingEnabled bool
-	mbc            MBC
+	currentRAMBank  uint
+	enableRam       bool
+	bankingMode     BankingMode
+	bankingEnabled  bool
+	mbc             MBC
 }
 
 type BankingMode byte
@@ -90,7 +89,7 @@ func (m *Memory) set(address uint16, value byte) {
 		// video ram
 		m.vram[address-0x8000] = value
 	case address >= CartRAMStart && address <= CartRAMEnd:
-		offset := address - CartRAMStart
+		offset := uint(address - CartRAMStart)
 		if m.enableRam {
 			switch m.mbc {
 			case MBC1:
@@ -164,16 +163,13 @@ func (m *Memory) get(address uint16) byte {
 		}
 		offset := address - ROMBank00Limit
 		computed := uint(offset) + uint(m.cpu.currentROMBank*ROMBankSize)
-		if address == 0x4253 {
-			fmt.Printf("Fetch from %x computed to %x. ROM Bank %x. Mult %x\n", address, computed, m.cpu.currentROMBank, (m.cpu.currentROMBank * ROMBankSize))
-		}
 		return m.rom[computed]
 	case address >= ROMBankLimit && address <= 0x9FFF:
 		// video ram
 		return m.vram[address-0x8000]
 	case address >= CartRAMStart && address <= CartRAMEnd:
 		// cart ram
-		offset := address - CartRAMStart
+		offset := uint(address - CartRAMStart)
 		return m.eram[offset+(m.currentRAMBank*RAMBankSize)]
 	case address >= 0xC000 && address <= 0xDFFF:
 		return m.wram[address-0xC000]
@@ -221,15 +217,13 @@ func (m *Memory) handleBanking(address uint16, value byte) {
 		m.ramBankEnable(address, value)
 	case address >= RAMEnableLimit && address < ROMBankNumberLimit:
 		m.setLowerROMBankBits(address, value)
-		fmt.Printf("writing %x to %x selected %x rom bank\n", value, address, m.cpu.currentROMBank)
 	case address >= ROMBankNumberLimit && address < RAMBankNumberLimit:
 		switch m.mbc {
 		case MBC1:
 			if m.bankingMode == ROMBanking {
 				m.setUpperROMBankBits(value)
-				fmt.Printf("writing %x to %x selected %x rom bank\n", value, address, m.cpu.currentROMBank)
 			} else {
-				m.currentRAMBank = uint16(value & 0x3)
+				m.currentRAMBank = uint(value & 0x3)
 			}
 		}
 	case address >= RAMBankNumberLimit && address < ROMRAMModeSelectLimit:
