@@ -50,6 +50,10 @@ func (control GPUControl) isSpriteEnabled() bool {
 	return control.isSet(SpriteEnable)
 }
 
+func (control GPUControl) useBigSprites() bool {
+	return control.isSet(SpriteSize)
+}
+
 func (control GPUControl) useHighWindowAddress() bool {
 	return control.isSet(WindowTileMapDisplaySelect)
 }

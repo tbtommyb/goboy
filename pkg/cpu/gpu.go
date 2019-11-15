@@ -400,23 +400,27 @@ func (e *oamEntry) yFlip() bool    { return e.flags&0x40 != 0 }
 func (e *oamEntry) xFlip() bool    { return e.flags&0x20 != 0 }
 func (e *oamEntry) useOBP1() bool  { return e.flags&0x10 != 0 }
 
-func yInSprite(scanline byte, y int16, height int) bool {
+func yInSprite(scanline byte, y int16, height byte) bool {
 	return int16(scanline) >= y && int16(scanline) < y+int16(height)
 }
 
 func (gpu *GPU) parseOAMForScanline(scanline byte) {
 	// This method accesses memory directly to avoid mode restrictions
+	height := byte(SpritePixelSize)
+	if gpu.getControl().useBigSprites() {
+		height = 16
+	}
 	gpu.oams = gpu.oams[:0]
 	for i := 0; len(gpu.oams) < MaxSpritesPerScanline && i < MaxSpritesPerScreen; i++ {
 		offset := uint16(i * SpriteByteSize)
 		y, x, num, flags := gpu.fetchOAMData(offset)
-		if !yInSprite(scanline, y, SpritePixelSize) {
+		if !yInSprite(scanline, y, height) {
 			continue
 		}
 		gpu.oams = append(gpu.oams, &oamEntry{
 			x:       x,
 			y:       y,
-			height:  SpritePixelSize,
+			height:  height,
 			tileNum: num,
 			flags:   flags,
 		})
