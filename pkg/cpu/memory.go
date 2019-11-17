@@ -147,7 +147,6 @@ func (m *Memory) set(address uint16, value byte) {
 }
 
 func (m *Memory) get(address uint16) byte {
-	var computed2 uint
 	switch {
 	case address < 0x100:
 		// TODO: find neater solution
@@ -163,8 +162,8 @@ func (m *Memory) get(address uint16) byte {
 			return m.rom[address]
 		}
 		offset := address - ROMBank00Limit
-		computed2 = uint(offset) + uint(m.cpu.currentROMBank*ROMBankSize)
-		return m.rom[computed2]
+		computed := uint(offset) + uint(m.cpu.currentROMBank*ROMBankSize)
+		return m.rom[computed]
 	case address >= ROMBankLimit && address <= 0x9FFF:
 		// video ram
 		return m.vram[address-0x8000]
@@ -232,12 +231,11 @@ func (m *Memory) handleBanking(address uint16, value byte) {
 		switch m.mbc {
 		case MBC1:
 			newMode := BankingMode(value & 0x1)
-			if newMode != m.bankingMode {
-				fmt.Println("changing mode")
-			}
 			if newMode == RAMBanking && m.bankingMode != RAMBanking {
+				m.currentRAMBank = (m.cpu.currentROMBank & 0x60) >> 5
 				m.cpu.currentROMBank = (m.cpu.currentROMBank & 0x1F)
 			} else {
+				m.cpu.currentROMBank = (m.currentRAMBank << 5) | m.cpu.currentROMBank
 				m.currentRAMBank = 0
 			}
 			m.bankingMode = newMode
