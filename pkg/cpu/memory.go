@@ -21,9 +21,11 @@ type Memory struct {
 	cpu             *CPU
 	currentRAMBank  uint
 	enableRam       bool
+	ramAvailable    bool
 	bankingMode     BankingMode
 	bankingEnabled  bool
 	mbc             MBC
+	ramBankSize     uint
 }
 
 type BankingMode byte
@@ -58,7 +60,6 @@ const ROMBankLimit = 0x8000
 const ROMBankSize = 0x4000
 const CartRAMStart = 0xA000
 const CartRAMEnd = 0xBFFF
-const RAMBankSize = 0x2000 // TODO: double-check this
 
 func InitMemory(cpu *CPU) *Memory {
 	return &Memory{
@@ -89,14 +90,15 @@ func (m *Memory) set(address uint16, value byte) {
 		// video ram
 		m.vram[address-0x8000] = value
 	case address >= CartRAMStart && address <= CartRAMEnd:
+		if !m.enableRam {
+			return
+		}
 		offset := uint(address - CartRAMStart)
-		if m.enableRam {
-			switch m.mbc {
-			case MBC1:
-				m.eram[offset+(m.currentRAMBank*RAMBankSize)] = value
-			case MBC2:
-				m.eram[offset] = value & 0xF // lower 4 bits only
-			}
+		switch m.mbc {
+		case MBC1:
+			m.eram[offset+(m.currentRAMBank*m.ramBankSize)] = value
+		case MBC2:
+			m.eram[offset] = value & 0xF // lower 4 bits only
 		}
 	case address >= 0xC000 && address <= 0xDFFF:
 		m.wram[address-0xC000] = value
@@ -169,8 +171,11 @@ func (m *Memory) get(address uint16) byte {
 		return m.vram[address-0x8000]
 	case address >= CartRAMStart && address <= CartRAMEnd:
 		// cart ram
+		if !m.enableRam || !m.ramAvailable {
+			return 0xFF
+		}
 		offset := uint(address - CartRAMStart)
-		return m.eram[offset+(m.currentRAMBank*RAMBankSize)]
+		return m.eram[offset+(m.currentRAMBank*m.ramBankSize)]
 	case address >= 0xC000 && address <= 0xDFFF:
 		return m.wram[address-0xC000]
 	case address >= 0xE000 && address <= 0xFDFF:
@@ -297,6 +302,7 @@ func (cpu *CPU) LoadTestFile(program []byte) {
 func (cpu *CPU) LoadROM(program []byte) {
 	cartridgeType := program[CartridgeTypeAddress]
 	romSize := program[ROMSizeAddress]
+	ramSize := program[0x149]
 	if romSize > 0 {
 		cpu.memory.bankingEnabled = true
 		cpu.memory.bankingMode = ROMBanking
@@ -321,15 +327,28 @@ func (cpu *CPU) LoadROM(program []byte) {
 	case 0x8:
 		cpu.memory.rom = make([]byte, 0x800000)
 	}
-	cpu.memory.load(0, program)
 	switch cartridgeType {
-	case 1, 2, 3:
+	case 1:
 		cpu.memory.mbc = MBC1
+	case 2, 3:
+		cpu.memory.mbc = MBC1
+		cpu.memory.ramAvailable = true
 	case 5, 6:
 		cpu.memory.mbc = MBC2
 	case 15, 16, 17, 18, 19:
 		panic("MBC3 not implemented")
 	}
+	switch ramSize {
+	case 0x0:
+		cpu.memory.ramBankSize = 0x0
+	case 0x1:
+		cpu.memory.ramBankSize = 0x800
+	case 0x2:
+		cpu.memory.ramBankSize = 0x2000
+	case 0x3:
+		cpu.memory.ramBankSize = 0x8000
+	}
+	cpu.memory.load(0, program)
 }
 
 func (cpu *CPU) WriteMem(address uint16, value byte) {
