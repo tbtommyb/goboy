@@ -125,7 +125,7 @@ func (m *Memory) set(address uint16, value byte) {
 		} else if address == TACAddress {
 			newVal := value & TACMask
 			oldVal := m.ioram[localAddress] & TACMask
-			m.ioram[localAddress] = newVal
+			m.ioram[localAddress] = 0xF8 | newVal
 			if newVal != oldVal {
 				m.cpu.resetCyclesForCurrentTick()
 			}
@@ -133,20 +133,21 @@ func (m *Memory) set(address uint16, value byte) {
 			m.ioram[localAddress] = 0
 		} else if address == STATAddress {
 			readOnlyBits := m.ioram[localAddress] & 7
-			m.ioram[localAddress] = (value & 0xF8) | readOnlyBits
+			m.ioram[localAddress] = (value & 0xF8) | readOnlyBits | 0x80
 		} else if address == InterruptFlagAddress {
-			m.ioram[localAddress] = value & 0x1F
+			m.ioram[localAddress] = 0xE0 | (value & 0x1F)
 		} else {
 			m.ioram[localAddress] = value
 		}
 	case address >= 0xFF80 && address <= 0xFFFE:
 		m.hram[address-0xFF80] = value
 	case address == InterruptEnableAddress:
-		m.interruptEnable = value & 0x1f
+		m.interruptEnable = value
 	}
 }
 
 func (m *Memory) get(address uint16) byte {
+	var computed2 uint
 	switch {
 	case address < 0x100:
 		// TODO: find neater solution
@@ -162,8 +163,8 @@ func (m *Memory) get(address uint16) byte {
 			return m.rom[address]
 		}
 		offset := address - ROMBank00Limit
-		computed := uint(offset) + uint(m.cpu.currentROMBank*ROMBankSize)
-		return m.rom[computed]
+		computed2 = uint(offset) + uint(m.cpu.currentROMBank*ROMBankSize)
+		return m.rom[computed2]
 	case address >= ROMBankLimit && address <= 0x9FFF:
 		// video ram
 		return m.vram[address-0x8000]
@@ -199,7 +200,7 @@ func (m *Memory) get(address uint16) byte {
 		// }
 		return m.hram[address-0xFF80]
 	case address == InterruptEnableAddress:
-		return m.interruptEnable & 0x1F
+		return m.interruptEnable
 	default:
 		panic(fmt.Sprintf("%x\n", address))
 	}
@@ -220,19 +221,26 @@ func (m *Memory) handleBanking(address uint16, value byte) {
 	case address >= ROMBankNumberLimit && address < RAMBankNumberLimit:
 		switch m.mbc {
 		case MBC1:
+			valueBits := uint(value & 0x3)
 			if m.bankingMode == ROMBanking {
-				m.setUpperROMBankBits(value)
+				m.setUpperROMBankBits(valueBits)
 			} else {
-				m.currentRAMBank = uint(value & 0x3)
+				m.currentRAMBank = uint(valueBits)
 			}
 		}
 	case address >= RAMBankNumberLimit && address < ROMRAMModeSelectLimit:
 		switch m.mbc {
 		case MBC1:
-			m.bankingMode = BankingMode(value & 0x1)
-			if m.bankingMode == ROMBanking {
+			newMode := BankingMode(value & 0x1)
+			if newMode != m.bankingMode {
+				fmt.Println("changing mode")
+			}
+			if newMode == RAMBanking && m.bankingMode != RAMBanking {
+				m.cpu.currentROMBank = (m.cpu.currentROMBank & 0x1F)
+			} else {
 				m.currentRAMBank = 0
 			}
+			m.bankingMode = newMode
 		}
 	}
 }
@@ -247,25 +255,28 @@ func (m *Memory) ramBankEnable(address uint16, value byte) {
 func (m *Memory) setLowerROMBankBits(address uint16, value byte) {
 	switch m.mbc {
 	case MBC1:
-		lowerFiveBits := uint(value & 0x1F)
-		topThreeBits := m.cpu.currentROMBank & 0xE0
-		m.cpu.currentROMBank = topThreeBits | lowerFiveBits
+		bankNum := uint(value & 0x1F)
+		if bankNum == 0 {
+			bankNum = 1
+		}
+		bankNum = (m.cpu.currentROMBank &^ 0x1F) | bankNum
+		m.cpu.currentROMBank = bankNum
 	case MBC2:
 		if address&0x100 == 0 {
 			return
 		}
-		m.cpu.currentROMBank = uint(value & 0xF)
-	}
-	if m.cpu.currentROMBank == 0 {
-		m.cpu.currentROMBank++
+		bankNum := uint(value & 0x1F)
+		if bankNum == 0 {
+			bankNum = 1
+		}
+		m.cpu.currentROMBank = bankNum
 	}
 }
 
-func (m *Memory) setUpperROMBankBits(value byte) {
-	bitsFiveAndSix := uint(value & 0x60)
-	remainingBits := m.cpu.currentROMBank & 0x9F
+func (m *Memory) setUpperROMBankBits(bottomBits uint) {
+	remainingBits := m.cpu.currentROMBank & 0x1F
 
-	m.cpu.currentROMBank = remainingBits | bitsFiveAndSix
+	m.cpu.currentROMBank = (bottomBits << 5) | remainingBits
 }
 
 func (cpu *CPU) readMem(address uint16) byte {
@@ -281,7 +292,6 @@ func (cpu *CPU) LoadBIOS(program []byte) {
 }
 
 func (cpu *CPU) LoadTestFile(program []byte) {
-	cpu.loadBIOS = true
 	cpu.memory.rom = make([]byte, 0x1000)
 	cpu.memory.load(0, program)
 }

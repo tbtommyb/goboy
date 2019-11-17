@@ -234,9 +234,6 @@ func (cpu *CPU) perform(f func(...byte) (byte, FlagSet), args ...byte) {
 }
 
 func (cpu *CPU) Execute(instr in.Instruction) {
-	// if cpu.GetPC() == 0x4278 {
-	// 	fmt.Printf("0x4278: %#v, %x, %#v\n", instr, cpu.memory.get(0x4278), instr.Opcode())
-	// }
 	switch i := instr.(type) {
 	case in.Move:
 		cpu.Set(i.Dest, cpu.Get(i.Source))
@@ -534,7 +531,6 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 	case in.DisableInterrupt:
 		cpu.disableInterrupts()
 	case in.Nop:
-		cpu.incrementCycles()
 	case in.Stop:
 		// TODO: implement
 		fmt.Println("STOP!")
