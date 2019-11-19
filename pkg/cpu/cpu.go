@@ -451,17 +451,11 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 		}
 	case in.JumpRelative:
 		// -2 to account for decoder having moved past immediate value. Refactor?
-		cpu.setPC(cpu.GetPC() - 2 + uint16(i.Immediate))
+		cpu.setPC(cpu.GetPC() + uint16(i.Immediate))
 	case in.JumpRelativeConditional:
-		fmt.Printf("PC %x JRC imm %x, ", cpu.GetPC(), i.Immediate)
 		if cpu.conditionMet(i.Condition) {
-			fmt.Printf("condition met, ")
-			val := int8(i.Immediate - 2)
-			cpu.setPC(uint16(int(cpu.GetPC()) + int(val)))
-		} else {
-			fmt.Printf("condition not met, ")
+			cpu.setPC(uint16(int(cpu.GetPC()) + int(i.Immediate)))
 		}
-		fmt.Printf("new PC %x\n", cpu.GetPC())
 	case in.JumpMemory:
 		cpu.setPC(cpu.GetHL())
 		cpu.decrementCycles() // TODO: hack attack

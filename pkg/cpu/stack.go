@@ -1,6 +1,8 @@
 package cpu
 
-import "github.com/tbtommyb/goboy/pkg/registers"
+import (
+	"github.com/tbtommyb/goboy/pkg/registers"
+)
 
 // TODO: create separate stack structure
 func (cpu *CPU) GetSP() uint16 {

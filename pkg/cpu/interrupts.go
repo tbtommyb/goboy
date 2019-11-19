@@ -1,8 +1,6 @@
 package cpu
 
 import (
-	"fmt"
-
 	"github.com/tbtommyb/goboy/pkg/utils"
 )
 
@@ -44,17 +42,18 @@ func (cpu *CPU) HandleInterrupts() {
 
 	for _, interrupt := range Interrupts {
 		if utils.IsSet(byte(interrupt), requested) && utils.IsSet(byte(interrupt), enabled) {
+			if cpu.halt {
+				for cycle := uint(0); cycle < 4; cycle++ {
+					cpu.UpdateDisplay(1)
+					cpu.UpdateTimers(1)
+				}
+			}
 			cpu.halt = false
 			if !cpu.interruptsEnabled() {
 				return
 			}
-			returnAddress := cpu.GetPC() // - uint16(len(cpu.instruction.Opcode()))
-			if cpu.halt {
-				// returnAddress = cpu.GetPC() + 1
-				// cpu.incrementCycles()
-			}
+			returnAddress := cpu.GetPC()
 			cpu.serviceInterrupt(interrupt, returnAddress)
-			fmt.Printf("interrupt %s return %x\n", IntStrings[interrupt], returnAddress)
 			return
 		}
 	}

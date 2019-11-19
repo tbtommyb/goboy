@@ -88,7 +88,7 @@ func (m *Memory) set(address uint16, value byte) {
 		}
 	case address >= 0x8000 && address <= 0x9FFF:
 		// video ram
-		m.vram[address-0x8000] = value
+		m.cpu.gpu.writeVRAM(address, value)
 	case address >= CartRAMStart && address <= CartRAMEnd:
 		if !m.enableRam {
 			return
@@ -104,6 +104,7 @@ func (m *Memory) set(address uint16, value byte) {
 		m.wram[address-0xC000] = value
 	case address >= 0xE000 && address <= 0xFDFF:
 		// shadow wram
+		m.set(address-0x2000, value)
 	case address >= 0xFE00 && address <= 0xFE9F:
 		// sprites
 		m.cpu.gpu.writeOAM(address, value)
@@ -113,12 +114,11 @@ func (m *Memory) set(address uint16, value byte) {
 		// memory mapped IO
 		localAddress := address - 0xFF00
 		if address == 0xFF01 {
-			// fmt.Printf("%c", value)
 		} else if address == JoypadRegisterAddress {
 			m.cpu.setJoypadSelection(value)
 		} else if address == LYAddress {
 			// Reset if game writes to LY
-			m.ioram[localAddress] = 0
+			// m.ioram[localAddress] = 0
 		} else if address == DIVAddress {
 			m.cpu.internalTimer = 0
 		} else if address == DMAAddress {
@@ -133,6 +133,8 @@ func (m *Memory) set(address uint16, value byte) {
 			}
 		} else if address == 0xFF0A {
 			m.ioram[localAddress] = 0
+		} else if address == LCDCAddress {
+			m.cpu.gpu.setControl(GPUControl(value)) // TODO: refactor
 		} else if address == STATAddress {
 			readOnlyBits := m.ioram[localAddress] & 7
 			m.ioram[localAddress] = (value & 0xF8) | readOnlyBits | 0x80
@@ -168,7 +170,7 @@ func (m *Memory) get(address uint16) byte {
 		return m.rom[computed]
 	case address >= ROMBankLimit && address <= 0x9FFF:
 		// video ram
-		return m.vram[address-0x8000]
+		return m.cpu.gpu.readVRAM(address)
 	case address >= CartRAMStart && address <= CartRAMEnd:
 		// cart ram
 		if !m.enableRam || !m.ramAvailable {
@@ -180,14 +182,14 @@ func (m *Memory) get(address uint16) byte {
 		return m.wram[address-0xC000]
 	case address >= 0xE000 && address <= 0xFDFF:
 		// shadow wram
-		return 0x00
+		return m.get(address - 0x2000)
 	case address >= 0xFE00 && address <= 0xFE9F:
 		// sprites
-		val := m.cpu.gpu.readOAM(address)
+		val := m.cpu.gpu.readOAM(address - 0xFE00)
 		return val
 	case address >= 0xFEA0 && address <= 0xFEFF:
 		// unused space
-		return 0xFF
+		return 0x00
 	case address >= 0xFF00 && address <= 0xFF7F:
 		// memory mapped IO
 		if address == DIVAddress {
@@ -211,7 +213,15 @@ func (m *Memory) get(address uint16) byte {
 }
 
 func (m *Memory) performDMA(address uint16) {
+	for cycle := uint(0); cycle < 4; cycle++ {
+		m.cpu.UpdateTimers(1)
+		m.cpu.UpdateDisplay(1)
+	}
 	for i := uint16(0); i < 0xA0; i++ {
+		for cycle := uint(0); cycle < 4; cycle++ {
+			m.cpu.UpdateTimers(1)
+			m.cpu.UpdateDisplay(1)
+		}
 		m.set(0xFE00+i, m.get(address+i))
 	}
 }
