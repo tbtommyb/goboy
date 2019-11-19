@@ -15,6 +15,8 @@ import (
 var GameboyClockSpeed = 4194304 / 4 // four clocks per op
 
 type CPU struct {
+	instruction          in.Instruction
+	prev                 in.Instruction
 	r                    registers.Registers
 	flags                byte
 	SP, PC               uint16
@@ -22,6 +24,7 @@ type CPU struct {
 	cycles               uint
 	IME                  bool
 	halt                 bool
+	stop                 bool
 	Display              *display.Display
 	gpu                  *GPU
 	loadBIOS             bool
@@ -32,6 +35,8 @@ type CPU struct {
 	complete             chan bool
 	pcMutex              sync.Mutex
 	joypadInternalState  Joypad
+	requestIME           bool
+	requestingPC         uint16
 }
 
 func (cpu *CPU) GetPC() uint16 {
@@ -39,16 +44,12 @@ func (cpu *CPU) GetPC() uint16 {
 }
 
 func (cpu *CPU) incrementPC() {
-	cpu.pcMutex.Lock()
 	cpu.PC += 1
-	cpu.pcMutex.Unlock()
 }
 
 func (cpu *CPU) setPC(value uint16) {
 	cpu.incrementCycles()
-	cpu.pcMutex.Lock()
 	cpu.PC = value
-	cpu.pcMutex.Unlock()
 }
 
 func (cpu *CPU) GetCycles() uint {
@@ -234,6 +235,8 @@ func (cpu *CPU) perform(f func(...byte) (byte, FlagSet), args ...byte) {
 }
 
 func (cpu *CPU) Execute(instr in.Instruction) {
+	cpu.prev = cpu.instruction
+	cpu.instruction = instr
 	switch i := instr.(type) {
 	case in.Move:
 		cpu.Set(i.Dest, cpu.Get(i.Source))
@@ -277,6 +280,9 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 	case in.HLtoSP:
 		cpu.setSP(cpu.GetHL())
 	case in.Push:
+		// if cpu.GetPC() == 0x526 {
+		// 	fmt.Printf("executing %#v SP %x\n", instr, cpu.GetSP())
+		// }
 		high, low := cpu.GetPair(i.Source)
 		cpu.pushStack(high)
 		cpu.pushStack(low)
@@ -447,9 +453,15 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 		// -2 to account for decoder having moved past immediate value. Refactor?
 		cpu.setPC(cpu.GetPC() - 2 + uint16(i.Immediate))
 	case in.JumpRelativeConditional:
+		fmt.Printf("PC %x JRC imm %x, ", cpu.GetPC(), i.Immediate)
 		if cpu.conditionMet(i.Condition) {
-			cpu.setPC(cpu.GetPC() - 2 + uint16(i.Immediate))
+			fmt.Printf("condition met, ")
+			val := int8(i.Immediate - 2)
+			cpu.setPC(uint16(int(cpu.GetPC()) + int(val)))
+		} else {
+			fmt.Printf("condition not met, ")
 		}
+		fmt.Printf("new PC %x\n", cpu.GetPC())
 	case in.JumpMemory:
 		cpu.setPC(cpu.GetHL())
 		cpu.decrementCycles() // TODO: hack attack
@@ -466,15 +478,24 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 			cpu.setPC(i.Immediate)
 		}
 	case in.Return:
-		cpu.setPC(utils.ReverseMergePair(cpu.popStack(), cpu.popStack()))
+		val := utils.ReverseMergePair(cpu.popStack(), cpu.popStack())
+		// fmt.Printf("RET new PC %x\n", val)
+		cpu.setPC(val)
 	case in.ReturnInterrupt:
-		cpu.setPC(utils.ReverseMergePair(cpu.popStack(), cpu.popStack()))
-		cpu.enableInterrupts()
+		val := utils.ReverseMergePair(cpu.popStack(), cpu.popStack())
+		// fmt.Printf("RETI new PC %x\n", val)
+		cpu.setPC(val)
+		cpu.requestIME = true
 	case in.ReturnConditional:
+		// fmt.Println("RETC")
 		if cpu.conditionMet(i.Condition) {
-			cpu.setPC(utils.ReverseMergePair(cpu.popStack(), cpu.popStack()))
+			// cpu.setPC(utils.ReverseMergePair(cpu.popStack(), cpu.popStack()))
+			val := utils.ReverseMergePair(cpu.popStack(), cpu.popStack())
+			// fmt.Printf("RETC new PC %x\n", val)
+			cpu.setPC(val)
 		}
 		cpu.incrementCycles()
+		// fmt.Printf("RETC PC %x\n", cpu.GetPC())
 	case in.RST:
 		high, low := utils.SplitPair(cpu.GetPC())
 		cpu.pushStack(high)
@@ -527,14 +548,14 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 			Zero:      cpu.isSet(Zero),
 		})
 	case in.EnableInterrupt:
-		cpu.enableInterrupts()
+		cpu.requestIME = true
 	case in.DisableInterrupt:
 		cpu.disableInterrupts()
 	case in.Nop:
 	case in.Stop:
 		// TODO: implement
-		fmt.Println("STOP!")
-		cpu.halt = true
+		fmt.Printf("STOP at %x\n!", cpu.GetPC())
+		cpu.stop = true
 	case in.Halt:
 		cpu.halt = true
 	case in.InvalidInstruction:
@@ -550,15 +571,38 @@ func (cpu *CPU) Run() {
 }
 
 func (cpu *CPU) Step() uint {
+	// currentMode := cpu.gpu.getStatus().mode()
+	// if cpu.GetPC() <= 0x71C0 && cpu.GetPC() >= 0x7180 {
+	// 	fmt.Printf("PC %x SP %x:%x (LY: %x, LYC: %x) %#v\n", cpu.GetPC(), cpu.GetSP(), cpu.memory.get(cpu.GetSP()), cpu.getLY(), cpu.getLYC(), cpu.instruction)
+	// }
+	if cpu.requestIME {
+		cpu.enableInterrupts()
+		cpu.requestIME = false
+	}
+
+	// oldSP := cpu.GetSP()
+
 	if cpu.halt {
+		return 4 // nop
+	}
+	if cpu.stop {
+		cpu.stop = false
 		return 4 // nop
 	}
 	// TODO: find more efficient solution
 	if cpu.GetPC() == 0x100 && cpu.loadBIOS {
 		cpu.loadBIOS = false
 	}
+	// if cpu.GetPC() == 0x2137 {
+	// 	fmt.Printf("0x2137 %x\n", cpu.memory.get(0x2137))
+	// }
 	initialCycles := cpu.GetCycles()
-	cpu.Execute(decoder.Decode(cpu))
+	instr := decoder.Decode(cpu)
+	cpu.instruction = instr
+	cpu.Execute(instr)
+	// if oldSP != cpu.GetSP() {
+	// 	fmt.Printf("PC %x SP %x %x ROM %x RAM %x\n", cpu.GetPC(), cpu.GetSP(), cpu.memory.get(cpu.GetSP()), cpu.currentROMBank, cpu.memory.currentRAMBank)
+	// }
 	return 4 * (cpu.GetCycles() - initialCycles)
 }
 
