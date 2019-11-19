@@ -1,6 +1,8 @@
 package cpu
 
 import (
+	"fmt"
+
 	"github.com/tbtommyb/goboy/pkg/utils"
 )
 
@@ -10,6 +12,7 @@ const (
 	VBlank        Interrupt = 0
 	LCDCStatus              = 1
 	TimerOverflow           = 2
+	Serial                  = 3
 	Input                   = 4
 )
 
@@ -17,6 +20,7 @@ const (
 	VBlankInterruptHandlerAddress        uint16 = 0x40
 	LCDCStatusInterruptHandlerAddress           = 0x48
 	TimerOverflowInterruptHandlerAddress        = 0x50
+	SerialInterruptHandlerAddress               = 0x58
 	InputInterruptHandlerAddress                = 0x60
 )
 
@@ -26,6 +30,7 @@ const (
 )
 
 var Interrupts = []Interrupt{VBlank, LCDCStatus, TimerOverflow, Input}
+var IntStrings = []string{"vblank", "stat", "timer", "serial", "joypad"}
 
 func (cpu *CPU) HandleInterrupts() {
 	requested := cpu.memory.get(InterruptFlagAddress)
@@ -37,18 +42,20 @@ func (cpu *CPU) HandleInterrupts() {
 		return
 	}
 
-	cpu.halt = false
-	if !cpu.interruptsEnabled() {
-		return
-	}
-
 	for _, interrupt := range Interrupts {
 		if utils.IsSet(byte(interrupt), requested) && utils.IsSet(byte(interrupt), enabled) {
-			returnAddress := cpu.GetPC()
+			cpu.halt = false
+			if !cpu.interruptsEnabled() {
+				return
+			}
+			returnAddress := cpu.GetPC() // - uint16(len(cpu.instruction.Opcode()))
 			if cpu.halt {
-				returnAddress += 1
+				// returnAddress = cpu.GetPC() + 1
+				// cpu.incrementCycles()
 			}
 			cpu.serviceInterrupt(interrupt, returnAddress)
+			fmt.Printf("interrupt %s return %x\n", IntStrings[interrupt], returnAddress)
+			return
 		}
 	}
 
@@ -67,6 +74,11 @@ func (cpu *CPU) serviceInterrupt(interrupt Interrupt, returnAddress uint16) {
 
 	cpu.clearInterrupt(interrupt)
 
+	for cycle := uint(0); cycle < 20; cycle++ {
+		cpu.UpdateDisplay(1)
+		cpu.UpdateTimers(1)
+	}
+
 	high, low := utils.SplitPair(returnAddress)
 	cpu.pushStack(high)
 	cpu.pushStack(low)
@@ -81,4 +93,5 @@ func (cpu *CPU) serviceInterrupt(interrupt Interrupt, returnAddress uint16) {
 	case Input:
 		cpu.setPC(InputInterruptHandlerAddress)
 	}
+	cpu.decrementCycles() // because setPC() increments
 }
