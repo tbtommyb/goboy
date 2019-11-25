@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
+	"path/filepath"
 
 	"github.com/hajimehoshi/ebiten"
 	"github.com/hajimehoshi/ebiten/inpututil"
@@ -28,44 +30,39 @@ var keyMap = map[ebiten.Key]cpu.Button{
 }
 
 func main() {
-	var loadBIOS, testMode bool
-	var bios, test, rom []byte
+	var loadBIOS bool
+	var bios, rom []byte
 	var err error
 
+	providedArgs := os.Args[1:]
+	if len(providedArgs) == 0 {
+		log.Fatalf("ROM path not provided")
+	}
+
 	biosPtr := flag.String("bios", "", "BIOS path to read from")
-	romPtr := flag.String("rom", "", "ROM path to read from")
-	testPtr := flag.String("test", "", "test file to run")
 	flag.Parse()
 
-	if *testPtr != "" {
-		test, err = ioutil.ReadFile(*testPtr)
-		if err != nil {
-			log.Fatalf("Error reading test ROM %#v", err)
-		}
-		testMode = true
-	}
 	if *biosPtr != "" {
 		bios, err = ioutil.ReadFile(*biosPtr)
 		if err != nil {
-			log.Fatalf("Error reading BIOS ROM %#v", err)
+			log.Fatalf("Error reading BIOS ROM %s", err.Error())
 		}
 		loadBIOS = true
 	}
-	if *romPtr != "" {
-		rom, err = ioutil.ReadFile(*romPtr)
-		if err != nil {
-			log.Fatalf("Error reading ROM %#v", err)
-		}
+
+	ex, err := os.Executable()
+	if err != nil {
+		panic(err)
+	}
+	rom, err = ioutil.ReadFile(filepath.Join(filepath.Dir(ex), os.Args[1]))
+	if err != nil {
+		log.Fatalf("Error reading ROM %s", err.Error())
 	}
 
 	gameboy := cpu.Init(loadBIOS)
-	if testMode {
-		gameboy.LoadROM(test)
-	} else {
-		gameboy.LoadROM(rom)
-		if loadBIOS {
-			gameboy.LoadBIOS(bios)
-		}
+	gameboy.LoadROM(rom)
+	if loadBIOS {
+		gameboy.LoadBIOS(bios)
 	}
 	display := display.Init()
 	gameboy.AttachDisplay(display)
