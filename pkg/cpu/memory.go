@@ -91,6 +91,14 @@ func (m *Memory) set(address uint16, value byte) {
 		m.vram[address-0x8000] = value
 	case address >= CartRAMStart && address <= CartRAMEnd:
 		offset := address - CartRAMStart
+		// blargg oam_bug test output
+		if offset == 0x00 && m.eram[1] == 0xDE && m.eram[2] == 0xB0 && m.eram[3] == 0x61 {
+			if value != 0x80 {
+				for i := 4; m.eram[i] != 0x0; i++ {
+					fmt.Printf("%s", string(m.eram[i]))
+				}
+			}
+		}
 		if m.enableRam {
 			switch m.mbc {
 			case MBC1:
@@ -98,6 +106,9 @@ func (m *Memory) set(address uint16, value byte) {
 			case MBC2:
 				m.eram[offset] = value & 0xF // lower 4 bits only
 			}
+		} else {
+			// TODO: check if this should exist outside of TEST mode
+			m.eram[offset] = value
 		}
 	case address >= 0xC000 && address <= 0xDFFF:
 		m.wram[address-0xC000] = value
@@ -112,7 +123,7 @@ func (m *Memory) set(address uint16, value byte) {
 		// memory mapped IO
 		localAddress := address - 0xFF00
 		if address == 0xFF01 {
-			// fmt.Printf("%c", value)
+			fmt.Printf("%c", value)
 		} else if address == JoypadRegisterAddress {
 			m.cpu.setJoypadSelection(value)
 		} else if address == LYAddress {
