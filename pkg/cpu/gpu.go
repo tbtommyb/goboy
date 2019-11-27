@@ -4,6 +4,7 @@ import (
 	"sort"
 
 	"github.com/tbtommyb/goboy/pkg/constants"
+	c "github.com/tbtommyb/goboy/pkg/constants"
 )
 
 const SpriteDataStartAddress = 0x8000
@@ -114,7 +115,7 @@ func (gpu *GPU) update() {
 		return
 	}
 
-	currentLine := gpu.cpu.ReadIO(LYAddress)
+	currentLine := gpu.cpu.ReadIO(c.LYAddress)
 	currentMode := gpu.getStatus().mode()
 
 	gpu.cyclesCounter++
@@ -158,7 +159,7 @@ func (gpu *GPU) update() {
 		gpu.handleInterrupts()
 	}
 
-	if gpu.cpu.ReadIO(LYAddress) == gpu.cpu.ReadIO(LYCAddress) {
+	if gpu.cpu.ReadIO(c.LYAddress) == gpu.cpu.ReadIO(c.LYCAddress) {
 		gpu.setMatchFlag()
 	} else {
 		gpu.resetMatchFlag()
@@ -188,7 +189,7 @@ func (gpu *GPU) renderScanline(scanline byte) {
 		gpu.renderBackground(scanline)
 	}
 
-	if control.isWindowEnabled() && scanline >= gpu.cpu.ReadIO(WindowYAddress) {
+	if control.isWindowEnabled() && scanline >= gpu.cpu.ReadIO(c.WindowYAddress) {
 		gpu.renderWindow(scanline)
 	}
 
@@ -198,13 +199,13 @@ func (gpu *GPU) renderScanline(scanline byte) {
 }
 
 func (gpu *GPU) resetScanline() {
-	gpu.cpu.WriteIO(LYAddress, 0)
+	gpu.cpu.WriteIO(c.LYAddress, 0)
 }
 
 func (gpu *GPU) incrementScanline() byte {
-	currentScanline := gpu.cpu.ReadIO(LYAddress)
+	currentScanline := gpu.cpu.ReadIO(c.LYAddress)
 	currentScanline++
-	gpu.cpu.WriteIO(LYAddress, currentScanline)
+	gpu.cpu.WriteIO(c.LYAddress, currentScanline)
 	return currentScanline
 }
 
@@ -213,8 +214,8 @@ func (gpu *GPU) requestInterrupt(interrupt Interrupt) {
 }
 
 func (gpu *GPU) renderBackground(scanline byte) {
-	scrollX := gpu.cpu.ReadIO(ScrollXAddress)
-	scrollY := gpu.cpu.ReadIO(ScrollYAddress)
+	scrollX := gpu.cpu.ReadIO(c.ScrollXAddress)
+	scrollY := gpu.cpu.ReadIO(c.ScrollYAddress)
 
 	startAddress := gpu.bgTileMapStartAddress()
 
@@ -253,8 +254,8 @@ func (gpu *GPU) renderSprites(oams []*oamEntry, scanline byte) {
 }
 
 func (gpu *GPU) renderWindow(scanline byte) {
-	winY := scanline - gpu.cpu.ReadIO(WindowYAddress)
-	winStartX := int(gpu.cpu.ReadIO(WindowXAddress)) - int(ScrollXOffset)
+	winY := scanline - gpu.cpu.ReadIO(c.WindowYAddress)
+	winStartX := int(gpu.cpu.ReadIO(c.WindowXAddress)) - int(ScrollXOffset)
 
 	for x := winStartX; x < constants.ScreenWidth; x++ {
 		if x < 0 {
@@ -377,14 +378,14 @@ func getColourCodeFrom(xPos, low, high byte) colourCode {
 }
 
 func (gpu *GPU) applyBGPalette(colour colourCode) RGB {
-	paletteRegister := gpu.cpu.ReadIO(BGPAddress)
+	paletteRegister := gpu.cpu.ReadIO(c.BGPAddress)
 	return applyPalette(selectColourCode(paletteRegister, colour))
 }
 
 func (gpu *GPU) applySpritePalette(colour colourCode, e *oamEntry) RGB {
-	paletteRegister := gpu.cpu.ReadIO(OBP0Address)
+	paletteRegister := gpu.cpu.ReadIO(c.OBP0Address)
 	if e.useOBP1() {
-		paletteRegister = gpu.cpu.ReadIO(OBP1Address)
+		paletteRegister = gpu.cpu.ReadIO(c.OBP1Address)
 	}
 	return applyPalette(selectColourCode(paletteRegister, colour))
 }

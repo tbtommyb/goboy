@@ -2,6 +2,8 @@ package memory
 
 import (
 	"fmt"
+
+	c "github.com/tbtommyb/goboy/pkg/constants"
 )
 
 type CPUInterface interface {
@@ -42,27 +44,6 @@ type Memory struct {
 const CartridgeTypeAddress = 0x147
 const ROMSizeAddress = 0x148
 const RAMSizeAddress = 0x149
-
-const (
-	DIVAddress             uint16 = 0xFF04
-	TIMAAddress                   = 0xFF05
-	TMAAddress                    = 0xFF06
-	TACAddress                    = 0xFF07
-	LCDCAddress                   = 0xFF40
-	STATAddress                   = 0xFF41
-	ScrollYAddress                = 0xFF42
-	ScrollXAddress                = 0xFF43
-	LYAddress                     = 0xFF44
-	LYCAddress                    = 0xFF45
-	BGPAddress                    = 0xFF47
-	OBP0Address                   = 0xFF48
-	OBP1Address                   = 0xFF49
-	WindowYAddress                = 0xFF4A
-	WindowXAddress                = 0xFF4B
-	JoypadRegisterAddress         = 0xFF00
-	InterruptFlagAddress          = 0xFF0F
-	InterruptEnableAddress        = 0xFFFF
-)
 
 const RAMEnableLimit = 0x2000
 const ROMBankNumberLimit = 0x4000
@@ -147,18 +128,18 @@ func (m *Memory) Set(address uint16, value byte) {
 		// memory mapped IO
 		if address == 0xFF01 {
 			fmt.Printf("%c", value)
-		} else if address == JoypadRegisterAddress {
+		} else if address == c.JoypadRegisterAddress {
 			m.cpu.WriteJoypad(value)
-		} else if address == LYAddress {
+		} else if address == c.LYAddress {
 			// Reset if game writes to LY
 			m.cpu.WriteIO(address, 0)
-		} else if address == DIVAddress {
+		} else if address == c.DIVAddress {
 			m.cpu.WriteIO(address, 0)
 			m.cpu.ResetInternalTimer()
 		} else if address == DMAAddress {
 			// DMA
 			m.performDMA(uint16(value) << 8)
-		} else if address == TACAddress {
+		} else if address == c.TACAddress {
 			newVal := value & TACMask
 			oldVal := m.cpu.ReadIO(address) & TACMask
 			m.cpu.WriteIO(address, 0xF8|newVal)
@@ -167,17 +148,17 @@ func (m *Memory) Set(address uint16, value byte) {
 			}
 		} else if address == 0xFF0A {
 			m.cpu.WriteIO(address, 0)
-		} else if address == STATAddress {
+		} else if address == c.STATAddress {
 			readOnlyBits := m.cpu.ReadIO(address) & 7
 			m.cpu.WriteIO(address, (value&0xF8)|readOnlyBits|0x80)
-		} else if address == InterruptFlagAddress {
+		} else if address == c.InterruptFlagAddress {
 			m.cpu.WriteIO(address, 0xE0|(value&0x1F))
 		} else {
 			m.cpu.WriteIO(address, value)
 		}
 	case address >= 0xFF80 && address <= 0xFFFE:
 		m.hram[address-0xFF80] = value
-	case address == InterruptEnableAddress:
+	case address == c.InterruptEnableAddress:
 		m.interruptEnable = value
 	}
 }
@@ -222,11 +203,11 @@ func (m *Memory) Get(address uint16) byte {
 		return 0xFF
 	case address >= 0xFF00 && address <= 0xFF7F:
 		// memory mapped IO
-		if address == DIVAddress {
+		if address == c.DIVAddress {
 			return byte(m.cpu.GetInternalTimer() >> 8)
-		} else if address == JoypadRegisterAddress {
+		} else if address == c.JoypadRegisterAddress {
 			return m.cpu.ReadJoypad()
-		} else if address == InterruptFlagAddress {
+		} else if address == c.InterruptFlagAddress {
 			return 0xE0 | (m.cpu.ReadIO(address) & 0x1F)
 		}
 		return m.cpu.ReadIO(address)
@@ -235,7 +216,7 @@ func (m *Memory) Get(address uint16) byte {
 		// 	return 1
 		// }
 		return m.hram[address-0xFF80]
-	case address == InterruptEnableAddress:
+	case address == c.InterruptEnableAddress:
 		return m.interruptEnable
 	default:
 		panic(fmt.Sprintf("%x\n", address))
