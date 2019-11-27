@@ -127,13 +127,14 @@ func (m *Memory) set(address uint16, value byte) {
 		// memory mapped IO
 		localAddress := address - 0xFF00
 		if address == 0xFF01 {
-			// fmt.Printf("%c", value)
+			fmt.Printf("%c", value)
 		} else if address == JoypadRegisterAddress {
 			m.cpu.setJoypadSelection(value)
 		} else if address == LYAddress {
 			// Reset if game writes to LY
 			m.ioram[localAddress] = 0
 		} else if address == DIVAddress {
+			m.ioram[localAddress] = 0
 			m.cpu.internalTimer = 0
 		} else if address == DMAAddress {
 			// DMA
@@ -208,7 +209,7 @@ func (m *Memory) get(address uint16) byte {
 		} else if address == JoypadRegisterAddress {
 			return m.cpu.getJoypadState()
 		} else if address == InterruptFlagAddress {
-			return m.ioram[address-0xFF00]
+			return m.ioram[address-0xFF00] & 0x1F
 		}
 		return m.ioram[address-0xFF00]
 	case address >= 0xFF80 && address <= 0xFFFE:
