@@ -438,10 +438,10 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 		}
 	case in.JumpRelative:
 		// -2 to account for decoder having moved past immediate value. Refactor?
-		cpu.setPC(cpu.GetPC() - 2 + uint16(i.Immediate))
+		cpu.setPC(cpu.GetPC() + uint16(i.Immediate))
 	case in.JumpRelativeConditional:
 		if cpu.conditionMet(i.Condition) {
-			cpu.setPC(cpu.GetPC() - 2 + uint16(i.Immediate))
+			cpu.setPC(cpu.GetPC() + uint16(i.Immediate))
 		}
 	case in.JumpMemory:
 		cpu.setPC(cpu.GetHL())
