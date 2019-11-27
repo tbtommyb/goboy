@@ -126,7 +126,7 @@ func (m *Memory) set(address uint16, value byte) {
 		} else if address == TACAddress {
 			newVal := value & TACMask
 			oldVal := m.ioram[localAddress] & TACMask
-			m.ioram[localAddress] = newVal
+			m.ioram[localAddress] = 0xF8 | newVal
 			if newVal != oldVal {
 				m.cpu.resetCyclesForCurrentTick()
 			}
@@ -134,16 +134,16 @@ func (m *Memory) set(address uint16, value byte) {
 			m.ioram[localAddress] = 0
 		} else if address == STATAddress {
 			readOnlyBits := m.ioram[localAddress] & 7
-			m.ioram[localAddress] = (value & 0xF8) | readOnlyBits
+			m.ioram[localAddress] = (value & 0xF8) | readOnlyBits | 0x80
 		} else if address == InterruptFlagAddress {
-			m.ioram[localAddress] = value & 0x1F
+			m.ioram[localAddress] = 0xE0 | (value & 0x1F)
 		} else {
 			m.ioram[localAddress] = value
 		}
 	case address >= 0xFF80 && address <= 0xFFFE:
 		m.hram[address-0xFF80] = value
 	case address == InterruptEnableAddress:
-		m.interruptEnable = value & 0x1f
+		m.interruptEnable = value
 	}
 }
 
@@ -199,7 +199,7 @@ func (m *Memory) get(address uint16) byte {
 		// }
 		return m.hram[address-0xFF80]
 	case address == InterruptEnableAddress:
-		return m.interruptEnable & 0x1F
+		return m.interruptEnable
 	default:
 		panic(fmt.Sprintf("%x\n", address))
 	}
