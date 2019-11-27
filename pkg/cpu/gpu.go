@@ -304,13 +304,15 @@ func (gpu *GPU) fetchBackgroundColour(startAddress uint16, x, y byte) colourCode
 func (gpu *GPU) fetchTileNum(startAddress uint16, xPos, yPos byte) tileNum {
 	tileNumX, tileNumY := uint16(xPos/TilePixelSize), uint16(yPos/TilePixelSize)
 	tileAddress := uint16(startAddress + tileNumY*TileRowSize + tileNumX)
-	return tileNum(gpu.cpu.memory.get(tileAddress))
+	vramAddress := tileAddress - 0x8000
+	return tileNum(gpu.cpu.memory.vram[vramAddress])
 }
 
 func (gpu *GPU) fetchCharCodeBytes(baseAddress, tileOffset uint16) (byte, byte) {
 	charCodeAddress := baseAddress + (uint16(tileOffset) << 1)
-	low := gpu.cpu.memory.get(charCodeAddress)
-	high := gpu.cpu.memory.get(charCodeAddress + 1)
+	vramAddress := charCodeAddress - 0x8000
+	low := gpu.cpu.memory.vram[vramAddress]
+	high := gpu.cpu.memory.vram[vramAddress+1]
 	return low, high
 }
 
@@ -353,8 +355,9 @@ func getSpriteAddress(tileNum tileNum) uint16 {
 }
 
 func (gpu *GPU) fetchSpriteData(spriteAddress, charCode uint16) (byte, byte) {
-	low := gpu.cpu.memory.get(spriteAddress + (charCode << 1))
-	high := gpu.cpu.memory.get(spriteAddress + (charCode << 1) + 1)
+	vramAddress := spriteAddress - 0x8000
+	low := gpu.cpu.memory.vram[vramAddress+(charCode<<1)]
+	high := gpu.cpu.memory.vram[vramAddress+(charCode<<1)+1]
 	return low, high
 }
 
@@ -451,6 +454,21 @@ func (gpu *GPU) readOAM(addr uint16) byte {
 	currentMode := gpu.getStatus().mode()
 	if !(currentMode == SearchingOAMMode || currentMode == TransferringMode) {
 		return gpu.cpu.memory.sram[addr-0xFE00]
+	}
+	return 0xff
+}
+
+func (gpu *GPU) writeVRAM(addr uint16, val byte) {
+	currentMode := gpu.getStatus().mode()
+	if currentMode != TransferringMode {
+		gpu.cpu.memory.vram[addr-0x8000] = val
+	}
+}
+
+func (gpu *GPU) readVRAM(addr uint16) byte {
+	currentMode := gpu.getStatus().mode()
+	if currentMode != TransferringMode {
+		return gpu.cpu.memory.vram[addr-0x8000]
 	}
 	return 0xff
 }
