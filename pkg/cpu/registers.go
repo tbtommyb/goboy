@@ -29,7 +29,7 @@ func (cpu *CPU) Get(r registers.Single) byte {
 	case registers.M:
 		return cpu.readMem(cpu.GetHL())
 	default:
-		return byte(cpu.r[r])
+		return byte(cpu.r.Read(r))
 	}
 }
 
@@ -55,7 +55,7 @@ func (cpu *CPU) Set(r registers.Single, val byte) byte {
 	case registers.M:
 		cpu.WriteMem(cpu.GetHL(), val)
 	default:
-		cpu.r[r] = val
+		cpu.r.Write(r, val)
 	}
 	return val
 }
@@ -116,106 +116,41 @@ func (cpu *CPU) GetAF() uint16 {
 	return utils.MergePair(cpu.Get(registers.A), cpu.flags)
 }
 
-func (cpu *CPU) getLCDC() byte {
-	return cpu.memory.get(LCDCAddress)
+func (cpu *CPU) WriteIO(address uint16, value byte) {
+	cpu.r.WriteIO(address-0xFF00, value)
 }
 
-func (cpu *CPU) setLCDC(value byte) {
-	cpu.memory.set(LCDCAddress, value|1)
+func (cpu *CPU) ReadIO(address uint16) byte {
+	return cpu.r.ReadIO(address - 0xFF00)
 }
 
-func (cpu *CPU) getSTAT() byte {
-	return cpu.memory.get(STATAddress)
+func (cpu *CPU) GetMem(r registers.Pair) byte {
+	switch r {
+	case registers.BC:
+		return cpu.readMem(cpu.GetBC())
+	case registers.DE:
+		return cpu.readMem(cpu.GetDE())
+	case registers.HL:
+		return cpu.readMem(cpu.GetHL())
+	case registers.SP:
+		return cpu.readMem(cpu.GetSP())
+	default:
+		panic(fmt.Sprintf("GetMem: Invalid register %x", r))
+	}
 }
 
-func (cpu *CPU) setSTAT(status byte) {
-	cpu.memory.ioram[0x41] = status
-}
-
-func (cpu *CPU) getScrollY() byte {
-	return cpu.memory.get(ScrollYAddress)
-}
-
-func (cpu *CPU) setScrollY(value byte) {
-	cpu.memory.set(ScrollYAddress, value)
-}
-
-func (cpu *CPU) getScrollX() byte {
-	return cpu.memory.get(ScrollXAddress)
-}
-
-func (cpu *CPU) setScrollX(value byte) {
-	cpu.memory.set(ScrollXAddress, value)
-}
-
-func (cpu *CPU) getWindowY() byte {
-	return cpu.memory.get(WindowYAddress)
-}
-
-func (cpu *CPU) getWindowX() byte {
-	return cpu.memory.get(WindowXAddress)
-}
-
-func (cpu *CPU) getLY() byte {
-	return cpu.memory.get(LYAddress)
-}
-
-func (cpu *CPU) setLY(value byte) {
-	cpu.memory.ioram[LYAddress-0xFF00] = value
-}
-
-func (cpu *CPU) getLYC() byte {
-	return cpu.memory.get(LYCAddress)
-}
-
-func (cpu *CPU) getBGP() byte {
-	return cpu.memory.get(BGPAddress)
-}
-
-func (cpu *CPU) setBGP(value byte) {
-	cpu.memory.set(BGPAddress, value)
-}
-
-func (cpu *CPU) setOBP0(value byte) {
-	cpu.memory.set(OBP0Address, value)
-}
-
-func (cpu *CPU) getOBP0() byte {
-	return cpu.memory.get(OBP0Address)
-}
-
-func (cpu *CPU) setOBP1(value byte) {
-	cpu.memory.set(OBP1Address, value)
-}
-
-func (cpu *CPU) getOBP1() byte {
-	return cpu.memory.get(OBP1Address)
-}
-
-func (cpu *CPU) getDIV() byte {
-	return cpu.memory.get(DIVAddress)
-}
-
-func (cpu *CPU) setDIV(value byte) {
-	cpu.memory.set(DIVAddress, value)
-}
-
-func (cpu *CPU) getTIMA() byte {
-	return cpu.memory.get(TIMAAddress)
-}
-
-func (cpu *CPU) setTIMA(value byte) {
-	cpu.memory.set(TIMAAddress, value)
-}
-
-func (cpu *CPU) getTMA() byte {
-	return cpu.memory.get(TMAAddress)
-}
-
-func (cpu *CPU) getTAC() byte {
-	return cpu.memory.get(TACAddress)
-}
-
-func (cpu *CPU) setTAC(value byte) {
-	cpu.memory.set(TACAddress, value)
+func (cpu *CPU) SetMem(r registers.Pair, val byte) byte {
+	switch r {
+	case registers.BC:
+		cpu.WriteMem(cpu.GetBC(), val)
+	case registers.DE:
+		cpu.WriteMem(cpu.GetDE(), val)
+	case registers.HL:
+		cpu.WriteMem(cpu.GetHL(), val)
+	case registers.SP:
+		cpu.WriteMem(cpu.GetSP(), val)
+	default:
+		panic(fmt.Sprintf("SetMem: Invalid register %x", r))
+	}
+	return val
 }

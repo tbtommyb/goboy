@@ -24,22 +24,30 @@ func (cpu *CPU) UpdateTimers() {
 		return
 	}
 
-	cpu.setTIMA(cpu.getTIMA() + 1)
-	if cpu.getTIMA() == 0 {
-		cpu.setTIMA(cpu.getTMA())
+	cpu.WriteIO(TIMAAddress, cpu.ReadIO(TIMAAddress)+1)
+	if cpu.ReadIO(TIMAAddress) == 0 {
+		cpu.WriteIO(TIMAAddress, cpu.ReadIO(TMAAddress))
 		cpu.requestInterrupt(TimerOverflow)
 	}
-	cpu.resetCyclesForCurrentTick()
+	cpu.ResetCyclesForTimerTick()
+}
+
+func (cpu *CPU) GetInternalTimer() uint16 {
+	return cpu.internalTimer
 }
 
 func (cpu *CPU) isTimerEnabled() bool {
-	return utils.IsSet(TimerControlBit, cpu.getTAC())
+	return utils.IsSet(TimerControlBit, cpu.ReadIO(TACAddress))
 }
 
 func (cpu *CPU) getClockFreq() uint16 {
-	return inputClocks[cpu.getTAC()&InputClockSelectMask]
+	return inputClocks[cpu.ReadIO(TACAddress)&InputClockSelectMask]
 }
 
-func (cpu *CPU) resetCyclesForCurrentTick() {
+func (cpu *CPU) ResetCyclesForTimerTick() {
 	cpu.cyclesForCurrentTick = int(cpu.getClockFreq())
+}
+
+func (cpu *CPU) ResetInternalTimer() {
+	cpu.internalTimer = 0
 }

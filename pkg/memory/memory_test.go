@@ -1,4 +1,4 @@
-package cpu
+package memory
 
 import "testing"
 

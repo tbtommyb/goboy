@@ -1,4 +1,18 @@
-package cpu
+package memory
+
+type BankingMode byte
+
+const (
+	ROMBanking BankingMode = 0x0
+	RAMBanking             = 0x1
+)
+
+type MBC byte
+
+const (
+	MBC1 MBC = 1
+	MBC2     = 2
+)
 
 func (m *Memory) handleBanking(address uint16, value byte) {
 	switch {
@@ -64,9 +78,4 @@ func (m *Memory) setUpperROMBankBits(bottomBits uint) {
 	remainingBits := m.currentROMBank & 0x1F
 
 	m.currentROMBank = (bottomBits << 5) | remainingBits
-}
-
-func (cpu *CPU) readMem(address uint16) byte {
-	cpu.incrementCycles()
-	return cpu.memory.get(address)
 }
