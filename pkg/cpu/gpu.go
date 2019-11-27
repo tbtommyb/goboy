@@ -6,6 +6,8 @@ import (
 	"github.com/tbtommyb/goboy/pkg/constants"
 )
 
+const SpriteDataStartAddress = 0x8000
+
 type GPU struct {
 	cpu                *CPU
 	display            DisplayInterface
@@ -14,6 +16,8 @@ type GPU struct {
 	oams               []*oamEntry
 	bgPixelVisibility  [constants.ScreenWidth]pixelVisibility
 	interruptTriggered bool
+	vram               [0x2000]byte
+	sram               [0x100]byte
 }
 
 type DisplayInterface interface {
@@ -94,7 +98,9 @@ var standardPalette = []byte{0xff, 0xaa, 0x55, 0x00}
 
 func InitGPU(cpu *CPU) *GPU {
 	gpu := &GPU{
-		cpu: cpu,
+		cpu:  cpu,
+		vram: [0x2000]byte{},
+		sram: [0x100]byte{},
 	}
 	gpu.setStatusMode(SearchingOAMMode)
 	return gpu
@@ -108,7 +114,7 @@ func (gpu *GPU) update() {
 		return
 	}
 
-	currentLine := gpu.cpu.getLY()
+	currentLine := gpu.cpu.ReadIO(LYAddress)
 	currentMode := gpu.getStatus().mode()
 
 	gpu.cyclesCounter++
@@ -152,7 +158,7 @@ func (gpu *GPU) update() {
 		gpu.handleInterrupts()
 	}
 
-	if gpu.cpu.getLY() == gpu.cpu.getLYC() {
+	if gpu.cpu.ReadIO(LYAddress) == gpu.cpu.ReadIO(LYCAddress) {
 		gpu.setMatchFlag()
 	} else {
 		gpu.resetMatchFlag()
@@ -182,7 +188,7 @@ func (gpu *GPU) renderScanline(scanline byte) {
 		gpu.renderBackground(scanline)
 	}
 
-	if control.isWindowEnabled() && scanline >= gpu.cpu.getWindowY() {
+	if control.isWindowEnabled() && scanline >= gpu.cpu.ReadIO(WindowYAddress) {
 		gpu.renderWindow(scanline)
 	}
 
@@ -192,13 +198,13 @@ func (gpu *GPU) renderScanline(scanline byte) {
 }
 
 func (gpu *GPU) resetScanline() {
-	gpu.cpu.setLY(0)
+	gpu.cpu.WriteIO(LYAddress, 0)
 }
 
 func (gpu *GPU) incrementScanline() byte {
-	currentScanline := gpu.cpu.getLY()
+	currentScanline := gpu.cpu.ReadIO(LYAddress)
 	currentScanline++
-	gpu.cpu.setLY(currentScanline)
+	gpu.cpu.WriteIO(LYAddress, currentScanline)
 	return currentScanline
 }
 
@@ -207,8 +213,8 @@ func (gpu *GPU) requestInterrupt(interrupt Interrupt) {
 }
 
 func (gpu *GPU) renderBackground(scanline byte) {
-	scrollX := gpu.cpu.getScrollX()
-	scrollY := gpu.cpu.getScrollY()
+	scrollX := gpu.cpu.ReadIO(ScrollXAddress)
+	scrollY := gpu.cpu.ReadIO(ScrollYAddress)
 
 	startAddress := gpu.bgTileMapStartAddress()
 
@@ -247,8 +253,8 @@ func (gpu *GPU) renderSprites(oams []*oamEntry, scanline byte) {
 }
 
 func (gpu *GPU) renderWindow(scanline byte) {
-	winY := scanline - gpu.cpu.getWindowY()
-	winStartX := int(gpu.cpu.getWindowX()) - int(ScrollXOffset)
+	winY := scanline - gpu.cpu.ReadIO(WindowYAddress)
+	winStartX := int(gpu.cpu.ReadIO(WindowXAddress)) - int(ScrollXOffset)
 
 	for x := winStartX; x < constants.ScreenWidth; x++ {
 		if x < 0 {
@@ -307,14 +313,14 @@ func (gpu *GPU) fetchTileNum(startAddress uint16, xPos, yPos byte) tileNum {
 	tileNumX, tileNumY := uint16(xPos/TilePixelSize), uint16(yPos/TilePixelSize)
 	tileAddress := uint16(startAddress + tileNumY*TileRowSize + tileNumX)
 	vramAddress := tileAddress - 0x8000
-	return tileNum(gpu.cpu.memory.vram[vramAddress])
+	return tileNum(gpu.vram[vramAddress])
 }
 
 func (gpu *GPU) fetchCharCodeBytes(baseAddress, tileOffset uint16) (byte, byte) {
 	charCodeAddress := baseAddress + (uint16(tileOffset) << 1)
 	vramAddress := charCodeAddress - 0x8000
-	low := gpu.cpu.memory.vram[vramAddress]
-	high := gpu.cpu.memory.vram[vramAddress+1]
+	low := gpu.vram[vramAddress]
+	high := gpu.vram[vramAddress+1]
 	return low, high
 }
 
@@ -358,8 +364,8 @@ func getSpriteAddress(tileNum tileNum) uint16 {
 
 func (gpu *GPU) fetchSpriteData(spriteAddress, charCode uint16) (byte, byte) {
 	vramAddress := spriteAddress - 0x8000
-	low := gpu.cpu.memory.vram[vramAddress+(charCode<<1)]
-	high := gpu.cpu.memory.vram[vramAddress+(charCode<<1)+1]
+	low := gpu.vram[vramAddress+(charCode<<1)]
+	high := gpu.vram[vramAddress+(charCode<<1)+1]
 	return low, high
 }
 
@@ -371,14 +377,14 @@ func getColourCodeFrom(xPos, low, high byte) colourCode {
 }
 
 func (gpu *GPU) applyBGPalette(colour colourCode) RGB {
-	paletteRegister := gpu.cpu.getBGP()
+	paletteRegister := gpu.cpu.ReadIO(BGPAddress)
 	return applyPalette(selectColourCode(paletteRegister, colour))
 }
 
 func (gpu *GPU) applySpritePalette(colour colourCode, e *oamEntry) RGB {
-	paletteRegister := gpu.cpu.getOBP0()
+	paletteRegister := gpu.cpu.ReadIO(OBP0Address)
 	if e.useOBP1() {
-		paletteRegister = gpu.cpu.getOBP1()
+		paletteRegister = gpu.cpu.ReadIO(OBP1Address)
 	}
 	return applyPalette(selectColourCode(paletteRegister, colour))
 }
@@ -435,7 +441,7 @@ func (gpu *GPU) parseOAMForScanline(scanline byte) {
 }
 
 func (gpu *GPU) fetchOAMData(location uint16) (int16, int16, tileNum, flags) {
-	bytes := gpu.cpu.memory.sram[location : location+ObjDataSize]
+	bytes := gpu.sram[location : location+ObjDataSize]
 	return int16(bytes[0]) - SpriteYOffset, int16(bytes[1]) - SpriteXOffset, tileNum(bytes[2]), flags(bytes[3])
 }
 
@@ -448,14 +454,14 @@ func (s sortableOAM) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 func (gpu *GPU) writeOAM(addr uint16, val byte) {
 	currentMode := gpu.getStatus().mode()
 	if !(currentMode == SearchingOAMMode || currentMode == TransferringMode) {
-		gpu.cpu.memory.sram[addr-0xFE00] = val
+		gpu.sram[addr-0xFE00] = val
 	}
 }
 
 func (gpu *GPU) readOAM(addr uint16) byte {
 	currentMode := gpu.getStatus().mode()
 	if !(currentMode == SearchingOAMMode || currentMode == TransferringMode) {
-		return gpu.cpu.memory.sram[addr]
+		return gpu.sram[addr]
 	}
 	return 0xff
 }
@@ -463,14 +469,14 @@ func (gpu *GPU) readOAM(addr uint16) byte {
 func (gpu *GPU) writeVRAM(addr uint16, val byte) {
 	currentMode := gpu.getStatus().mode()
 	if currentMode != TransferringMode {
-		gpu.cpu.memory.vram[addr-0x8000] = val
+		gpu.vram[addr-0x8000] = val
 	}
 }
 
 func (gpu *GPU) readVRAM(addr uint16) byte {
 	currentMode := gpu.getStatus().mode()
 	if currentMode != TransferringMode {
-		return gpu.cpu.memory.vram[addr-0x8000]
+		return gpu.vram[addr-0x8000]
 	}
 	return 0xff
 }

@@ -47,11 +47,11 @@ func (cpu *CPU) ReleaseButton(button Button) {
 	cpu.joypadInternalState.buttons = utils.SetBit(byte(button), initialButtons, 0)
 }
 
-func (cpu *CPU) getJoypadState() byte {
+func (cpu *CPU) ReadJoypad() byte {
 	return cpu.joypadInternalState.toRegisterFormat()
 }
 
-func (cpu *CPU) setJoypadSelection(value byte) {
+func (cpu *CPU) WriteJoypad(value byte) {
 	cpu.joypadInternalState.selection = selection(value & joypadSelectionMask)
 }
 
