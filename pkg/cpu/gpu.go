@@ -100,11 +100,15 @@ func InitGPU(cpu *CPU) *GPU {
 	return gpu
 }
 
+func (gpu *GPU) setMode(mode Mode) {
+	gpu.setStatus(gpu.getStatus().setMode(mode))
+}
+
 func (gpu *GPU) update() {
-	if gpu.cpu.stop {
-		return
-	}
-	if !gpu.getControl().isDisplayEnabled() {
+	control := gpu.getControl()
+	if !control.isDisplayEnabled() {
+		gpu.resetScanline()
+		gpu.setMode(VBlankMode)
 		return
 	}
 
