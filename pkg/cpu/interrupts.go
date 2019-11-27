@@ -30,11 +30,11 @@ const (
 var Interrupts = []Interrupt{VBlank, LCDCStatus, TimerOverflow, Input}
 
 func (cpu *CPU) HandleInterrupts() {
-	requested := cpu.memory.get(InterruptFlagAddress)
+	requested := cpu.memory.Get(InterruptFlagAddress)
 	if requested == 0 {
 		return
 	}
-	enabled := cpu.memory.get(InterruptEnableAddress)
+	enabled := cpu.memory.Get(InterruptEnableAddress)
 	if enabled == 0 {
 		return
 	}
@@ -57,11 +57,11 @@ func (cpu *CPU) HandleInterrupts() {
 }
 
 func (cpu *CPU) requestInterrupt(interrupt Interrupt) {
-	cpu.memory.setBitAt(InterruptFlagAddress, byte(interrupt), 1)
+	cpu.setBitAt(InterruptFlagAddress, byte(interrupt), 1)
 }
 
 func (cpu *CPU) clearInterrupt(interrupt Interrupt) {
-	cpu.memory.setBitAt(InterruptFlagAddress, byte(interrupt), 0)
+	cpu.setBitAt(InterruptFlagAddress, byte(interrupt), 0)
 }
 
 func (cpu *CPU) serviceInterrupt(interrupt Interrupt, returnAddress uint16) {

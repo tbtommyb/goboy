@@ -31,13 +31,13 @@ const (
 // LCD Control
 
 func (gpu *GPU) getControl() GPUControl {
-	return GPUControl(gpu.cpu.getLCDC())
+	return GPUControl(gpu.cpu.ReadIO(LCDCAddress))
 }
 
 func (gpu *GPU) setControl(control GPUControl) {
-	gpu.cpu.setLCDC(byte(control))
+	gpu.cpu.WriteIO(LCDCAddress, byte(control))
 	if !control.isDisplayEnabled() {
-		gpu.cpu.setLY(0)
+		gpu.cpu.WriteIO(LYAddress, 0)
 		gpu.resetMatchFlag()
 		gpu.setStatusMode(HBlankMode)
 	}
@@ -82,11 +82,11 @@ func (control GPUControl) isSet(flag GPUControlFlag) bool {
 // LCD Status
 
 func (gpu *GPU) getStatus() GPUStatus {
-	return GPUStatus(gpu.cpu.getSTAT())
+	return GPUStatus(gpu.cpu.ReadIO(STATAddress))
 }
 
 func (gpu *GPU) setStatus(status GPUStatus) {
-	gpu.cpu.setSTAT(byte(status) | 0x80)
+	gpu.cpu.WriteIO(STATAddress, (byte(status) | 0x80))
 }
 
 func (status GPUStatus) mode() Mode {

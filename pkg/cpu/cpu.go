@@ -2,11 +2,11 @@ package cpu
 
 import (
 	"fmt"
-	"math/bits"
 
 	"github.com/tbtommyb/goboy/pkg/decoder"
 	"github.com/tbtommyb/goboy/pkg/display"
 	in "github.com/tbtommyb/goboy/pkg/instructions"
+	"github.com/tbtommyb/goboy/pkg/memory"
 	"github.com/tbtommyb/goboy/pkg/registers"
 	"github.com/tbtommyb/goboy/pkg/utils"
 )
@@ -14,10 +14,10 @@ import (
 var GameboyClockSpeed = 4194304 / 4 // four clocks per op
 
 type CPU struct {
-	r                    registers.Registers
+	r                    *registers.Registers
 	flags                byte
 	SP, PC               uint16
-	memory               *Memory
+	memory               MemoryInterface
 	cycles               uint
 	requestIME           bool
 	IME                  bool
@@ -29,6 +29,62 @@ type CPU struct {
 	internalTimer        uint16
 	cyclesForCurrentTick int
 	joypadInternalState  Joypad
+}
+
+type MemoryInterface interface {
+	Get(address uint16) byte
+	Set(address uint16, value byte)
+	LoadBIOS(program []byte)
+	LoadROM(program []byte)
+}
+
+func (cpu *CPU) RunFor(cycles uint) {
+	for cycle := uint(0); cycle < cycles; cycle++ {
+		cpu.UpdateTimers()
+		cpu.UpdateDisplay()
+	}
+	return
+}
+
+func (cpu *CPU) Step() uint {
+	if cpu.requestIME {
+		cpu.enableInterrupts()
+		cpu.requestIME = false
+	}
+
+	if cpu.halt {
+		return 4 // nop
+	}
+	if cpu.stop {
+		cpu.stop = false
+		return 4 // nop
+	}
+
+	// TODO: find more efficient solution
+	if cpu.GetPC() == 0x100 && cpu.loadBIOS {
+		cpu.loadBIOS = false
+	}
+
+	initialCycles := cpu.GetCycles()
+	instr := decoder.Decode(cpu)
+	cpu.Execute(instr)
+	return 4 * (cpu.GetCycles() - initialCycles)
+}
+
+func Init(loadBIOS bool) *CPU {
+	cpu := &CPU{
+		loadBIOS:      loadBIOS,
+		r:             registers.Init(),
+		internalTimer: 0xABCC,
+	}
+	memory := memory.Init(cpu)
+	cpu.memory = memory
+	gpu := InitGPU(cpu)
+	cpu.gpu = gpu
+	if !cpu.loadBIOS {
+		cpu.emulateBootSequence()
+	}
+	return cpu
 }
 
 func (cpu *CPU) GetPC() uint16 {
@@ -54,176 +110,6 @@ func (cpu *CPU) incrementCycles() {
 
 func (cpu *CPU) decrementCycles() {
 	cpu.cycles -= 1
-}
-
-func addOp(args ...byte) (byte, FlagSet) {
-	a, b, carry := args[0], args[1], args[2]
-	result := a + b + carry
-	flagSet := FlagSet{
-		Zero:      result == 0,
-		Negative:  false,
-		HalfCarry: isAddHalfCarry(a, b, carry),
-		FullCarry: isAddFullCarry(a, b, carry),
-	}
-	return result, flagSet
-}
-
-func subOp(args ...byte) (byte, FlagSet) {
-	a, b, carry := args[0], args[1], args[2]
-	result := a - b - carry
-	flagSet := FlagSet{
-		Zero:      result == 0,
-		Negative:  true,
-		HalfCarry: isSubHalfCarry(a, b, carry),
-		FullCarry: isSubFullCarry(a, b, carry),
-	}
-	return result, flagSet
-}
-
-func andOp(args ...byte) (byte, FlagSet) {
-	a, b := args[0], args[1]
-	result := a & b
-	flagSet := FlagSet{
-		Zero:      result == 0,
-		Negative:  false,
-		HalfCarry: true,
-		FullCarry: false,
-	}
-	return result, flagSet
-}
-
-func orOp(args ...byte) (byte, FlagSet) {
-	a, b := args[0], args[1]
-	result := a | b
-	flagSet := FlagSet{
-		Zero:      result == 0,
-		Negative:  false,
-		HalfCarry: false,
-		FullCarry: false,
-	}
-	return result, flagSet
-}
-
-func xorOp(args ...byte) (byte, FlagSet) {
-	a, b := args[0], args[1]
-	result := a ^ b
-	flagSet := FlagSet{
-		Zero:      result == 0,
-		Negative:  false,
-		HalfCarry: false,
-		FullCarry: false,
-	}
-	return result, flagSet
-}
-
-func cmpOp(args ...byte) FlagSet {
-	a, b := args[0], args[1]
-	return FlagSet{
-		Zero:      a == b,
-		Negative:  true,
-		HalfCarry: isSubHalfCarry(a, b, 0),
-		FullCarry: isSubFullCarry(a, b, 0),
-	}
-}
-
-func shiftOp(i in.Shift, value, flag byte) (byte, FlagSet) {
-	var result byte
-	var flags FlagSet
-	switch i.GetDirection() {
-	case in.Left:
-		result = value << 1
-		flags = FlagSet{
-			FullCarry: bits.LeadingZeros8(value) == 0,
-			Zero:      result == 0,
-		}
-	case in.Right:
-		if i.IsWithCopy() {
-			result = byte(int8(value) >> 1) // Sign-extend right shift
-		} else {
-			result = value >> 1
-		}
-
-		flags = FlagSet{
-			FullCarry: bits.TrailingZeros8(value) == 0,
-			Zero:      result == 0,
-		}
-	}
-	return result, flags
-}
-
-func swapOp(value byte) (byte, FlagSet) {
-	result := (value&0xf)<<4 | (value&0xf0)>>4
-	flags := FlagSet{
-		Zero: result == 0,
-	}
-	return result, flags
-}
-
-func rotateLeftOp(value byte, withCarry bool) (byte, FlagSet) {
-	bit7 := value >> 7
-	value = value << 1
-	if withCarry {
-		value = value | 0x1
-	}
-
-	var fc bool
-	if bit7 != 0 {
-		fc = true
-	}
-	return value, FlagSet{
-		Negative:  false,
-		HalfCarry: false,
-		Zero:      value == 0,
-		FullCarry: fc,
-	}
-}
-
-func rotateLeftCarryOp(value byte) (byte, FlagSet) {
-	result := (value << 1) | (value >> 7)
-	fc := (value >> 7) > 0
-
-	return result, FlagSet{
-		Negative:  false,
-		HalfCarry: false,
-		Zero:      value == 0,
-		FullCarry: fc,
-	}
-}
-
-func rotateRightOp(value byte, withCarry bool) (byte, FlagSet) {
-	var fc bool
-	if value&0x1 == 0x1 {
-		fc = true
-	}
-
-	value = value >> 1
-	if withCarry {
-		value = value | 0x80
-	}
-	return value, FlagSet{
-		Zero:      value == 0,
-		Negative:  false,
-		HalfCarry: false,
-		FullCarry: fc,
-	}
-}
-
-func rotateRightCarryOp(value byte) (byte, FlagSet) {
-	result := (value << 7) | (value >> 1)
-	fc := value&0x1 > 0
-
-	return result, FlagSet{
-		Negative:  false,
-		HalfCarry: false,
-		Zero:      value == 0,
-		FullCarry: fc,
-	}
-}
-
-func (cpu *CPU) perform(f func(...byte) (byte, FlagSet), args ...byte) {
-	result, flagSet := f(args...)
-	cpu.Set(registers.A, result)
-	cpu.setFlags(flagSet)
 }
 
 func (cpu *CPU) Execute(instr in.Instruction) {
@@ -533,55 +419,6 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 	}
 }
 
-func (cpu *CPU) RunFor(cycles uint) {
-	for cycle := uint(0); cycle < cycles; cycle++ {
-		cpu.UpdateTimers()
-		cpu.UpdateDisplay()
-	}
-	return
-}
-
-func (cpu *CPU) Step() uint {
-	if cpu.requestIME {
-		cpu.enableInterrupts()
-		cpu.requestIME = false
-	}
-
-	if cpu.halt {
-		return 4 // nop
-	}
-	if cpu.stop {
-		cpu.stop = false
-		return 4 // nop
-	}
-
-	// TODO: find more efficient solution
-	if cpu.GetPC() == 0x100 && cpu.loadBIOS {
-		cpu.loadBIOS = false
-	}
-
-	initialCycles := cpu.GetCycles()
-	instr := decoder.Decode(cpu)
-	cpu.Execute(instr)
-	return 4 * (cpu.GetCycles() - initialCycles)
-}
-
-func Init(loadBIOS bool) *CPU {
-	cpu := &CPU{
-		loadBIOS:      loadBIOS,
-		r:             registers.Registers{},
-		internalTimer: 0xABCC,
-	}
-	memory := InitMemory(cpu)
-	cpu.memory = memory
-	gpu := InitGPU(cpu)
-	cpu.gpu = gpu
-	if !cpu.loadBIOS {
-		cpu.emulateBootSequence()
-	}
-	return cpu
-}
-
 func (cpu *CPU) AttachDisplay(d DisplayInterface) {
 	cpu.gpu.display = d
 }
@@ -591,14 +428,14 @@ func (cpu *CPU) UpdateDisplay() {
 }
 
 func (cpu *CPU) Next() byte {
-	value := cpu.memory.get(cpu.GetPC())
+	value := cpu.memory.Get(cpu.GetPC())
 	cpu.incrementPC()
 	cpu.incrementCycles()
 	return value
 }
 
 func (cpu *CPU) fetchAndIncrement() byte {
-	value := cpu.memory.get(cpu.GetPC())
+	value := cpu.memory.Get(cpu.GetPC())
 	cpu.incrementPC()
 	cpu.incrementCycles()
 	return value
@@ -610,9 +447,52 @@ func (cpu *CPU) emulateBootSequence() {
 	cpu.SetDE(0x00D8)
 	cpu.SetHL(0x014D)
 	cpu.setSP(0xFFFE)
-	cpu.setLCDC(0x91)
-	cpu.setBGP(0xFC)
-	cpu.setOBP0(0xFF)
-	cpu.setOBP1(0xFF)
+	cpu.WriteIO(LCDCAddress, 0x91)
+	cpu.WriteIO(BGPAddress, 0xFC)
+	cpu.WriteIO(OBP0Address, 0xFF)
+	cpu.WriteIO(OBP1Address, 0xFF)
 	cpu.setPC(0x100)
+}
+
+func (cpu *CPU) WriteMem(address uint16, value byte) {
+	cpu.incrementCycles()
+	cpu.memory.Set(address, value)
+}
+
+func (cpu *CPU) readMem(address uint16) byte {
+	cpu.incrementCycles()
+	return cpu.memory.Get(address)
+}
+
+func (cpu *CPU) LoadROM(program []byte) {
+	cpu.memory.LoadROM(program)
+}
+
+func (cpu *CPU) LoadBIOS(program []byte) {
+	cpu.memory.LoadBIOS(program)
+	cpu.loadBIOS = true
+}
+
+func (cpu *CPU) BIOSLoaded() bool {
+	return cpu.loadBIOS
+}
+
+func (cpu *CPU) ReadOAM(address uint16) byte {
+	return cpu.gpu.readOAM(address)
+}
+
+func (cpu *CPU) WriteOAM(address uint16, value byte) {
+	cpu.gpu.writeOAM(address, value)
+}
+
+func (cpu *CPU) ReadVRAM(address uint16) byte {
+	return cpu.gpu.readVRAM(address)
+}
+
+func (cpu *CPU) WriteVRAM(address uint16, value byte) {
+	cpu.gpu.writeVRAM(address, value)
+}
+
+func (cpu *CPU) setBitAt(address uint16, bitNumber, bitValue byte) {
+	cpu.memory.Set(address, utils.SetBit(bitNumber, cpu.memory.Get(address), bitValue))
 }
