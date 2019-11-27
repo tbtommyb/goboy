@@ -27,7 +27,6 @@ type CPU struct {
 	loadBIOS             bool
 	internalTimer        uint16
 	cyclesForCurrentTick int
-	currentROMBank       uint16
 	interrupts           chan Interrupt
 	complete             chan bool
 	pcMutex              sync.Mutex
@@ -565,11 +564,10 @@ func (cpu *CPU) Step() uint {
 
 func Init(loadBIOS bool) *CPU {
 	cpu := &CPU{
-		loadBIOS:       loadBIOS,
-		r:              registers.Registers{},
-		currentROMBank: 1,
-		interrupts:     make(chan Interrupt, len(Interrupts)),
-		internalTimer:  0xABCC,
+		loadBIOS:      loadBIOS,
+		r:             registers.Registers{},
+		interrupts:    make(chan Interrupt, len(Interrupts)),
+		internalTimer: 0xABCC,
 	}
 	memory := InitMemory(cpu)
 	cpu.memory = memory
