@@ -11,11 +11,7 @@ import (
 	"github.com/tbtommyb/goboy/pkg/utils"
 )
 
-<<<<<<< HEAD
 var GameboyClockSpeed = 4194304 / 4 // four clocks per op
-=======
-var GameboyClockSpeed = 4194304 / 4 // 4 cycles per instruction
->>>>>>> f981e67... Pass 02-interrupts
 
 type CPU struct {
 	r                    registers.Registers
@@ -565,12 +561,8 @@ func (cpu *CPU) Step() uint {
 	}
 
 	initialCycles := cpu.GetCycles()
-<<<<<<< HEAD
-	cpu.Execute(decoder.Decode(cpu))
-=======
 	instr := decoder.Decode(cpu)
 	cpu.Execute(instr)
->>>>>>> f981e67... Pass 02-interrupts
 	return 4 * (cpu.GetCycles() - initialCycles)
 }
 

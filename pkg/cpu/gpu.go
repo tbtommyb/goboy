@@ -7,11 +7,13 @@ import (
 )
 
 type GPU struct {
-	cpu               *CPU
-	display           DisplayInterface
-	cyclesCounter     uint
-	oams              []*oamEntry
-	bgPixelVisibility [constants.ScreenWidth]pixelVisibility
+	cpu                *CPU
+	display            DisplayInterface
+	cyclesCounter      uint
+	vBlankCounter      uint
+	oams               []*oamEntry
+	bgPixelVisibility  [constants.ScreenWidth]pixelVisibility
+	interruptTriggered bool
 }
 
 type DisplayInterface interface {
@@ -94,82 +96,80 @@ func InitGPU(cpu *CPU) *GPU {
 	gpu := &GPU{
 		cpu: cpu,
 	}
-	gpu.setMode(SearchingOAMMode)
+	gpu.setStatusMode(SearchingOAMMode)
 	return gpu
 }
 
-func (gpu *GPU) setMode(mode Mode) {
-	gpu.setStatus(gpu.getStatus().setMode(mode))
-}
-
 func (gpu *GPU) update() {
-	control := gpu.getControl()
-	if !control.isDisplayEnabled() {
-		gpu.resetScanline()
-		gpu.setMode(VBlankMode)
+	if gpu.cpu.stop {
+		return
+	}
+	if !gpu.getControl().isDisplayEnabled() {
 		return
 	}
 
 	currentLine := gpu.cpu.getLY()
-	status := gpu.getStatus()
-	currentMode := status.mode()
-	newMode := currentMode
+	currentMode := gpu.getStatus().mode()
 
 	gpu.cyclesCounter++
 
-	switch currentMode {
-	case SearchingOAMMode:
-		if gpu.cyclesCounter >= CyclesPerSearchingOAMMode {
-			gpu.cyclesCounter = 0
-			newMode = TransferringMode
+	switch gpu.cyclesCounter {
+	case 4:
+		if currentMode != VBlankMode {
+			gpu.setStatusMode(SearchingOAMMode)
+			gpu.handleInterrupts()
+		}
+	case 80:
+		if currentMode == SearchingOAMMode {
 			gpu.parseOAMForScanline(currentLine)
+			gpu.setStatusMode(TransferringMode)
 		}
-	case TransferringMode:
-		if gpu.cyclesCounter >= CyclesPerTransferringMode {
-			gpu.cyclesCounter = 0
-			newMode = HBlankMode
+	case 252:
+		if currentMode == TransferringMode {
+			gpu.setStatusMode(HBlankMode)
 			gpu.renderScanline(currentLine)
+			gpu.handleInterrupts()
 		}
-	case HBlankMode:
-		if gpu.cyclesCounter >= CyclesPerHBlankMode {
-			gpu.cyclesCounter = 0
-			newScanline := gpu.incrementScanline()
+	case CyclesPerScanline:
+		newScanline := gpu.incrementScanline()
+		gpu.cyclesCounter = 0
 
-			if newScanline == VBlankStartScanline {
-				newMode = VBlankMode
-				gpu.requestInterrupt(VBlank)
-			} else {
-				newMode = SearchingOAMMode
-			}
-		}
-	case VBlankMode:
-		if gpu.cyclesCounter >= CyclesPerScanline {
-			gpu.cyclesCounter = 0
-			newScanline := gpu.incrementScanline()
-			// TODO: refactor to put wrapping logic in incrementScanline
-			if newScanline > MaxScanline { // TODO -1 or not?
-				newMode = SearchingOAMMode
-				gpu.resetScanline()
-			}
+		if newScanline == VBlankStartScanline && currentMode != VBlankMode {
+			gpu.setStatusMode(VBlankMode)
+			gpu.requestInterrupt(VBlank)
+			gpu.handleInterrupts()
 		}
 	}
 
-	status = status.setMode(newMode)
-	if status.isModeInterruptSet() && (newMode != currentMode) {
-		gpu.cpu.requestInterrupt(LCDCStatus)
+	if gpu.getStatus().mode() == VBlankMode {
+		gpu.vBlankCounter++
+		if gpu.vBlankCounter == CyclesPerScanline*ScanlinesPerVBlank {
+			gpu.setStatusMode(HBlankMode)
+			gpu.resetScanline()
+			gpu.cyclesCounter = 0
+			gpu.vBlankCounter = 0
+		}
+		gpu.handleInterrupts()
 	}
+
 	if gpu.cpu.getLY() == gpu.cpu.getLYC() {
-		status = status.setMatchFlag()
-		if status.isMatchInterruptSet() {
-			gpu.cpu.requestInterrupt(LCDCStatus)
-
-		}
+		gpu.setMatchFlag()
 	} else {
-		status = status.resetMatchFlag()
+		gpu.resetMatchFlag()
 	}
+}
 
-	gpu.setStatus(status)
+func (gpu *GPU) handleInterrupts() {
+	currentMode := gpu.getStatus().mode()
 
+	if gpu.isModeInterruptSet(currentMode) || (gpu.isStatusSet(MatchFlag) && gpu.isStatusSet(MatchInterrupt)) {
+		if !gpu.interruptTriggered {
+			gpu.interruptTriggered = true
+			gpu.cpu.requestInterrupt(LCDCStatus)
+			return
+		}
+	}
+	gpu.interruptTriggered = false
 }
 
 func (gpu *GPU) renderScanline(scanline byte) {
@@ -178,7 +178,9 @@ func (gpu *GPU) renderScanline(scanline byte) {
 		gpu.bgPixelVisibility[i] = invisible
 	}
 
-	gpu.renderBackground(scanline)
+	if control.isBGEnabled() {
+		gpu.renderBackground(scanline)
+	}
 
 	if control.isWindowEnabled() && scanline >= gpu.cpu.getWindowY() {
 		gpu.renderWindow(scanline)
@@ -453,22 +455,7 @@ func (gpu *GPU) writeOAM(addr uint16, val byte) {
 func (gpu *GPU) readOAM(addr uint16) byte {
 	currentMode := gpu.getStatus().mode()
 	if !(currentMode == SearchingOAMMode || currentMode == TransferringMode) {
-		return gpu.cpu.memory.sram[addr-0xFE00]
-	}
-	return 0xff
-}
-
-func (gpu *GPU) writeVRAM(addr uint16, val byte) {
-	currentMode := gpu.getStatus().mode()
-	if currentMode != TransferringMode {
-		gpu.cpu.memory.vram[addr-0x8000] = val
-	}
-}
-
-func (gpu *GPU) readVRAM(addr uint16) byte {
-	currentMode := gpu.getStatus().mode()
-	if currentMode != TransferringMode {
-		return gpu.cpu.memory.vram[addr-0x8000]
+		return gpu.cpu.memory.sram[addr]
 	}
 	return 0xff
 }

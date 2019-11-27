@@ -17,7 +17,7 @@ const (
 	BGTileMapDisplaySelect                    = 0x8
 	SpriteSize                                = 0x4
 	SpriteEnable                              = 0x2
-	WindowDisplayPriority                     = 0x1
+	BGEnable                                  = 0x1
 )
 
 const (
@@ -36,6 +36,11 @@ func (gpu *GPU) getControl() GPUControl {
 
 func (gpu *GPU) setControl(control GPUControl) {
 	gpu.cpu.setLCDC(byte(control))
+	if !control.isDisplayEnabled() {
+		gpu.cpu.setLY(0)
+		gpu.resetMatchFlag()
+		gpu.setStatusMode(HBlankMode)
+	}
 }
 
 func (control GPUControl) isDisplayEnabled() bool {
@@ -48,6 +53,10 @@ func (control GPUControl) isWindowEnabled() bool {
 
 func (control GPUControl) isSpriteEnabled() bool {
 	return control.isSet(SpriteEnable)
+}
+
+func (control GPUControl) isBGEnabled() bool {
+	return control.isSet(BGEnable)
 }
 
 func (control GPUControl) useBigSprites() bool {
@@ -77,33 +86,45 @@ func (gpu *GPU) getStatus() GPUStatus {
 }
 
 func (gpu *GPU) setStatus(status GPUStatus) {
-	gpu.cpu.setSTAT(byte(status))
+	gpu.cpu.setSTAT(byte(status) | 0x80)
 }
 
 func (status GPUStatus) mode() Mode {
 	return Mode(status & ModeMask)
 }
 
-func (status GPUStatus) setMode(mode Mode) GPUStatus {
-	return GPUStatus((byte(status) & StatusModeResetMask) | byte(mode))
+func (gpu *GPU) setStatusMode(mode Mode) {
+	status := gpu.getStatus()
+	gpu.setStatus(GPUStatus((byte(status) & StatusModeResetMask) | byte(mode)))
 }
 
-func (status GPUStatus) isModeInterruptSet() bool {
-	mode := status.mode()
+func (gpu *GPU) isModeInterruptSet(mode Mode) bool {
 	if mode == TransferringMode {
 		return false
+	}
+	status := gpu.getStatus()
+	if mode == VBlankMode {
+		return utils.IsSet(byte(VBlankInterrupt), byte(status)) || utils.IsSet(byte(OAMInterrupt), byte(status))
 	}
 	return utils.IsSet(byte(mode)+3, byte(status))
 }
 
-func (status GPUStatus) setMatchFlag() GPUStatus {
-	return GPUStatus(utils.SetBit(byte(MatchFlag), byte(status), 1))
+func (gpu *GPU) setMatchFlag() {
+	status := gpu.getStatus()
+	gpu.setStatus(GPUStatus(utils.SetBit(byte(MatchFlag), byte(status), 1)))
 }
 
-func (status GPUStatus) resetMatchFlag() GPUStatus {
-	return GPUStatus(utils.SetBit(byte(MatchFlag), byte(status), 0))
+func (gpu *GPU) resetMatchFlag() {
+	status := gpu.getStatus()
+	gpu.setStatus(GPUStatus(utils.SetBit(byte(MatchFlag), byte(status), 0)))
 }
 
-func (status GPUStatus) isMatchInterruptSet() bool {
+func (gpu *GPU) isMatchInterruptSet() bool {
+	status := gpu.getStatus()
 	return utils.IsSet(byte(MatchInterrupt), byte(status))
+}
+
+func (gpu *GPU) isStatusSet(flag GPUStatusFlag) bool {
+	status := gpu.getStatus()
+	return utils.IsSet(byte(flag), byte(status))
 }
