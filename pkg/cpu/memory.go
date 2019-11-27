@@ -91,7 +91,7 @@ func (m *Memory) set(address uint16, value byte) {
 		}
 	case address >= 0x8000 && address <= 0x9FFF:
 		// video ram
-		m.vram[address-0x8000] = value
+		m.cpu.gpu.writeVRAM(address, value)
 	case address >= CartRAMStart && address <= CartRAMEnd:
 		offset := uint(address - CartRAMStart)
 		// blargg oam_bug test output
@@ -181,7 +181,7 @@ func (m *Memory) get(address uint16) byte {
 		return m.rom[offset+(m.currentROMBank*ROMBankSize)]
 	case address >= ROMBankLimit && address <= 0x9FFF:
 		// video ram
-		return m.vram[address-0x8000]
+		return m.cpu.gpu.readVRAM(address)
 	case address >= CartRAMStart && address <= CartRAMEnd:
 		// cart ram
 		if !m.enableRam || !m.ramAvailable {
