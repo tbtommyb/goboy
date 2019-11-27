@@ -74,8 +74,7 @@ func main() {
 		for i := 0; i < CyclesPerFrame; i++ {
 			gameboy.HandleInterrupts()
 			cycles := gameboy.Step()
-			gameboy.UpdateTimers(cycles)
-			gameboy.UpdateDisplay(cycles)
+			gameboy.RunFor(cycles)
 		}
 
 		for key, button := range keyMap {
