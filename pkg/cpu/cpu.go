@@ -3,6 +3,7 @@ package cpu
 import (
 	"fmt"
 	"math/bits"
+	"sync"
 
 	"github.com/tbtommyb/goboy/pkg/decoder"
 	"github.com/tbtommyb/goboy/pkg/display"
@@ -28,6 +29,9 @@ type CPU struct {
 	loadBIOS             bool
 	internalTimer        uint16
 	cyclesForCurrentTick int
+	interrupts           chan Interrupt
+	complete             chan bool
+	pcMutex              sync.Mutex
 	joypadInternalState  Joypad
 }
 
@@ -570,6 +574,7 @@ func Init(loadBIOS bool) *CPU {
 	cpu := &CPU{
 		loadBIOS:      loadBIOS,
 		r:             registers.Registers{},
+		interrupts:    make(chan Interrupt, len(Interrupts)),
 		internalTimer: 0xABCC,
 	}
 	memory := InitMemory(cpu)
