@@ -223,7 +223,9 @@ func (m *Memory) get(address uint16) byte {
 }
 
 func (m *Memory) performDMA(address uint16) {
+	m.cpu.RunFor(4)
 	for i := uint16(0); i < 0xA0; i++ {
+		m.cpu.RunFor(4)
 		m.set(0xFE00+i, m.get(address+i))
 	}
 }
