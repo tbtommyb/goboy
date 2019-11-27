@@ -117,6 +117,7 @@ func (m *Memory) set(address uint16, value byte) {
 		m.wram[address-0xC000] = value
 	case address >= 0xE000 && address <= 0xFDFF:
 		// shadow wram
+		m.set(address-0x2000, value)
 	case address >= 0xFE00 && address <= 0xFE9F:
 		// sprites
 		m.cpu.gpu.writeOAM(address, value)
@@ -193,7 +194,7 @@ func (m *Memory) get(address uint16) byte {
 		return m.wram[address-0xC000]
 	case address >= 0xE000 && address <= 0xFDFF:
 		// shadow wram
-		return 0x00
+		return m.get(address - 0x2000)
 	case address >= 0xFE00 && address <= 0xFE9F:
 		// sprites
 		val := m.cpu.gpu.readOAM(address)
