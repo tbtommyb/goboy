@@ -227,7 +227,7 @@ func (m *Memory) Get(address uint16) byte {
 		} else if address == JoypadRegisterAddress {
 			return m.cpu.ReadJoypad()
 		} else if address == InterruptFlagAddress {
-			return m.cpu.ReadIO(address) & 0x1F
+			return 0xE0 | (m.cpu.ReadIO(address) & 0x1F)
 		}
 		return m.cpu.ReadIO(address)
 	case address >= 0xFF80 && address <= 0xFFFE:
