@@ -10,6 +10,7 @@ const (
 	VBlank        Interrupt = 0
 	LCDCStatus              = 1
 	TimerOverflow           = 2
+	Serial                  = 3
 	Input                   = 4
 )
 
@@ -17,6 +18,7 @@ const (
 	VBlankInterruptHandlerAddress        uint16 = 0x40
 	LCDCStatusInterruptHandlerAddress           = 0x48
 	TimerOverflowInterruptHandlerAddress        = 0x50
+	SerialInterruptHandlerAddress               = 0x58
 	InputInterruptHandlerAddress                = 0x60
 )
 
@@ -28,18 +30,6 @@ const (
 var Interrupts = []Interrupt{VBlank, LCDCStatus, TimerOverflow, Input}
 
 func (cpu *CPU) HandleInterrupts() {
-	var postHaltAddress uint16
-	if cpu.halt {
-		cpu.halt = false
-		postHaltAddress = cpu.GetPC() + 1
-	}
-
-	if !cpu.interruptsEnabled() {
-		if postHaltAddress != 0 {
-			cpu.setPC(postHaltAddress)
-		}
-		return
-	}
 	requested := cpu.memory.get(InterruptFlagAddress)
 	if requested == 0 {
 		return
@@ -51,7 +41,16 @@ func (cpu *CPU) HandleInterrupts() {
 
 	for _, interrupt := range Interrupts {
 		if utils.IsSet(byte(interrupt), requested) && utils.IsSet(byte(interrupt), enabled) {
-			cpu.serviceInterrupt(interrupt)
+			if cpu.halt {
+				cpu.RunFor(4)
+			}
+			cpu.halt = false
+			if !cpu.interruptsEnabled() {
+				return
+			}
+			returnAddress := cpu.GetPC()
+			cpu.serviceInterrupt(interrupt, returnAddress)
+			return
 		}
 	}
 }
@@ -64,12 +63,14 @@ func (cpu *CPU) clearInterrupt(interrupt Interrupt) {
 	cpu.memory.setBitAt(InterruptFlagAddress, byte(interrupt), 0)
 }
 
-func (cpu *CPU) serviceInterrupt(interrupt Interrupt) {
+func (cpu *CPU) serviceInterrupt(interrupt Interrupt, returnAddress uint16) {
 	cpu.disableInterrupts()
-
 	cpu.clearInterrupt(interrupt)
 
-	high, low := utils.SplitPair(cpu.GetPC())
+	cpu.RunFor(20)
+
+	high, low := utils.SplitPair(returnAddress)
+
 	cpu.pushStack(high)
 	cpu.pushStack(low)
 
@@ -83,4 +84,5 @@ func (cpu *CPU) serviceInterrupt(interrupt Interrupt) {
 	case Input:
 		cpu.setPC(InputInterruptHandlerAddress)
 	}
+	cpu.decrementCycles() // because setPC() increments
 }

@@ -3,7 +3,6 @@ package cpu
 import (
 	"fmt"
 	"math/bits"
-	"sync"
 
 	"github.com/tbtommyb/goboy/pkg/decoder"
 	"github.com/tbtommyb/goboy/pkg/display"
@@ -12,7 +11,7 @@ import (
 	"github.com/tbtommyb/goboy/pkg/utils"
 )
 
-var GameboyClockSpeed = 4194304
+var GameboyClockSpeed = 4194304 / 4 // 4 cycles per instruction
 
 type CPU struct {
 	r                    registers.Registers
@@ -20,16 +19,15 @@ type CPU struct {
 	SP, PC               uint16
 	memory               *Memory
 	cycles               uint
+	requestIME           bool
 	IME                  bool
 	halt                 bool
+	stop                 bool
 	Display              *display.Display
 	gpu                  *GPU
 	loadBIOS             bool
 	internalTimer        uint16
 	cyclesForCurrentTick int
-	interrupts           chan Interrupt
-	complete             chan bool
-	pcMutex              sync.Mutex
 	joypadInternalState  Joypad
 }
 
@@ -38,16 +36,12 @@ func (cpu *CPU) GetPC() uint16 {
 }
 
 func (cpu *CPU) incrementPC() {
-	cpu.pcMutex.Lock()
 	cpu.PC += 1
-	cpu.pcMutex.Unlock()
 }
 
 func (cpu *CPU) setPC(value uint16) {
 	cpu.incrementCycles()
-	cpu.pcMutex.Lock()
 	cpu.PC = value
-	cpu.pcMutex.Unlock()
 }
 
 func (cpu *CPU) GetCycles() uint {
@@ -468,7 +462,7 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 		cpu.setPC(utils.ReverseMergePair(cpu.popStack(), cpu.popStack()))
 	case in.ReturnInterrupt:
 		cpu.setPC(utils.ReverseMergePair(cpu.popStack(), cpu.popStack()))
-		cpu.enableInterrupts()
+		cpu.requestIME = true
 	case in.ReturnConditional:
 		if cpu.conditionMet(i.Condition) {
 			cpu.setPC(utils.ReverseMergePair(cpu.popStack(), cpu.popStack()))
@@ -526,15 +520,12 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 			Zero:      cpu.isSet(Zero),
 		})
 	case in.EnableInterrupt:
-		cpu.enableInterrupts()
+		cpu.requestIME = true
 	case in.DisableInterrupt:
 		cpu.disableInterrupts()
 	case in.Nop:
-		cpu.incrementCycles()
 	case in.Stop:
-		// TODO: implement
-		fmt.Println("STOP!")
-		cpu.halt = true
+		cpu.stop = true
 	case in.Halt:
 		cpu.halt = true
 	case in.InvalidInstruction:
@@ -542,31 +533,43 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 	}
 }
 
-func (cpu *CPU) Run() {
-	for !cpu.halt {
-		cpu.Execute(decoder.Decode(cpu))
+func (cpu *CPU) RunFor(cycles uint) {
+	for cycle := uint(0); cycle < cycles; cycle++ {
+		cpu.UpdateTimers()
+		cpu.UpdateDisplay()
 	}
 	return
 }
 
 func (cpu *CPU) Step() uint {
-	if cpu.halt {
-		return 1 // nop
+	if cpu.requestIME {
+		cpu.enableInterrupts()
+		cpu.requestIME = false
 	}
+
+	if cpu.halt {
+		return 4 // nop
+	}
+	if cpu.stop {
+		cpu.stop = false
+		return 4 // nop
+	}
+
 	// TODO: find more efficient solution
 	if cpu.GetPC() == 0x100 && cpu.loadBIOS {
 		cpu.loadBIOS = false
 	}
+
 	initialCycles := cpu.GetCycles()
-	cpu.Execute(decoder.Decode(cpu))
-	return cpu.GetCycles() - initialCycles
+	instr := decoder.Decode(cpu)
+	cpu.Execute(instr)
+	return 4 * (cpu.GetCycles() - initialCycles)
 }
 
 func Init(loadBIOS bool) *CPU {
 	cpu := &CPU{
 		loadBIOS:      loadBIOS,
 		r:             registers.Registers{},
-		interrupts:    make(chan Interrupt, len(Interrupts)),
 		internalTimer: 0xABCC,
 	}
 	memory := InitMemory(cpu)
@@ -583,8 +586,8 @@ func (cpu *CPU) AttachDisplay(d DisplayInterface) {
 	cpu.gpu.display = d
 }
 
-func (cpu *CPU) UpdateDisplay(cycles uint) {
-	cpu.gpu.update(cycles)
+func (cpu *CPU) UpdateDisplay() {
+	cpu.gpu.update()
 }
 
 func (cpu *CPU) Next() byte {

@@ -102,7 +102,7 @@ func (gpu *GPU) setMode(mode Mode) {
 	gpu.setStatus(gpu.getStatus().setMode(mode))
 }
 
-func (gpu *GPU) update(cycles uint) {
+func (gpu *GPU) update() {
 	control := gpu.getControl()
 	if !control.isDisplayEnabled() {
 		gpu.resetScanline()
@@ -115,7 +115,7 @@ func (gpu *GPU) update(cycles uint) {
 	currentMode := status.mode()
 	newMode := currentMode
 
-	gpu.cyclesCounter += cycles
+	gpu.cyclesCounter++
 
 	switch currentMode {
 	case SearchingOAMMode:

@@ -9,17 +9,17 @@ const (
 	InputClockSelectMask      = 3
 )
 
-// f/20^10, f/2^4, f/2^6, f/2^8
+// f/2^10, f/2^4, f/2^6, f/2^8
 var inputClocks = []uint16{1024, 16, 64, 256}
 
-func (cpu *CPU) UpdateTimers(cycles uint) {
-	cpu.internalTimer += uint16(cycles)
+func (cpu *CPU) UpdateTimers() {
+	cpu.internalTimer++
 
 	if !cpu.isTimerEnabled() {
 		return
 	}
 
-	cpu.cyclesForCurrentTick -= int(cycles)
+	cpu.cyclesForCurrentTick--
 	if cpu.cyclesForCurrentTick > 0 {
 		return
 	}
