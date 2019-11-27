@@ -100,15 +100,11 @@ func InitGPU(cpu *CPU) *GPU {
 	return gpu
 }
 
-func (gpu *GPU) setMode(mode Mode) {
-	gpu.setStatus(gpu.getStatus().setMode(mode))
-}
-
 func (gpu *GPU) update() {
-	control := gpu.getControl()
-	if !control.isDisplayEnabled() {
-		gpu.resetScanline()
-		gpu.setMode(VBlankMode)
+	if gpu.cpu.stop {
+		return
+	}
+	if !gpu.getControl().isDisplayEnabled() {
 		return
 	}
 
@@ -460,21 +456,6 @@ func (gpu *GPU) readOAM(addr uint16) byte {
 	currentMode := gpu.getStatus().mode()
 	if !(currentMode == SearchingOAMMode || currentMode == TransferringMode) {
 		return gpu.cpu.memory.sram[addr]
-	}
-	return 0xff
-}
-
-func (gpu *GPU) writeVRAM(addr uint16, val byte) {
-	currentMode := gpu.getStatus().mode()
-	if currentMode != TransferringMode {
-		gpu.cpu.memory.vram[addr-0x8000] = val
-	}
-}
-
-func (gpu *GPU) readVRAM(addr uint16) byte {
-	currentMode := gpu.getStatus().mode()
-	if currentMode != TransferringMode {
-		return gpu.cpu.memory.vram[addr-0x8000]
 	}
 	return 0xff
 }
