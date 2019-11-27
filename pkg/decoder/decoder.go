@@ -198,11 +198,11 @@ func Decode(il Iterator) in.Instruction {
 		instruction = in.JumpImmediateConditional{Immediate, Condition}
 	case op == in.JumpRelativePattern:
 		// JR, n. 0b0001 1000, n
-		Immediate := int8(il.Next()) + 2
+		Immediate := int8(il.Next())
 		instruction = in.JumpRelative{Immediate}
 	case op&in.JumpConditionalMask == in.JumpRelativeConditionalPattern:
 		// JR cc n. 0b001c c000, n
-		Immediate := int8(il.Next()) + 2
+		Immediate := int8(il.Next())
 		Condition := in.GetCondition(op)
 		instruction = in.JumpRelativeConditional{Immediate, Condition}
 	case op == in.JumpMemoryPattern:
