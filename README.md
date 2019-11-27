@@ -6,19 +6,18 @@ A Gameboy emulator written in Go. Follow progress [here](https://tmjohnson.co.uk
 
 ```go
 go get github.com/hajimehoshi/ebiten
-go run cmd/goboy/main.go -rom YOUR_ROM_HERE
+go run cmd/goboy/main.go YOUR_ROM_HERE
 ```
 
 If you have a BIOS/bootloader ROM you can get the scrolling Nintendo logo by specifying the ROM e.g.:
 
 ```go
-go run cmd/goboy/main.go -bios bios.gb -rom mario.gb
+go run cmd/goboy/main.go -bios bios.gb mario.gb
 ```
 
-I have tested with Tetris and Super Mario World. Both work so far. Audio needs implemented and a few bugs fixed:
+Builds coming soon.
 
-- sprites appearing see-through
-- HALT instruction needs implemented
+I have tested with Tetris, Zelda, Kirby and Super Mario World. All work so far. Audio needs implemented.  There is some flickering I haven't had time to investigate yet.
 
 ## Buttons
 
