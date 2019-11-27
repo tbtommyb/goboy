@@ -1,6 +1,7 @@
 package cpu
 
 import (
+	c "github.com/tbtommyb/goboy/pkg/constants"
 	"github.com/tbtommyb/goboy/pkg/utils"
 )
 
@@ -31,13 +32,13 @@ const (
 // LCD Control
 
 func (gpu *GPU) getControl() GPUControl {
-	return GPUControl(gpu.cpu.ReadIO(LCDCAddress))
+	return GPUControl(gpu.cpu.ReadIO(c.LCDCAddress))
 }
 
 func (gpu *GPU) setControl(control GPUControl) {
-	gpu.cpu.WriteIO(LCDCAddress, byte(control))
+	gpu.cpu.WriteIO(c.LCDCAddress, byte(control))
 	if !control.isDisplayEnabled() {
-		gpu.cpu.WriteIO(LYAddress, 0)
+		gpu.cpu.WriteIO(c.LYAddress, 0)
 		gpu.resetMatchFlag()
 		gpu.setStatusMode(HBlankMode)
 	}
@@ -82,11 +83,11 @@ func (control GPUControl) isSet(flag GPUControlFlag) bool {
 // LCD Status
 
 func (gpu *GPU) getStatus() GPUStatus {
-	return GPUStatus(gpu.cpu.ReadIO(STATAddress))
+	return GPUStatus(gpu.cpu.ReadIO(c.STATAddress))
 }
 
 func (gpu *GPU) setStatus(status GPUStatus) {
-	gpu.cpu.WriteIO(STATAddress, (byte(status) | 0x80))
+	gpu.cpu.WriteIO(c.STATAddress, (byte(status) | 0x80))
 }
 
 func (status GPUStatus) mode() Mode {

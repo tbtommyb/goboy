@@ -1,6 +1,7 @@
 package cpu
 
 import (
+	c "github.com/tbtommyb/goboy/pkg/constants"
 	"github.com/tbtommyb/goboy/pkg/utils"
 )
 
@@ -24,9 +25,9 @@ func (cpu *CPU) UpdateTimers() {
 		return
 	}
 
-	cpu.WriteIO(TIMAAddress, cpu.ReadIO(TIMAAddress)+1)
-	if cpu.ReadIO(TIMAAddress) == 0 {
-		cpu.WriteIO(TIMAAddress, cpu.ReadIO(TMAAddress))
+	cpu.WriteIO(c.TIMAAddress, cpu.ReadIO(c.TIMAAddress)+1)
+	if cpu.ReadIO(c.TIMAAddress) == 0 {
+		cpu.WriteIO(c.TIMAAddress, cpu.ReadIO(c.TMAAddress))
 		cpu.requestInterrupt(TimerOverflow)
 	}
 	cpu.ResetCyclesForTimerTick()
@@ -37,11 +38,11 @@ func (cpu *CPU) GetInternalTimer() uint16 {
 }
 
 func (cpu *CPU) isTimerEnabled() bool {
-	return utils.IsSet(TimerControlBit, cpu.ReadIO(TACAddress))
+	return utils.IsSet(TimerControlBit, cpu.ReadIO(c.TACAddress))
 }
 
 func (cpu *CPU) getClockFreq() uint16 {
-	return inputClocks[cpu.ReadIO(TACAddress)&InputClockSelectMask]
+	return inputClocks[cpu.ReadIO(c.TACAddress)&InputClockSelectMask]
 }
 
 func (cpu *CPU) ResetCyclesForTimerTick() {

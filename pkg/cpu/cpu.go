@@ -3,6 +3,7 @@ package cpu
 import (
 	"fmt"
 
+	c "github.com/tbtommyb/goboy/pkg/constants"
 	"github.com/tbtommyb/goboy/pkg/decoder"
 	"github.com/tbtommyb/goboy/pkg/display"
 	in "github.com/tbtommyb/goboy/pkg/instructions"
@@ -447,10 +448,10 @@ func (cpu *CPU) emulateBootSequence() {
 	cpu.SetDE(0x00D8)
 	cpu.SetHL(0x014D)
 	cpu.setSP(0xFFFE)
-	cpu.WriteIO(LCDCAddress, 0x91)
-	cpu.WriteIO(BGPAddress, 0xFC)
-	cpu.WriteIO(OBP0Address, 0xFF)
-	cpu.WriteIO(OBP1Address, 0xFF)
+	cpu.WriteIO(c.LCDCAddress, 0x91)
+	cpu.WriteIO(c.BGPAddress, 0xFC)
+	cpu.WriteIO(c.OBP0Address, 0xFF)
+	cpu.WriteIO(c.OBP1Address, 0xFF)
 	cpu.setPC(0x100)
 }
 

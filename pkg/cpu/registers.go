@@ -7,23 +7,6 @@ import (
 	"github.com/tbtommyb/goboy/pkg/utils"
 )
 
-const DIVAddress = 0xFF04
-const TIMAAddress = 0xFF05
-const TMAAddress = 0xFF06
-const TACAddress = 0xFF07
-const LCDCAddress = 0xFF40
-const STATAddress = 0xFF41
-const ScrollYAddress = 0xFF42
-const ScrollXAddress = 0xFF43
-const LYAddress = 0xFF44
-const LYCAddress = 0xFF45
-const BGPAddress = 0xFF47
-const OBP0Address = 0xFF48
-const OBP1Address = 0xFF49
-const WindowYAddress = 0xFF4A
-const WindowXAddress = 0xFF4B
-const JoypadRegisterAddress = 0xFF00
-
 func (cpu *CPU) Get(r registers.Single) byte {
 	switch r {
 	case registers.M:

@@ -1,6 +1,7 @@
 package cpu
 
 import (
+	c "github.com/tbtommyb/goboy/pkg/constants"
 	"github.com/tbtommyb/goboy/pkg/utils"
 )
 
@@ -22,19 +23,14 @@ const (
 	InputInterruptHandlerAddress                = 0x60
 )
 
-const (
-	InterruptFlagAddress   uint16 = 0xFF0F
-	InterruptEnableAddress        = 0xFFFF
-)
-
 var Interrupts = []Interrupt{VBlank, LCDCStatus, TimerOverflow, Input}
 
 func (cpu *CPU) HandleInterrupts() {
-	requested := cpu.memory.Get(InterruptFlagAddress)
+	requested := cpu.memory.Get(c.InterruptFlagAddress)
 	if requested == 0 {
 		return
 	}
-	enabled := cpu.memory.Get(InterruptEnableAddress)
+	enabled := cpu.memory.Get(c.InterruptEnableAddress)
 	if enabled == 0 {
 		return
 	}
@@ -57,11 +53,11 @@ func (cpu *CPU) HandleInterrupts() {
 }
 
 func (cpu *CPU) requestInterrupt(interrupt Interrupt) {
-	cpu.setBitAt(InterruptFlagAddress, byte(interrupt), 1)
+	cpu.setBitAt(c.InterruptFlagAddress, byte(interrupt), 1)
 }
 
 func (cpu *CPU) clearInterrupt(interrupt Interrupt) {
-	cpu.setBitAt(InterruptFlagAddress, byte(interrupt), 0)
+	cpu.setBitAt(c.InterruptFlagAddress, byte(interrupt), 0)
 }
 
 func (cpu *CPU) serviceInterrupt(interrupt Interrupt, returnAddress uint16) {
