@@ -17,7 +17,12 @@ go run cmd/goboy/main.go -bios bios.gb mario.gb
 
 Builds coming soon.
 
-I have tested with Tetris, Zelda, Kirby and Super Mario World. All work so far. Audio needs implemented.  There is some flickering I haven't had time to investigate yet.
+I have tested with Tetris, Zelda, Kirby and Super Mario World. All work so far.
+
+## TODO
+- [ ] Audio needs implemented.
+- [ ] There is some flickering I haven't had time to investigate yet.
+- [ ] Fix unit tests
 
 ## Buttons
 
