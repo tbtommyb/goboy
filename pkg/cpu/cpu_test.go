@@ -28,10 +28,16 @@ func (m *TestMemory) LoadROM(program []byte) {
 	}
 }
 
-func createCPU() CPU {
-	return CPU{
+func createCPU() *CPU {
+	return &CPU{
 		memory: &TestMemory{mem: [0x1000]byte{}},
 		r:      registers.Init(),
+	}
+}
+
+func run(cpu *CPU, instructions []in.Instruction) {
+	for _, _ = range instructions {
+		cpu.Step()
 	}
 }
 
@@ -61,9 +67,7 @@ func TestIncrementPC(t *testing.T) {
 		cpu := createCPU()
 		initialPC := cpu.GetPC()
 		cpu.LoadROM(encode(test.instructions))
-		for _, _ = range test.instructions {
-			cpu.Step()
-		}
+		run(cpu, test.instructions)
 
 		if currentPC := cpu.GetPC(); currentPC-initialPC != test.expected {
 			t.Errorf("Incorrect PC value. Expected %d, got %d", test.expected, currentPC-initialPC-1)
@@ -71,33 +75,33 @@ func TestIncrementPC(t *testing.T) {
 	}
 }
 
-// func TestStack(t *testing.T) {
-// 	cpu := Init()
+func TestStack(t *testing.T) {
+	cpu := createCPU()
+	cpu.setSP(0x900)
 
-// 	cpu.memory.load(0x2000, in.Halt{}.Opcode())
-// 	cpu.LoadProgram(encode([]in.Instruction{
-// 		in.LoadRegisterPairImmediate{Dest: registers.BC, Immediate: 0x1200},
-// 		in.Push{Source: registers.BC},
-// 		in.Pop{Dest: registers.AF},
-// 		in.Push{Source: registers.AF},
-// 		in.Pop{Dest: registers.DE},
-// 		in.Move{Dest: registers.A, Source: registers.C},
-// 		in.AndImmediate{Immediate: 0xF0},
-// 		in.Cmp{Source: registers.E},
-// 		in.JumpImmediateConditional{Condition: conditions.NZ, Immediate: 0x2000},
-// 		in.Increment{Dest: registers.B},
-// 		in.Increment{Dest: registers.C},
-// 		in.JumpImmediateConditional{Condition: conditions.NZ, Immediate: 0x103},
-// 	}))
-// 	cpu.Run()
+	push := []in.Instruction{
+		in.Push{Source: registers.BC},
+		in.Push{Source: registers.AF},
+		in.Push{Source: registers.BC},
+		in.Push{Source: registers.AF},
+	}
+	pop := []in.Instruction{
+		in.Pop{Dest: registers.DE},
+		in.Pop{Dest: registers.AF},
+		in.Pop{Dest: registers.BC},
+		in.Pop{Dest: registers.DE},
+	}
+	cpu.LoadROM(encode(append(push, pop...)))
+	run(cpu, push)
+	if sp := cpu.GetSP(); sp != 0x8F8 {
+		t.Errorf("Test failed, invalid SP: %x\n", sp)
+	}
 
-// 	if pc := cpu.GetPC(); pc-1 == 0x2000 {
-// 		t.Errorf("Test failed, invalid PC: %x\n", pc)
-// 	}
-// 	if actual := cpu.isSet(Zero); actual != true {
-// 		t.Errorf("Expected flag to be zero")
-// 	}
-// }
+	run(cpu, pop)
+	if sp := cpu.GetSP(); sp != 0x900 {
+		t.Errorf("Test failed, invalid SP: %x\n", sp)
+	}
+}
 
 // func TestSetGetHL(t *testing.T) {
 // 	var expected uint16 = 0x1000
