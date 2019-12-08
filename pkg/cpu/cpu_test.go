@@ -1,48 +1,75 @@
 package cpu
 
-// import (
-// 	"fmt"
-// 	"testing"
+import (
+	"testing"
 
-// 	"github.com/tbtommyb/goboy/pkg/conditions"
-// 	in "github.com/tbtommyb/goboy/pkg/instructions"
-// 	"github.com/tbtommyb/goboy/pkg/registers"
-// )
+	in "github.com/tbtommyb/goboy/pkg/instructions"
+	"github.com/tbtommyb/goboy/pkg/registers"
+)
 
-// func encode(instructions []in.Instruction) []byte {
-// 	var opcodes []byte
-// 	instructions = append(instructions, in.Halt{})
-// 	for _, instruction := range instructions {
-// 		instrOpcodes := instruction.Opcode()
-// 		for _, instrOpcode := range instrOpcodes {
-// 			opcodes = append(opcodes, instrOpcode)
-// 		}
-// 	}
-// 	return opcodes
-// }
+type TestMemory struct {
+	mem [0x1000]byte
+}
 
-// func TestIncrementPC(t *testing.T) {
-// 	testCases := []struct {
-// 		instructions []in.Instruction
-// 		expected     uint16
-// 	}{
-// 		{instructions: []in.Instruction{}, expected: 0},
-// 		{instructions: []in.Instruction{in.Move{Source: registers.A, Dest: registers.B}}, expected: 1},
-// 		{instructions: []in.Instruction{in.Move{Source: registers.A, Dest: registers.B}, in.Move{Source: registers.B, Dest: registers.C}}, expected: 2},
-// 	}
+func (m *TestMemory) Get(address uint16) byte {
+	return m.mem[address]
+}
 
-// 	for _, test := range testCases {
-// 		cpu := Init()
-// 		initialPC := cpu.GetPC()
-// 		cpu.LoadProgram(encode(test.instructions))
-// 		cpu.Run()
+func (m *TestMemory) Set(address uint16, value byte) {
+	m.mem[address] = value
+}
 
-// 		// -1 to account for Halt
-// 		if currentPC := cpu.GetPC(); currentPC-initialPC-1 != test.expected {
-// 			t.Errorf("Incorrect PC value. Expected %d, got %d", test.expected, currentPC-initialPC-1)
-// 		}
-// 	}
-// }
+func (m *TestMemory) LoadBIOS(program []byte) {
+}
+
+func (m *TestMemory) LoadROM(program []byte) {
+	for i := 0; i < len(program); i++ {
+		m.mem[i] = program[i]
+	}
+}
+
+func createCPU() CPU {
+	return CPU{
+		memory: &TestMemory{mem: [0x1000]byte{}},
+		r:      registers.Init(),
+	}
+}
+
+func encode(instructions []in.Instruction) []byte {
+	var opcodes []byte
+	instructions = append(instructions, in.Halt{})
+	for _, instruction := range instructions {
+		instrOpcodes := instruction.Opcode()
+		for _, instrOpcode := range instrOpcodes {
+			opcodes = append(opcodes, instrOpcode)
+		}
+	}
+	return opcodes
+}
+
+func TestIncrementPC(t *testing.T) {
+	testCases := []struct {
+		instructions []in.Instruction
+		expected     uint16
+	}{
+		{instructions: []in.Instruction{}, expected: 0},
+		{instructions: []in.Instruction{in.Move{Source: registers.A, Dest: registers.B}}, expected: 1},
+		{instructions: []in.Instruction{in.Move{Source: registers.A, Dest: registers.B}, in.Move{Source: registers.B, Dest: registers.C}}, expected: 2},
+	}
+
+	for _, test := range testCases {
+		cpu := createCPU()
+		initialPC := cpu.GetPC()
+		cpu.LoadROM(encode(test.instructions))
+		for _, _ = range test.instructions {
+			cpu.Step()
+		}
+
+		if currentPC := cpu.GetPC(); currentPC-initialPC != test.expected {
+			t.Errorf("Incorrect PC value. Expected %d, got %d", test.expected, currentPC-initialPC-1)
+		}
+	}
+}
 
 // func TestStack(t *testing.T) {
 // 	cpu := Init()
