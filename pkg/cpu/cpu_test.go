@@ -43,10 +43,8 @@ func run(cpu *CPU, instructions []in.Instruction) {
 
 func encode(instructions []in.Instruction) []byte {
 	var opcodes []byte
-	instructions = append(instructions, in.Halt{})
 	for _, instruction := range instructions {
-		instrOpcodes := instruction.Opcode()
-		for _, instrOpcode := range instrOpcodes {
+		for _, instrOpcode := range instruction.Opcode() {
 			opcodes = append(opcodes, instrOpcode)
 		}
 	}
@@ -80,26 +78,32 @@ func TestStack(t *testing.T) {
 	cpu.setSP(0x900)
 
 	push := []in.Instruction{
+		in.LoadRegisterPairImmediate{Dest: registers.BC, Immediate: 0x1122},
+		in.LoadRegisterPairImmediate{Dest: registers.DE, Immediate: 0x3344},
 		in.Push{Source: registers.BC},
-		in.Push{Source: registers.AF},
-		in.Push{Source: registers.BC},
-		in.Push{Source: registers.AF},
+		in.Push{Source: registers.DE},
 	}
 	pop := []in.Instruction{
+		in.LoadRegisterPairImmediate{Dest: registers.BC, Immediate: 0x0},
+		in.LoadRegisterPairImmediate{Dest: registers.DE, Immediate: 0x0},
 		in.Pop{Dest: registers.DE},
-		in.Pop{Dest: registers.AF},
 		in.Pop{Dest: registers.BC},
-		in.Pop{Dest: registers.DE},
 	}
 	cpu.LoadROM(encode(append(push, pop...)))
 	run(cpu, push)
-	if sp := cpu.GetSP(); sp != 0x8F8 {
-		t.Errorf("Test failed, invalid SP: %x\n", sp)
+	if actual := cpu.GetSP(); actual != 0x8FC {
+		t.Errorf("Test failed, invalid SP: %x\n", actual)
 	}
 
 	run(cpu, pop)
-	if sp := cpu.GetSP(); sp != 0x900 {
-		t.Errorf("Test failed, invalid SP: %x\n", sp)
+	if actual := cpu.GetSP(); actual != 0x900 {
+		t.Errorf("Test failed, invalid SP: %x\n", actual)
+	}
+	if actual := cpu.GetBC(); actual != 0x1122 {
+		t.Errorf("Test failed, invalid BC: %x\n", actual)
+	}
+	if actual := cpu.GetDE(); actual != 0x3344 {
+		t.Errorf("Test failed, invalid DE: %x\n", actual)
 	}
 }
 
