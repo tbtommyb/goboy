@@ -459,7 +459,7 @@ type JumpRelative struct {
 }
 
 func (i JumpRelative) Opcode() []byte {
-	return []byte{JumpRelativePattern, byte(i.Immediate - 2)}
+	return []byte{JumpRelativePattern, byte(i.Immediate)}
 }
 
 type JumpRelativeConditional struct {
@@ -468,7 +468,7 @@ type JumpRelativeConditional struct {
 }
 
 func (i JumpRelativeConditional) Opcode() []byte {
-	return []byte{JumpRelativeConditionalPattern | byte(i.Condition<<ConditionShift), byte(i.Immediate - 2)}
+	return []byte{JumpRelativeConditionalPattern | byte(i.Condition<<ConditionShift), byte(i.Immediate)}
 }
 
 type JumpMemory struct{}

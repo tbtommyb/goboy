@@ -1,6 +1,9 @@
 package cpu
 
-import "github.com/tbtommyb/goboy/pkg/registers"
+import (
+	c "github.com/tbtommyb/goboy/pkg/constants"
+	"github.com/tbtommyb/goboy/pkg/registers"
+)
 
 // TODO: create separate stack structure
 func (cpu *CPU) GetSP() uint16 {
@@ -19,6 +22,9 @@ func (cpu *CPU) incrementSP() {
 
 func (cpu *CPU) decrementSP() {
 	cpu.SP -= 1
+	if cpu.SP > c.StackStartAddress {
+		cpu.SP = c.StackStartAddress
+	}
 }
 
 func (cpu *CPU) pushStack(val byte) byte {

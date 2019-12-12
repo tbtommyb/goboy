@@ -1,26 +1,30 @@
 package memory
 
-import "testing"
+import (
+	"testing"
+
+	c "github.com/tbtommyb/goboy/pkg/constants"
+)
 
 func TestRegisterWriteMasks(t *testing.T) {
 	testCases := []struct {
 		address         uint16
 		expected, input byte
 	}{
-		{address: InterruptFlagAddress, input: 0x0, expected: 0xE0},
-		{address: InterruptEnableAddress, input: 0xAA, expected: 0xAA},
-		{address: TMAAddress, input: 0xFF, expected: 0xFF},
-		{address: TMAAddress, input: 0xAA, expected: 0xAA},
-		{address: TIMAAddress, input: 0xFF, expected: 0xFF},
-		{address: TIMAAddress, input: 0xAA, expected: 0xAA},
-		{address: TACAddress, input: 0x3, expected: 0xFB},
-		{address: LCDCAddress, input: 0xAA, expected: 0xAA},
-		{address: LYCAddress, input: 0xAA, expected: 0xAA},
-		{address: STATAddress, input: 0x7F, expected: 0xF8},
-		{address: ScrollXAddress, input: 0xAA, expected: 0xAA},
-		{address: ScrollYAddress, input: 0xAA, expected: 0xAA},
-		{address: WindowXAddress, input: 0xAA, expected: 0xAA},
-		{address: WindowYAddress, input: 0xAA, expected: 0xAA},
+		{address: c.InterruptFlagAddress, input: 0x0, expected: 0xE0},
+		{address: c.InterruptEnableAddress, input: 0xAA, expected: 0xAA},
+		{address: c.TMAAddress, input: 0xFF, expected: 0xFF},
+		{address: c.TMAAddress, input: 0xAA, expected: 0xAA},
+		{address: c.TIMAAddress, input: 0xFF, expected: 0xFF},
+		{address: c.TIMAAddress, input: 0xAA, expected: 0xAA},
+		{address: c.TACAddress, input: 0x3, expected: 0xFB},
+		{address: c.LCDCAddress, input: 0xAA, expected: 0xAA},
+		{address: c.LYCAddress, input: 0xAA, expected: 0xAA},
+		{address: c.STATAddress, input: 0x7F, expected: 0xF8},
+		{address: c.ScrollXAddress, input: 0xAA, expected: 0xAA},
+		{address: c.ScrollYAddress, input: 0xAA, expected: 0xAA},
+		{address: c.WindowXAddress, input: 0xAA, expected: 0xAA},
+		{address: c.WindowYAddress, input: 0xAA, expected: 0xAA},
 	}
 
 	for _, test := range testCases {
@@ -36,9 +40,9 @@ func TestRegisterWriteMasks(t *testing.T) {
 func XTestDividerWrite(t *testing.T) {
 	m := createMem()
 
-	m.Set(DIVAddress, 0x12)
+	m.Set(c.DIVAddress, 0x12)
 
-	if actual := m.Get(DIVAddress); actual != 0 {
+	if actual := m.Get(c.DIVAddress); actual != 0 {
 		t.Errorf("Expected write to DIV to reset DIV to 0, got %x\n", actual)
 	}
 	if actual := m.cpu.GetInternalTimer(); actual != 0 {
@@ -49,11 +53,11 @@ func XTestDividerWrite(t *testing.T) {
 func TestLYReset(t *testing.T) {
 	var initial byte = 0x12
 	m := createMem()
-	m.cpu.WriteIO(LYAddress, initial)
+	m.cpu.WriteIO(c.LYAddress, initial)
 
-	m.Set(LYAddress, 0x55)
+	m.Set(c.LYAddress, 0x55)
 
-	if actual := m.Get(LYAddress); actual != 0 {
+	if actual := m.Get(c.LYAddress); actual != 0 {
 		t.Errorf("Write to LY should reset, got %x\n", actual)
 	}
 }

@@ -28,4 +28,5 @@ const (
 	JoypadRegisterAddress         = 0xFF00
 	InterruptFlagAddress          = 0xFF0F
 	InterruptEnableAddress        = 0xFFFF
+	StackStartAddress             = 0xFFFE
 )

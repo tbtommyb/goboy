@@ -50,7 +50,6 @@ const ROMBankNumberLimit = 0x4000
 const RAMBankNumberLimit = 0x6000
 const ROMRAMModeSelectLimit = 0x8000
 const ProgramStartAddress = 0x100
-const StackStartAddress = 0xFFFE
 const OAMStart = 0xFE00
 const TACMask = 0x7
 const DMAAddress = 0xFF46
