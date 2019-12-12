@@ -14,6 +14,8 @@ import (
 
 var GameboyClockSpeed = 4194304 / 4 // four clocks per op
 
+const ClocksPerCycle uint = 4
+
 type CPU struct {
 	r                    *registers.Registers
 	flags                byte
@@ -54,11 +56,11 @@ func (cpu *CPU) Step() uint {
 	}
 
 	if cpu.halt {
-		return 4 // nop
+		return ClocksPerCycle // nop
 	}
 	if cpu.stop {
 		cpu.stop = false
-		return 4 // nop
+		return ClocksPerCycle // nop
 	}
 
 	// TODO: find more efficient solution
@@ -69,7 +71,7 @@ func (cpu *CPU) Step() uint {
 	initialCycles := cpu.GetCycles()
 	instr := decoder.Decode(cpu)
 	cpu.Execute(instr)
-	return 4 * (cpu.GetCycles() - initialCycles)
+	return ClocksPerCycle * (cpu.GetCycles() - initialCycles)
 }
 
 func Init(loadBIOS bool) *CPU {
@@ -324,7 +326,6 @@ func (cpu *CPU) Execute(instr in.Instruction) {
 			cpu.setPC(i.Immediate)
 		}
 	case in.JumpRelative:
-		// -2 to account for decoder having moved past immediate value. Refactor?
 		cpu.setPC(cpu.GetPC() + uint16(i.Immediate))
 	case in.JumpRelativeConditional:
 		if cpu.conditionMet(i.Condition) {
