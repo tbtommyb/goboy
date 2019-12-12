@@ -31,6 +31,7 @@ I have tested with Tetris, Zelda, Kirby and Super Mario World. All work so far.
 - [ ] Audio needs implemented.
 - [ ] There is some flickering I haven't had time to investigate yet.
 - [x] Fix unit tests
+- [ ] Implement MBC3 (for Pokemon).
 
 ## Buttons
 
