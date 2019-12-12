@@ -34,27 +34,27 @@ func main() {
 	var bios, rom []byte
 	var err error
 
-	providedArgs := os.Args[1:]
-	if len(providedArgs) == 0 {
-		log.Fatalf("ROM path not provided")
+	ex, err := os.Executable()
+	if err != nil {
+		panic(err)
 	}
 
 	biosPtr := flag.String("bios", "", "BIOS path to read from")
 	flag.Parse()
 
+	if len(flag.Args()) == 0 {
+		log.Fatalf("ROM path not provided")
+	}
+
 	if *biosPtr != "" {
-		bios, err = ioutil.ReadFile(*biosPtr)
+		bios, err = ioutil.ReadFile(filepath.Join(filepath.Dir(ex), *biosPtr))
 		if err != nil {
 			log.Fatalf("Error reading BIOS ROM %s", err.Error())
 		}
 		loadBIOS = true
 	}
 
-	ex, err := os.Executable()
-	if err != nil {
-		panic(err)
-	}
-	rom, err = ioutil.ReadFile(filepath.Join(filepath.Dir(ex), os.Args[1]))
+	rom, err = ioutil.ReadFile(filepath.Join(filepath.Dir(ex), flag.Args()[0]))
 	if err != nil {
 		log.Fatalf("Error reading ROM %s", err.Error())
 	}
