@@ -7,7 +7,7 @@ A Gameboy emulator written in Go. Follow progress [here](https://tmjohnson.co.uk
 ## Running
 
 ```sh
-GO111MODULE=on go build cmd/goboy/main.go
+GO111MODULE=on go build -o goboy cmd/goboy/main.go
 ./goboy YOUR_ROM_HERE
 ```
 
