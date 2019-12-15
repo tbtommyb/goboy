@@ -24,7 +24,6 @@ type TestOutcome struct {
 }
 
 func worker(id int, jobs <-chan string, results chan<- *TestOutcome, wg *sync.WaitGroup) {
-	wg.Add(1)
 	defer wg.Done()
 	for job := range jobs {
 		outcome := runTest(job)
@@ -80,6 +79,7 @@ func main() {
 	results := make(chan *TestOutcome, 100)
 
 	for w := 1; w <= 4; w++ {
+		wg.Add(1)
 		go worker(w, paths, results, &wg)
 	}
 
