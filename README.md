@@ -4,6 +4,8 @@ A Gameboy emulator written in Go. Follow progress [here](https://tmjohnson.co.uk
 
 ![Mario screenshot](mario.png)
 
+Play in your browser [here](https://www.tmjohnson.co.uk/goboy/).
+
 ## Running
 
 ```sh

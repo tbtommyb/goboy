@@ -1,30 +1,25 @@
 <html>
   <head>
-    <meta charset="utf-8"/>
-    <script src="wasm_exec.js"></script>
-  </head>
-  <body>
-    <input type="file" id="rom" onchange="handleROM(this.files[0])">
-    <script>
-      // Polyfill
-      if (!WebAssembly.instantiateStreaming) {
-        WebAssembly.instantiateStreaming = async (resp, importObject) => {
-          const source = await (await resp).arrayBuffer();
-          return await WebAssembly.instantiate(source, importObject);
-        };
-      }
-      const go = new Go();
-      WebAssembly.instantiateStreaming(fetch("goboy.wasm"), go.importObject).then(result => {
-        go.run(result.instance);
-      });
-
+    <title>Goboy</title>
+        <script>
+      goboy = document.getElementById("goboy").contentWindow;
       function handleROM(file) {
           const reader = new FileReader();
           reader.onload = () => {
-              window.loadROM(file.name, reader.result);
+              goboy.postMessage({name: file.name, data: reader.result}, "*");
           };
           reader.readAsBinaryString(file);
       };
     </script>
+
+  </head>
+  <body>
+    <iframe src="ebiten.html" id="goboy" height="288" width="320"></iframe>
+    <div>
+      <label for="id">Choose ROM: </label>
+      <input type="file" id="rom" onchange="handleROM(this.files[0])">
+    </div>
   </body>
+  <style>
+  </style>
 </html>
