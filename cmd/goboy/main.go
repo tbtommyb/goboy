@@ -59,6 +59,7 @@ func main() {
 		log.Fatalf("Error reading ROM %s", err.Error())
 	}
 
+	fmt.Printf("%x\n", rom[:1000])
 	gameboy := cpu.Init(loadBIOS)
 	gameboy.LoadROM(rom)
 	if loadBIOS {

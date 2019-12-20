@@ -1,0 +1,4 @@
+#!/bin/sh
+
+GO111MODULE=on GOOS=js GOARCH=wasm go build -o builds/wasm/goboy.wasm cmd/goboy-wasm/main.go
+GO111MODULE=on go build -o builds/goboy cmd/goboy/main.go
