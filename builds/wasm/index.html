@@ -1,7 +1,14 @@
 <html>
   <head>
     <title>Goboy</title>
-        <script>
+  </head>
+  <body>
+    <iframe src="wasm.html" id="goboy" height="288" width="320"></iframe>
+    <div>
+      <label for="id">Choose ROM: </label>
+      <input type="file" id="rom" onchange="handleROM(this.files[0])">
+    </div>
+    <script>
       goboy = document.getElementById("goboy").contentWindow;
       function handleROM(file) {
           const reader = new FileReader();
@@ -11,15 +18,5 @@
           reader.readAsBinaryString(file);
       };
     </script>
-
-  </head>
-  <body>
-    <iframe src="wasm.html" id="goboy" height="288" width="320"></iframe>
-    <div>
-      <label for="id">Choose ROM: </label>
-      <input type="file" id="rom" onchange="handleROM(this.files[0])">
-    </div>
   </body>
-  <style>
-  </style>
 </html>
